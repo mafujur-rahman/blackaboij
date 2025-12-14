@@ -80,7 +80,7 @@ export default function Navbar() {
                                 onSubmit={handleSearch}
                                 className="hidden md:block w-full max-w-xs ml-2"
                             >
-                                <div className="relative rounded-full border border-white/50 px-4 py-2">
+                                <div className="relative rounded-full border border-white/40 px-4 py-2">
                                     <input
                                         type="text"
                                         value={searchQuery}
