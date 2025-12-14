@@ -73,14 +73,14 @@ const CategoryTab = ({ category, isActive, onClick }) => (
 );
 
 // Main Component
-const NewArrivals = () => {
+const HotSale = () => {
   const [activeCategory, setActiveCategory] = useState('Men');
 
   return (
     <div className="min-h-screen mt-12.5 mb-25">
       <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
         <h1 className="text-center text-3xl font-bold text-black">
-          New Arrivals
+          Hot Sale
         </h1>
 
         {/* Category Tabs */}
@@ -108,4 +108,4 @@ const NewArrivals = () => {
   );
 };
 
-export default NewArrivals;
+export default HotSale;
