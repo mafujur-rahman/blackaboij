@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { IoLogoFacebook, IoLogoInstagram, IoLogoYoutube } from "react-icons/io5";
 import { FaPinterest } from "react-icons/fa6";
+import AnimatedButton from "@/components/utils/AnimatedButton";
 
 const SOCIAL_LINKS = [
     { icon: IoLogoFacebook, href: "https://www.facebook.com/BBOIJ", label: "Facebook" },
@@ -46,13 +47,9 @@ const Banner = () => {
                     LIFE IS MADE OF CHOICE
                 </h1>
 
-                <div className="flex gap-4 sm:flex-row sm:gap-6">
-                    <button className="bg-black text-[12px] md:text-[16px] font-normal md:font-bold px-8 py-2 md:px-10 md:py-3">
-                        Shop Men
-                    </button>
-                    <button className="bg-black text-[12px] md:text-[16px] font-normal md:font-bold px-8 py-2 md:px-10 md:py-3">
-                        Shop Women
-                    </button>
+                <div className="flex gap-4 flex-row sm:gap-6">
+                    <AnimatedButton variant="black">Shop Men</AnimatedButton>
+                    <AnimatedButton variant="black">Shop Women</AnimatedButton>
                 </div>
             </div>
 

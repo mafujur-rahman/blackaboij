@@ -60,7 +60,7 @@ export default function Navbar() {
     };
 
     return (
-        <nav className="bg-black text-white sticky top-0 z-50">
+        <nav className="bg-black text-white top-0 z-50">
             {/* ================= TOP BAR (FULL WIDTH BORDER) ================= */}
             <div className="md:border-b md:border-white/50">
                 <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
