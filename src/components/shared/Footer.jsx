@@ -71,11 +71,11 @@ const Footer = () => {
                             INFORMATION
                         </h3>
                         <nav>
-                            <FooterLink href="/info/return-policy">Return Policy</FooterLink>
-                            <FooterLink href="/info/terms-of-conditions">
+                            <FooterLink href="/return-policy">Return Policy</FooterLink>
+                            <FooterLink href="/terms-conditions">
                                 Terms of Conditions
                             </FooterLink>
-                            <FooterLink href="/info/shipping-policy">Shipping Policy</FooterLink>
+                            <FooterLink href="/shipping-policy">Shipping Policy</FooterLink>
                         </nav>
                     </div>
 

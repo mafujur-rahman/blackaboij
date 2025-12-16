@@ -39,8 +39,8 @@ const navLinks = [
   {
     name: "Accessories",
     dropdown: [
-      { name: "Men's Accessories", href: "/accessories/mens" },
-      { name: "Women's Accessories", href: "/accessories/womens" },
+      { name: "Men's Accessories", href: "/men-accesories" },
+      { name: "Women's Accessories", href: "/women-accesories" },
     ],
   },
   {

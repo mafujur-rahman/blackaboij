@@ -1,9 +1,9 @@
 import React from "react";
 import Image from "next/image";
 import { FiHeart } from "react-icons/fi";
-import AnimatedButton from "../utils/AnimatedButton";
+import AnimatedButton from "../../../utils/AnimatedButton";
 
-const MenPantsArea = () => {
+const MenHoodiesSweatersArea = () => {
     // Sample products (can be replaced with real data)
     const products = [
         {
@@ -82,4 +82,4 @@ const MenPantsArea = () => {
     );
 };
 
-export default MenPantsArea;
+export default MenHoodiesSweatersArea;

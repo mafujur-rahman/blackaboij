@@ -1,9 +1,9 @@
 import React from "react";
 import Image from "next/image";
 import { FiHeart } from "react-icons/fi";
-import AnimatedButton from "../utils/AnimatedButton";
+import AnimatedButton from "../../../utils/AnimatedButton";
 
-const MenTeesArea = () => {
+const MenShoesArea = () => {
     // Sample products (can be replaced with real data)
     const products = [
         {
@@ -13,13 +13,13 @@ const MenTeesArea = () => {
             image: "/images/new.webp",
             isNew: true,
         },
-        // {
-        //     id: 2,
-        //     name: "Blackaboij Men's T-Shirt - Black Edition",
-        //     price: "€45",
-        //     image: "/images/new.webp",
-        //     isNew: false,
-        // },
+        {
+            id: 2,
+            name: "Blackaboij Men's T-Shirt - Black Edition",
+            price: "€45",
+            image: "/images/new.webp",
+            isNew: false,
+        },
         
     ];
 
@@ -69,17 +69,17 @@ const MenTeesArea = () => {
     );
 
     return (
-        <div className=" my-12.5 ">
+        <div className="min-h-screen my-12.5 ">
             <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
                 {/* Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map((product) => (
                         <ProductCard key={product.id} product={product} />
                     ))}
-                </div>
+                </div> */}
             </div>
         </div>
     );
 };
 
-export default MenTeesArea;
+export default MenShoesArea;

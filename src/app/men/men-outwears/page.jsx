@@ -1,4 +1,4 @@
-import MenOutwearHome from '@/components/men-outwear/MenOutwearHome';
+import MenOutwearHome from '@/components/pages/men/men-outwear/MenOutwearHome';
 import React from 'react';
 
 const MenOutwearPage = () => {

@@ -1,5 +1,5 @@
-import MenOutwearHome from '@/components/men-outwear/MenOutwearHome';
-import WomenOutwearHome from '@/components/women/women-outwear/WomenOutwearHome';
+import MenOutwearHome from '@/components/pages/men/men-outwear/MenOutwearHome';
+import WomenOutwearHome from '@/components/pages/women/women-outwear/WomenOutwearHome';
 import React from 'react';
 
 const WomenOutwearPage = () => {
