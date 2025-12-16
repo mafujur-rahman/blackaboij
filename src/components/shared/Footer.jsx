@@ -48,9 +48,9 @@ const Footer = () => {
                             COLLECTIONS
                         </h3>
                         <nav className="text-lg">
-                            <FooterLink href="/collections/men">Men</FooterLink>
-                            <FooterLink href="/collections/women">Women</FooterLink>
-                            <FooterLink href="/collections/accessories">Accessories</FooterLink>
+                            <FooterLink href="/men/men-collection">Men</FooterLink>
+                            <FooterLink href="/women/women-collection">Women</FooterLink>
+                            <FooterLink href="/accessories">Accessories</FooterLink>
                         </nav>
                     </div>
 
