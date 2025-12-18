@@ -61,7 +61,7 @@ export default function DashboardShell({ children }) {
                             <span>Products List</span>
                         </Link>
 
-                        <Link href="/dashboard/add" className={`${linkClass} ${isActive("/dashboard/add")}`}>
+                        <Link href="/dashboard/add-product" className={`${linkClass} ${isActive("/dashboard/add-product")}`}>
                             <FiPlusSquare className="text-xl" />
                             <span>Add Products</span>
                         </Link>
