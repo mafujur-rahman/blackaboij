@@ -61,36 +61,36 @@ export default function DashboardShell({ children }) {
                             <span>Products List</span>
                         </Link>
 
-                        <Link href="/products/add" className={`${linkClass} ${isActive("/products/add")}`}>
+                        <Link href="/dashboard/add" className={`${linkClass} ${isActive("/dashboard/add")}`}>
                             <FiPlusSquare className="text-xl" />
                             <span>Add Products</span>
                         </Link>
 
-                        <Link href="/products/category" className={`${linkClass} ${isActive("/products/category")}`}>
+                        <Link href="/dashboard/category" className={`${linkClass} ${isActive("/dashboard/category")}`}>
                             <FiLayers className="text-xl" />
                             <span>Category</span>
                         </Link>
 
-                        <Link href="/products/size" className={`${linkClass} ${isActive("/products/size")}`}>
+                        <Link href="/dashboard/size" className={`${linkClass} ${isActive("/dashboard/size")}`}>
                             <FiMaximize className="text-xl" />
                             <span>Size</span>
                         </Link>
 
-                        <Link href="/products/color" className={`${linkClass} ${isActive("/products/color")}`}>
+                        <Link href="/dashboard/color" className={`${linkClass} ${isActive("/dashboard/color")}`}>
                             <FiDroplet className="text-xl" />
                             <span>Color</span>
                         </Link>
 
                         <p className="mt-5 mb-2 text-[16px] text-white/50">Order</p>
 
-                        <Link href="/orders" className={`${linkClass} ${isActive("/orders")}`}>
+                        <Link href="/dashboard/order-list" className={`${linkClass} ${isActive("/dashboard/order-list")}`}>
                             <FiShoppingCart className="text-xl" />
                             <span>Order List</span>
                         </Link>
 
                         <p className="mt-5 mb-2 text-[16px] text-white/50">All User</p>
 
-                        <Link href="/users" className={`${linkClass} ${isActive("/users")}`}>
+                        <Link href="/dashboard/customer-list" className={`${linkClass} ${isActive("/dashboard/customer-list")}`}>
                             <FiUsers className="text-xl" />
                             <span>Customer List</span>
                         </Link>
