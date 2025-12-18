@@ -49,7 +49,7 @@ const CustomerList = () => {
                         </Link>
                         <ChevronRight size={14} />
                         <Link href="/customer-list" className="flex items-center space-x-1 hover:text-purple-600">
-                            <span>Customer</span>
+                            <span>All User</span>
                         </Link>
 
                         <ChevronRight size={14} />
