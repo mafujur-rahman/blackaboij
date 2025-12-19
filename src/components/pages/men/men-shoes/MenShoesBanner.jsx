@@ -3,7 +3,7 @@ import React from 'react';
 const MenShoesBanner = () => {
     return (
         <div className='bg-black flex justify-center items-center h-[30vh]'>
-            <h1 className='text-sm md:text-xl xl:text-2xl text-white font-normal uppercase'>Men Shoes Collections</h1>
+            <h1 className='text-sm md:text-xl xl:text-2xl text-white font-normal uppercase italic'>Men Shoes Collections</h1>
 
         </div>
     );

@@ -11,6 +11,7 @@ import {
   FiChevronDown,
 } from "react-icons/fi";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
 
 const navLinks = [
@@ -36,20 +37,13 @@ const navLinks = [
       { name: "Shoes", href: "/women/women-shoes" },
     ],
   },
-  {
-    name: "Accessories",
-    dropdown: [
-      { name: "Men's Accessories", href: "/men-accesories" },
-      { name: "Women's Accessories", href: "/women-accesories" },
-    ],
-  },
-  {
-    name: "Store",
-    href: "/store",
-  },
+  { name: "Accessories", href: "/accessories" },
+  { name: "Store", href: "/store" },
 ];
 
 export default function Navbar() {
+  const router = useRouter();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,7 +52,13 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
+
+    if (!searchQuery.trim()) return;
+
+    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+
     setMobileSearchOpen(false);
+    setIsMenuOpen(false);
   };
 
   return (
@@ -66,7 +66,7 @@ export default function Navbar() {
       <nav className="bg-black text-white top-0 z-50">
         {/* ================= TOP BAR ================= */}
         <div className="md:border-b md:border-white/50">
-          <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
+          <div className="px-4 lg:px-12 xl:px-12.5">
             <div className="relative flex items-center h-20">
               {/* LEFT */}
               <div className="flex items-center w-1/3">
@@ -80,9 +80,9 @@ export default function Navbar() {
                 {/* Desktop Search */}
                 <form
                   onSubmit={handleSearch}
-                  className="hidden md:block w-full max-w-xs ml-2"
+                  className="hidden md:block w-full max-w-[270px] ml-2"
                 >
-                  <div className="relative rounded-full border border-white/40 px-4 py-2">
+                  <div className="relative rounded-full border border-white/40 px-4 py-1.5">
                     <input
                       type="text"
                       value={searchQuery}
@@ -90,50 +90,53 @@ export default function Navbar() {
                       placeholder="Search products..."
                       className="bg-transparent text-sm text-gray-300 placeholder-gray-300 focus:outline-none w-full pr-8"
                     />
-                    <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                    <button type="submit">
+                      <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                    </button>
                   </div>
                 </form>
               </div>
 
-              {/* LOGO */}
-              <div className="absolute left-1/2 -translate-x-1/2">
+              {/* LOGO */} <div className="absolute left-1/2 -translate-x-1/2">
                 <Link href="/">
-                  <Image
-                    src="/images/logo-white.png"
+                  <Image src="/images/logo-white.png"
                     alt="Logo"
-                    className="w-[80px] md:w-[120px] lg:w-[140px]"
-                    width={140}
-                    height={40}
-                    priority
-                  />
+                    className="w-[100px] md:w-[120px] lg:w-[140px] xl:w-[160px]"
+                    width={540}
+                    height={540}
+                    priority />
                 </Link>
               </div>
 
               {/* RIGHT */}
               <div className="flex items-center ml-auto">
-                <Link href="/signin" className="p-2">
-                  <FiUser size={20} />
+                <Link href="/signin" className="p-0 md:p-2 ">
+                  <FiUser className="w-4 h-4 md:w-5 md:h-5" />
                 </Link>
 
-                <button onClick={() => setIsCartOpen(true)} className="p-2">
-                  <FiShoppingBag size={20} />
+                <button onClick={() => setIsCartOpen(true)} className="p-1 md:p-2 ">
+                  <FiShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
 
-                {/* Mobile Search Toggle */}
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="md:hidden p-2"
+                  className="md:hidden p-1 md:p-2 "
                 >
-                  {mobileSearchOpen ? <FiX size={20} /> : <FiSearch size={20} />}
+                  {mobileSearchOpen ? (
+                    <FiX className="w-4 h-4" />
+                  ) : (
+                    <FiSearch className="w-4 h-4" />
+                  )}
                 </button>
 
-                <Link href="/" className="hidden md:block p-2">
-                  <FiHeart size={20} />
+                <Link href="/" className="hidden md:block p-1 md:p-2 ">
+                  <FiHeart className="w-5 h-5" />
                 </Link>
               </div>
+
             </div>
 
-            {/* ===== MOBILE SEARCH FIELD (CENTERED UNDER LOGO) ===== */}
+            {/* MOBILE SEARCH */}
             {mobileSearchOpen && (
               <form
                 onSubmit={handleSearch}
@@ -145,31 +148,29 @@ export default function Navbar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search products..."
-                    className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 placeholder-gray-400 focus:outline-none"
+                    className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 focus:outline-none"
                   />
-                  <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <button type="submit">
+                    <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  </button>
                 </div>
               </form>
             )}
           </div>
         </div>
 
-        {/* ================= DESKTOP NAV ================= */}
+        {/* DESKTOP NAV */}
         <div className="hidden md:flex justify-center space-x-8 py-4">
           {navLinks.map((link) => (
             <div key={link.name} className="relative group">
               {link.href ? (
-                <Link href={link.href} className="uppercase">
-                  {link.name}
-                </Link>
+                <Link href={link.href}>{link.name}</Link>
               ) : (
-                <span className="uppercase cursor-pointer">
-                  {link.name}
-                </span>
+                <span>{link.name}</span>
               )}
 
               {link.dropdown && (
-                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 w-56 bg-black opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 py-4 z-50">
+                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 w-56 bg-black opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-4 z-50">
                   {link.dropdown.map((item) => (
                     <Link
                       key={item.name}
@@ -185,7 +186,7 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* ================= MOBILE MENU ================= */}
+        {/* MOBILE MENU */}
         {isMenuOpen && (
           <div className="md:hidden bg-black px-4">
             {navLinks.map((link) => (
@@ -216,22 +217,12 @@ export default function Navbar() {
                     ))}
                   </div>
                 )}
-
-                {!link.dropdown && link.href && (
-                  <Link
-                    href={link.href}
-                    className="block py-4 border-b border-white/50"
-                  >
-                    {link.name}
-                  </Link>
-                )}
               </div>
             ))}
           </div>
         )}
       </nav>
 
-      {/* CART */}
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );

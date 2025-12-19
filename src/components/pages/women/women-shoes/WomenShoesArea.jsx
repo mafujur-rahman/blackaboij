@@ -33,9 +33,9 @@ const WomenShoesArea = () => {
 
     // Product Card
     const ProductCard = ({ product }) => (
-        <div className="relative flex flex-col overflow-hidden rounded-lg bg-white shadow-sm">
+        <div className="relative flex flex-col overflow-hidden  bg-white ">
             {/* Image */}
-            <div className="relative aspect-3/4 w-full bg-gray-100">
+            <div className="relative aspect-4/4 w-full bg-gray-100">
                 <Image
                     src={product.image}
                     alt={product.name}
@@ -55,7 +55,7 @@ const WomenShoesArea = () => {
 
             {/* Info */}
             <div className="flex flex-col bg-black p-4">
-                <h3 className="text-[16px] md:text-[22px] font-bold text-white">
+                <h3 className="text-[16px] md:text-[22px] font-medium text-white">
                     {product.name}
                 </h3>
 
@@ -71,7 +71,7 @@ const WomenShoesArea = () => {
 
     return (
         <div className="min-h-screen my-12.5 ">
-            <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
+            <div className="px-4 lg:px-12 xl:px-12.5">
                 {/* Grid */}
                 {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {products.map((product) => (

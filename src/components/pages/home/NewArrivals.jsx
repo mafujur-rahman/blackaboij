@@ -26,8 +26,8 @@ const NewBadge = () => (
 
 // New Product Card Component
 const ProductCard = ({ product }) => (
-    <div className="flex flex-col overflow-hidden rounded-lg bg-white shadow-sm relative">
-        <div className="relative aspect-3/4 w-full bg-gray-100">
+    <div className="flex flex-col overflow-hidden bg-white  relative">
+        <div className="relative aspect-4/4 w-full bg-gray-100">
             <Image
                 src={product.image}
                 alt={product.name}
@@ -48,7 +48,7 @@ const ProductCard = ({ product }) => (
 
         {/* Product Info */}
         <div className="p-4 bg-black flex flex-col">
-            <h3 className="text-[16px] md:text-[22px] font-bold text-[#ffffff]">{product.name}</h3>
+            <h3 className="text-[16px] md:text-[22px] font-medium text-[#ffffff]">{product.name}</h3>
             <div className="mt-2 flex items-center justify-between">
                 <p className="text-[12px] md:text-[15px] font-bold text-[#ffffff]">{product.price}</p>
                 <AnimatedButton variant="white">Buy Now</AnimatedButton>
@@ -77,7 +77,7 @@ const NewArrivals = () => {
 
     return (
         <div className="min-h-screen mt-12.5 mb-25">
-            <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0">
+            <div className="px-4 lg:px-12 xl:px-12.5">
                 <h1 className="text-center text-3xl font-bold text-black">
                     New Arrivals
                 </h1>

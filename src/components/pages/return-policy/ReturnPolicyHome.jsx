@@ -4,7 +4,7 @@ import { FiPackage, FiFileText, FiCheckCircle, FiTruck, FiRefreshCw, FiTool, FiP
 const ReturnPolicyHome = () => {
     return (
         <div className='bg-gray-200 py-12.5'>
-            <div className="px-4 lg:px-12 xl:container xl:mx-auto xl:px-0 py-12.5 bg-white shadow-xl rounded-lg">
+            <div className="px-4 lg:px-12 xl:px-12.5 py-12.5 bg-white shadow-xl rounded-lg">
                 <div className="space-y-10 text-gray-800 px-4 lg:px-8">
 
                     {/* Header */}
