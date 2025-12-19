@@ -33,9 +33,6 @@ export default function ProductDetails({ params }) {
     // temporary slug check
     if (slug !== mainProduct.slug) return notFound();
 
-    const [activeImg, setActiveImg] = useState(0);
-    const [size, setSize] = useState(mainProduct.sizes[0]);
-    const [color, setColor] = useState(mainProduct.colors[0]);
 
     return (
         <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-2 gap-12">

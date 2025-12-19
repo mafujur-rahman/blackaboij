@@ -15,10 +15,7 @@ const socialLinks = [
 ];
 
 const FooterLink = ({ href, children }) => (
-    <Link
-        href={href}
-        className="text-gray-400 hover:text-white transition-colors duration-200 block mb-2 last:mb-0"
-    >
+    <Link href={href} className="text-white transition-colors duration-200 block mb-2 last:mb-0">
         {children}
     </Link>
 );
@@ -40,52 +37,41 @@ const Footer = () => {
                     </Link>
                 </div>
 
-                {/* Main Links Grid */}
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-4 md:gap-4 lg:gap-16 text-lg">
-                    {/* COLLECTIONS */}
-                    <div>
-                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">
-                            COLLECTIONS
-                        </h3>
-                        <nav className="text-lg">
+                <div className="flex flex-col md:flex-row justify-between gap-8 text-[16px]">
+                    {/* Column 1: Collections */}
+                    <div className="">
+                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">COLLECTIONS</h3>
+                        <nav className="text-[15px]">
                             <FooterLink href="/men/men-collection">Men</FooterLink>
                             <FooterLink href="/women/women-collection">Women</FooterLink>
                             <FooterLink href="/accessories">Accessories</FooterLink>
                         </nav>
                     </div>
 
-                    {/* MORE */}
-                    <div>
-                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">
-                            MORE
-                        </h3>
+                    {/* Column 2: More */}
+                    <div className="">
+                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">MORE</h3>
                         <nav>
                             <FooterLink href="/">Home</FooterLink>
                             <FooterLink href="/contact">Contact</FooterLink>
                         </nav>
                     </div>
 
-                    {/* INFORMATION */}
-                    <div>
-                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">
-                            INFORMATION
-                        </h3>
+                    {/* Column 3: Information */}
+                    <div className="">
+                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">INFORMATION</h3>
                         <nav>
                             <FooterLink href="/return-policy">Return Policy</FooterLink>
-                            <FooterLink href="/terms-conditions">
-                                Terms of Conditions
-                            </FooterLink>
+                            <FooterLink href="/terms-conditions">Terms of Conditions</FooterLink>
                             <FooterLink href="/shipping-policy">Shipping Policy</FooterLink>
                         </nav>
                     </div>
 
-                    {/* SOCIAL */}
-                    <div>
-                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">
-                            SOCIAL
-                        </h3>
-                        <p className="text-gray-400 mb-4">Stay connected</p>
-                        <div className="flex space-x-3 justify-start">
+                    {/* Column 4: Social */}
+                    <div className=" flex flex-col">
+                        <h3 className="uppercase text-white font-semibold mb-4 tracking-wider">SOCIAL</h3>
+                        <p className="text-white mb-4">Stay connected</p>
+                        <div className="flex justify-start gap-2">
                             {socialLinks.map((item, index) => (
                                 <a
                                     key={index}
@@ -93,7 +79,7 @@ const Footer = () => {
                                     aria-label={item.label}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-gray-400 hover:text-white transition-colors duration-200"
+                                    className="text-white transition-colors duration-200"
                                 >
                                     <item.icon size={22} />
                                 </a>
@@ -102,8 +88,9 @@ const Footer = () => {
                     </div>
                 </div>
 
-                {/* Copyright Section */}
-                <div className="mt-12 pt-4 border-t border-white/50 text-center">
+
+                {/* Copyright */}
+                <div className="mt-12 pt-4 text-center">
                     <p className="text-sm text-gray-300">Copyright &copy; 2025 BlackaboiJ</p>
                 </div>
             </div>
