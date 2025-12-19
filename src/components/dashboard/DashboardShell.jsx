@@ -40,7 +40,7 @@ export default function DashboardShell({ children }) {
                     {/* LOGO */}
                     <div className="h-16 flex items-center justify-center border-b border-white/10">
                         <Image
-                            src="/images/logo.png"
+                            src="/images/logo-white.png"
                             alt="Blackaboj"
                             width={140}
                             height={40}

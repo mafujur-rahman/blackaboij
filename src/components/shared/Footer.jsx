@@ -31,7 +31,7 @@ const Footer = () => {
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block">
                         <Image
-                            src="/images/logo.png"
+                            src="/images/logo-white.png"
                             alt="BlackaboiJ Logo"
                             width={180}
                             height={50}

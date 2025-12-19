@@ -99,7 +99,7 @@ export default function Navbar() {
               <div className="absolute left-1/2 -translate-x-1/2">
                 <Link href="/">
                   <Image
-                    src="/images/logo.png"
+                    src="/images/logo-white.png"
                     alt="Logo"
                     className="w-[80px] md:w-[120px] lg:w-[140px]"
                     width={140}
