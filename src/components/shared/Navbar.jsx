@@ -42,24 +42,13 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-  const router = useRouter();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
 
-    if (!searchQuery.trim()) return;
-
-    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-
-    setMobileSearchOpen(false);
-    setIsMenuOpen(false);
-  };
 
   return (
     <>
@@ -79,14 +68,11 @@ export default function Navbar() {
 
                 {/* Desktop Search */}
                 <form
-                  onSubmit={handleSearch}
                   className="hidden md:block w-full max-w-[270px] ml-2"
                 >
                   <div className="relative rounded-full border border-white/40 px-4 py-1.5">
                     <input
                       type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search products..."
                       className="bg-transparent text-sm text-gray-300 placeholder-gray-300 focus:outline-none w-full pr-8"
                     />
@@ -139,14 +125,11 @@ export default function Navbar() {
             {/* MOBILE SEARCH */}
             {mobileSearchOpen && (
               <form
-                onSubmit={handleSearch}
                 className="md:hidden flex justify-center pb-4"
               >
                 <div className="relative w-full max-w-xs">
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search products..."
                     className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 focus:outline-none"
                   />
