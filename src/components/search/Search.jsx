@@ -1,4 +1,4 @@
-"use client";
+"use client"; // <-- this ensures it's a client component
 
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -85,7 +85,7 @@ export default function SearchHome() {
                                 {product.name}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                ৳ {product.price}
+                                {product.price}
                             </p>
                         </div>
                     </Link>
