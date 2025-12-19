@@ -1,4 +1,5 @@
-"use client"; // <-- this ensures it's a client component
+"use client"; // must be first
+export const dynamic = "force-dynamic"; // prevent prerendering
 
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -6,34 +7,10 @@ import Link from "next/link";
 
 // TEMP: Replace with API data later
 const PRODUCTS = [
-    {
-        id: 1,
-        name: "Men Black Hoodie",
-        category: "men",
-        image: "/images/products/hoodie.jpg",
-        price: 2999,
-    },
-    {
-        id: 2,
-        name: "Women White Tee",
-        category: "women",
-        image: "/images/products/tee.jpg",
-        price: 1499,
-    },
-    {
-        id: 3,
-        name: "Men Sneakers",
-        category: "men",
-        image: "/images/products/shoes.jpg",
-        price: 4599,
-    },
-    {
-        id: 4,
-        name: "Women Jacket",
-        category: "women",
-        image: "/images/products/jacket.jpg",
-        price: 5599,
-    },
+    { id: 1, name: "Men Black Hoodie", category: "men", image: "/images/products/hoodie.jpg", price: 2999 },
+    { id: 2, name: "Women White Tee", category: "women", image: "/images/products/tee.jpg", price: 1499 },
+    { id: 3, name: "Men Sneakers", category: "men", image: "/images/products/shoes.jpg", price: 4599 },
+    { id: 4, name: "Women Jacket", category: "women", image: "/images/products/jacket.jpg", price: 5599 },
 ];
 
 export default function SearchHome() {
@@ -85,7 +62,7 @@ export default function SearchHome() {
                                 {product.name}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                {product.price}
+                                 {product.price}
                             </p>
                         </div>
                     </Link>
