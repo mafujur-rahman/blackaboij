@@ -8,7 +8,7 @@ const FridaySale = (props) => {
 
       {/* Background Image Container with Overlay */}
       <Image
-        src='/images/friday-sale-2.png'
+        src='/images/friday-sale.png'
         alt="Black Friday Sale Background - Dark aesthetic with various objects"
         fill
         style={{ objectFit: 'cover' }}
