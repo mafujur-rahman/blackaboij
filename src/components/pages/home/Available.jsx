@@ -10,7 +10,7 @@ const Available = () => {
 
       {/* Background Image */}
       <Image
-        src="/images/black-shade.jpg"
+        src="/images/available.png"
         alt="All shades of black available."
         fill
         priority
