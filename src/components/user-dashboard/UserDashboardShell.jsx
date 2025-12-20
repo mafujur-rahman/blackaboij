@@ -25,15 +25,17 @@ export default function UserDashboardShell({ children }) {
             {sidebarOpen && (
                 <aside className="w-[260px] bg-white text-black flex flex-col transition-all duration-300">
 
-                    {/* LOGO */}
-                    <div className="h-16 flex items-center justify-center border-b border-white/10 pt-10">
+                    {/* USER PROFILE */}
+                    <div className="flex flex-col items-center py-8 border-b border-black/10">
                         <Image
-                            src="/images/logo-black.png"
-                            alt="Blackaboj"
-                            width={140}
-                            height={40}
-                            priority
+                            src="/images/profile.webp"
+                            alt="User Profile"
+                            width={80}
+                            height={80}
+                            className="rounded-full object-cover"
                         />
+                        <h2 className="mt-4 text-lg font-semibold">John Doe</h2> 
+                        <p className="text-sm text-gray-500">john.doe@gmail.com</p>
                     </div>
 
                     {/* NAV */}
@@ -82,6 +84,7 @@ export default function UserDashboardShell({ children }) {
                     </nav>
                 </aside>
             )}
+
 
             {/* RIGHT SIDE */}
             <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300`}>
