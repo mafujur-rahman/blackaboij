@@ -24,7 +24,7 @@ const Newsletter = () => {
     };
 
     return (
-        <section className="mt-12.5 px-4 bg-[#e2e8f0] py-16">
+        <section className="my-12.5 xl:mb-25 px-4 bg-[#e2e8f0] py-16">
             <div className="max-w-4xl mx-auto text-center">
 
                 {/* Newsletter Heading */}

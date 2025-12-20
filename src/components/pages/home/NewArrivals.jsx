@@ -76,7 +76,7 @@ const NewArrivals = () => {
     const [activeCategory, setActiveCategory] = useState('Men');
 
     return (
-        <div className="min-h-screen mt-12.5 mb-25">
+        <div className="xl:min-h-screen mt-12.5 xl:mb-12.5">
             <div className="px-4 lg:px-12 xl:px-12.5">
                 <h1 className="text-center text-3xl font-bold text-black">
                     New Arrivals
@@ -97,7 +97,7 @@ const NewArrivals = () => {
                 </nav>
 
                 {/* Product Cards Section */}
-                <div className="mt-12 flex flex-wrap justify-start gap-4">
+                <div className="mt-12 flex flex-wrap justify-start">
                     {/* First Card */}
                     <div className="w-full sm:w-1/2 lg:w-1/3">
                         <ProductCard product={mainProduct} />
