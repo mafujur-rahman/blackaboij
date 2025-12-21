@@ -29,14 +29,14 @@ const ContactForm = () => {
                         </h3>
                         <p className="text-[16px] text-gray-300">
                             Email:
-                            <a href="mailto:blackaboli@gmail.com" className="text-white hover:text-gray-300 underline ml-1">
-                                blackaboij@gmail.com
+                            <a href="mailto:info@blackaboli.com" className="text-white hover:text-gray-100 underline ml-1">
+                                info@blackaboij.com
                             </a>
                         </p>
                         <p className="text-[16px] text-gray-300">
                             Phone:
-                            <a href="tel:+33662023969" className="text-white hover:text-gray-300 underline ml-1">
-                                +33 6 62 02 39 69
+                            <a href="tel:+33662023969" className="text-white hover:text-gray-100 underline ml-1">
+                                +33662023969
                             </a>
                         </p>
                     </div>

@@ -7,109 +7,173 @@ import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import DashboardShell from "../DashboardShell";
 import Image from "next/image";
-import AnimatedButton from "@/components/utils/AnimatedButton";
+import api from "@/lib/axios";
 
 const EditProduct = () => {
   const { id } = useParams();
   const router = useRouter();
 
-  const mockProduct = {
-    id,
-    name: "Blackaboij Men's T-Shirt - White Edition",
-    mainCategory: "Men",
-    subCategory: "Tees",
-    price: 40,
-    qty: 20,
-    sizes: ["M", "XL"],
-    colors: ["Black", "White"],
-    description: "Premium quality cotton t-shirt.",
-    metaTitle: "Men White T-shirt",
-    metaDescription: "Buy premium white t-shirt for men",
+  const [form, setForm] = useState({
+    name: "",
+    mainCategoryId: "",
+    subCategoryId: "",
+    price: 0,
+    qty: 0,
+    sizes: [],
+    colors: [],
+    description: "",
+    metaTitle: "",
+    metaDescription: "",
     galleryImages: [],
     thumbnail: null,
-  };
+  });
 
-  const [form, setForm] = useState(mockProduct);
+  const [parentCategories, setParentCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+  const [colorsList, setColorsList] = useState([]);
+  const [sizesList, setSizesList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  /* ------------------ FETCH INITIAL DATA ------------------ */
   useEffect(() => {
-    setForm(mockProduct);
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+
+        const [parentRes, sizeRes, colorRes] = await Promise.all([
+          api.get("/api/categories/get-all-parent-categories/", { headers: { Authorization: `Bearer ${token}` } }),
+          api.get("/api/sizes/get-all-sizes/", { headers: { Authorization: `Bearer ${token}` } }),
+          api.get("/api/colors/get-all-colors/", { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        setParentCategories(parentRes.data.data || []);
+        setSizesList(sizeRes.data.data || []);
+        setColorsList(colorRes.data.data || []);
+
+        // Fetch product details
+        const prodRes = await api.get(`/api/products/get-all-products/`, { headers: { Authorization: `Bearer ${token}` } });
+        const product = prodRes.data.data.find((p) => p.id === Number(id));
+        if (!product) return;
+
+        setForm({
+          name: product.name,
+          mainCategoryId: product.category.parent,
+          subCategoryId: product.category.id,
+          price: product.unit_price,
+          qty: product.quantity,
+          sizes: product.sizes.map((s) => s.id),
+          colors: product.colors.map((c) => c.id),
+          description: product.description,
+          metaTitle: product.meta_title,
+          metaDescription: product.meta_description,
+          galleryImages: [],
+          thumbnail: product.thumbnail_image ? { file: null, url: product.thumbnail_image } : null,
+        });
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to load data", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [id]);
 
-  const subCategories = {
-    Men: ["Tees", "Hoodies & Sweaters", "Pants", "Outwear", "Shoes"],
-    Women: ["Tees", "Hoodies & Sweaters", "Pants", "Outwear", "Shoes"],
-    Accessories: ["Men Accessories", "Women Accessories"],
-  };
+  /* ------------------ FETCH SUBCATEGORIES ON PARENT CHANGE ------------------ */
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      if (!form.mainCategoryId) return;
+      try {
+        const res = await api.get("/api/categories/get-category-grouped/");
+        const parent = res.data.data.find((p) => p.id === Number(form.mainCategoryId));
+        setSubCategories(parent?.sub_categories || []);
+        if (!parent?.sub_categories.find((s) => s.id === form.subCategoryId)) {
+          setForm((prev) => ({ ...prev, subCategoryId: "" })); // reset if invalid
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to load sub-categories", "error");
+      }
+    };
 
-  const colorList = [
-    { name: "Black", code: "#000000" },
-    { name: "White", code: "#FFFFFF" },
-    { name: "Gray", code: "#9CA3AF" },
-    { name: "Pink", code: "#EC4899" },
-  ];
+    fetchSubCategories();
+  }, [form.mainCategoryId]);
 
   const toggleArray = (key, value) => {
     setForm((prev) => ({
       ...prev,
-      [key]: prev[key].includes(value)
-        ? prev[key].filter((v) => v !== value)
-        : [...prev[key], value],
+      [key]: prev[key].includes(value) ? prev[key].filter((v) => v !== value) : [...prev[key], value],
     }));
   };
 
-  /* ---------- IMAGE HANDLERS ---------- */
+  /* ------------------ IMAGE HANDLERS ------------------ */
   const handleGalleryUpload = (e) => {
     const files = Array.from(e.target.files);
-    const previews = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-    }));
-
-    setForm((prev) => ({
-      ...prev,
-      galleryImages: [...prev.galleryImages, ...previews],
-    }));
+    const previews = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+    setForm((prev) => ({ ...prev, galleryImages: [...prev.galleryImages, ...previews] }));
   };
 
   const handleThumbnailUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    setForm((prev) => ({
-      ...prev,
-      thumbnail: {
-        file,
-        url: URL.createObjectURL(file),
-      },
-    }));
+    setForm((prev) => ({ ...prev, thumbnail: { file, url: URL.createObjectURL(file) } }));
   };
 
   const removeGalleryImage = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      galleryImages: prev.galleryImages.filter((_, i) => i !== index),
-    }));
+    setForm((prev) => ({ ...prev, galleryImages: prev.galleryImages.filter((_, i) => i !== index) }));
   };
 
-  const handleUpdate = () => {
+  /* ------------------ UPDATE PRODUCT ------------------ */
+  const handleUpdate = async () => {
     Swal.fire({
       title: "Update Product?",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#000",
       confirmButtonText: "Update",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire("Updated!", "Product updated successfully.", "success");
-        router.push("/dashboard/product-list");
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+
+      try {
+        const token = localStorage.getItem("auth_token");
+        const formData = new FormData();
+
+        formData.append("name", form.name);
+        formData.append("description", form.description);
+        formData.append("unit_price", form.price);
+        formData.append("quantity", form.qty);
+        formData.append("category_id", form.subCategoryId);
+        form.sizes.forEach((id) => formData.append("size_ids[]", id));
+        form.colors.forEach((id) => formData.append("color_ids[]", id));
+        formData.append("meta_title", form.metaTitle);
+        formData.append("meta_description", form.metaDescription);
+
+        if (form.thumbnail?.file) formData.append("thumbnail_image", form.thumbnail.file);
+        form.galleryImages.forEach((img, i) => formData.append(`gallery${i + 1}`, img.file));
+
+        const res = await api.put(`/api/product/update-product/${id}/`, formData, {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        });
+
+        if (res.data.success) {
+          Swal.fire("Updated!", res.data.message, "success");
+          router.push("/dashboard/product-list");
+        } else {
+          Swal.fire("Error", res.data.message, "error");
+        }
+      } catch (err) {
+        console.error(err);
+        Swal.fire("Error", "Failed to update product", "error");
       }
     });
   };
 
+  if (loading) return <div className="text-center py-20">Loading...</div>;
+
   return (
     <DashboardShell>
       <div className="min-h-screen">
-
         {/* HEADER */}
         <div className="bg-white rounded-md px-6 py-4 mb-6 flex justify-between items-center shadow-sm">
           <h1 className="text-xl font-bold">Edit Product</h1>
@@ -139,25 +203,27 @@ const EditProduct = () => {
             <div>
               <label className="block text-[16px] font-medium mb-1">Main Category</label>
               <select
-                value={form.mainCategory}
-                onChange={(e) => setForm({ ...form, mainCategory: e.target.value, subCategory: "" })}
+                value={form.mainCategoryId}
+                onChange={(e) => setForm({ ...form, mainCategoryId: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
               >
-                <option>Men</option>
-                <option>Women</option>
-                <option>Accessories</option>
+                <option value="">Select Main Category</option>
+                {parentCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
               </select>
             </div>
 
             <div>
               <label className="block text-[16px] font-medium mb-1">Sub Category</label>
               <select
-                value={form.subCategory}
-                onChange={(e) => setForm({ ...form, subCategory: e.target.value })}
+                value={form.subCategoryId}
+                onChange={(e) => setForm({ ...form, subCategoryId: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
               >
-                {subCategories[form.mainCategory]?.map((sub) => (
-                  <option key={sub}>{sub}</option>
+                <option value="">Select Sub Category</option>
+                {subCategories.map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
                 ))}
               </select>
             </div>
@@ -182,70 +248,71 @@ const EditProduct = () => {
               />
             </div>
           </div>
-        </div>
 
-        {/* PRICING */}
-        <div className="bg-white p-6 rounded-md shadow-sm mb-6 grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-[16px] font-medium mb-1">Unit Price</label>
-            <input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="w-full border border-black/20 rounded px-3 py-2"
-            />
+          {/* PRICING */}
+          <div className="mt-6 grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[16px] font-medium mb-1">Unit Price</label>
+              <input
+                type="number"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className="w-full border border-black/20 rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[16px] font-medium mb-1">Quantity</label>
+              <input
+                type="number"
+                value={form.qty}
+                onChange={(e) => setForm({ ...form, qty: e.target.value })}
+                className="w-full border border-black/20 rounded px-3 py-2"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-[16px] font-medium mb-1">Quantity</label>
-            <input
-              type="number"
-              value={form.qty}
-              onChange={(e) => setForm({ ...form, qty: e.target.value })}
-              className="w-full border border-black/20 rounded px-3 py-2"
-            />
-          </div>
-        </div>
-
-        {/* SIZES & COLORS */}
-        <div className="bg-white p-6 rounded-md shadow-sm mb-6">
-          <h2 className="text-lg font-bold mb-4">Sizes & Colors</h2>
-
-          {/* Sizes */}
-          <label className="block text-[16px] font-medium mb-2">Sizes</label>
-          <div className="flex gap-3 mb-6">
-            {["XL", "M", "XXL"].map(s => (
-              <button
-                key={s}
-                onClick={() => toggleArray("sizes", s)}
-                className={`px-4 py-2 rounded border ${form.sizes.includes(s) ? "bg-black text-white" : "border-black/20"}`}
-              >
-                {s}
-              </button>
-            ))}
+          {/* SIZES */}
+          <div className="mt-6">
+            <label className="block text-[16px] font-medium mb-2">Sizes</label>
+            <div className="flex gap-3 flex-wrap">
+              {sizesList.map((size) => (
+                <button
+                  key={size.id}
+                  type="button"
+                  onClick={() => toggleArray("sizes", size.id)}
+                  className={`px-4 py-2 rounded border ${form.sizes.includes(size.id) ? "bg-black text-white" : "border-black/20"
+                    }`}
+                >
+                  {size.name}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Colors */}
-          <label className="block text-[16px] font-medium mb-2">Colors</label>
-          <div className="flex gap-6">
-            {colorList.map(c => (
-              <div key={c.name} onClick={() => toggleArray("colors", c.name)} className="cursor-pointer text-center">
+          {/* COLORS */}
+          <div className="mt-6">
+            <label className="block text-[16px] font-medium mb-2">Colors</label>
+            <div className="flex gap-6 flex-wrap">
+              {colorsList.map((c) => (
                 <div
-                  className={`w-10 h-10 rounded-full border-2 mx-auto ${form.colors.includes(c.name) ? "border-black" : "border-black/20"}`}
-                  style={{ backgroundColor: c.code }}
-                />
-                <span className="text-[16px] mt-1 block">{c.name}</span>
-              </div>
-            ))}
+                  key={c.id}
+                  onClick={() => toggleArray("colors", c.id)}
+                  className="cursor-pointer text-center"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full border-2 mx-auto ${form.colors.includes(c.id) ? "border-black" : "border-black/20"
+                      }`}
+                    style={{ backgroundColor: c.hex_code }}
+                  />
+                  <span className="text-[16px] mt-1 block">{c.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* MEDIA */}
-        <div className="bg-white p-6 rounded-md shadow-sm mb-6">
-          <h2 className="text-lg font-bold mb-4">Product Media</h2>
-
-          <div className="grid grid-cols-2 gap-6">
-
+          {/* MEDIA UPLOAD */}
+          <div className="mt-6 grid grid-cols-2 gap-6">
             {/* GALLERY */}
             <div>
               <label className="block text-[16px] font-medium mb-2">Gallery Images (600x600)</label>
@@ -254,11 +321,10 @@ const EditProduct = () => {
                 <input type="file" multiple accept="image/*" onChange={handleGalleryUpload} className="hidden" />
               </label>
 
-              {/* Gallery previews at bottom */}
               <div className="flex gap-3 mt-4 flex-wrap">
                 {form.galleryImages.map((img, i) => (
                   <div key={i} className="relative w-20 h-20">
-                    <Image src={img.url} alt={`Gallery ${i+1}`} width={80} height={80} className="object-cover rounded border" />
+                    <Image src={img.url} alt={`Gallery ${i + 1}`} width={80} height={80} className="object-cover rounded border" />
                     <button onClick={() => removeGalleryImage(i)} className="absolute -top-2 -right-2 bg-black text-white rounded-full p-1">
                       <X size={12} />
                     </button>
@@ -282,12 +348,9 @@ const EditProduct = () => {
               )}
             </div>
           </div>
-        </div>
 
-        {/* SEO */}
-        <div className="bg-white p-6 rounded-md shadow-sm mb-6">
-          <h2 className="text-lg font-bold mb-4">Product SEO</h2>
-          <div className="grid grid-cols-2 gap-6">
+          {/* SEO */}
+          <div className="mt-6 grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[16px] font-medium mb-1">Meta Title</label>
               <input
@@ -306,13 +369,18 @@ const EditProduct = () => {
               />
             </div>
           </div>
-        </div>
 
-        {/* UPDATE BUTTON */}
-        <div className="flex justify-end">
-          <AnimatedButton variant="black" onClick={handleUpdate}>Update Product</AnimatedButton>
+          {/* UPDATE BUTTON */}
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={handleUpdate}
+              disabled={loading}
+              className="px-6 py-2 bg-black text-white rounded cursor-pointer"
+            >
+              {loading ? "Updating..." : "Update Product"}
+            </button>
+          </div>
         </div>
-
       </div>
     </DashboardShell>
   );

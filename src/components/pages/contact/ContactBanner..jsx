@@ -4,16 +4,15 @@ import Image from 'next/image';
 
 const ContactBanner = ( ) => {
   return (
-    <div className="relative w-full h-96 md:h-125 lg:h-140 overflow-hidden bg-black flex items-center justify-center">
+    <div className="relative w-full h-96 md:h-125 lg:h-140 xl:h-180 overflow-hidden bg-black flex items-center justify-center">
       
       {/* Background Image Container with Overlay */}
       <Image
-        src='/images/contact.webp'
+        src='/images/store.png'
         alt="Black Stores"
         fill 
-        style={{ objectFit: 'cover' }}
         priority 
-        className="opacity-70" 
+        className="opacity-70 object-cover" 
       />
       
       {/* Content Container (Text and Button) */}

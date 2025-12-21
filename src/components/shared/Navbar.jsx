@@ -87,7 +87,7 @@ export default function Navbar() {
                 <Link href="/">
                   <Image src="/images/logo-white.png"
                     alt="Logo"
-                    className="w-[100px] md:w-[120px] lg:w-[140px] xl:w-[160px]"
+                    className="w-[100px] md:w-[120px] lg:w-[140px] xl:w-[180px]"
                     width={540}
                     height={540}
                     priority />
