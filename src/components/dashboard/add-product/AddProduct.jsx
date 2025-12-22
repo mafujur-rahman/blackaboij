@@ -10,7 +10,6 @@ import {
   Link2,
   List,
   Upload,
-  X,
 } from "lucide-react";
 import DashboardShell from "../DashboardShell";
 import Link from "next/link";
@@ -18,11 +17,12 @@ import Swal from "sweetalert2";
 import Image from "next/image";
 import api from "@/lib/axios";
 
+const CLOUDINARY_URL = "https://res.cloudinary.com/dwsp8rft8/";
+
 const AddProduct = () => {
   const [parentCategories, setParentCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [parentCategoryId, setParentCategoryId] = useState("");
-  const [subCategoryId, setSubCategoryId] = useState("");
 
   const [sizesList, setSizesList] = useState([]);
   const [colorsList, setColorsList] = useState([]);
@@ -30,7 +30,9 @@ const AddProduct = () => {
     name: "",
     description: "",
     mainCategoryId: "",
+    mainCategoryName: "",
     subCategoryId: "",
+    subCategoryName: "",
     price: "",
     qty: "",
     sizes: [],
@@ -73,7 +75,11 @@ const AddProduct = () => {
           (p) => p.id === Number(parentCategoryId)
         );
         setSubCategories(parent?.sub_categories || []);
-        setForm((prev) => ({ ...prev, subCategoryId: "" }));
+        setForm((prev) => ({
+          ...prev,
+          subCategoryId: "",
+          subCategoryName: "",
+        }));
       } catch (err) {
         console.error(err);
         Swal.fire("Error", "Failed to load sub-categories", "error");
@@ -82,7 +88,7 @@ const AddProduct = () => {
     fetchSubCategories();
   }, [parentCategoryId]);
 
-  // Toggle size/color selection
+  // Toggle sizes/colors
   const toggleArray = (field, id) => {
     setForm((prev) => ({
       ...prev,
@@ -92,7 +98,7 @@ const AddProduct = () => {
     }));
   };
 
-  // Handle file uploads
+  // File upload
   const handleFileChange = (index, file) => {
     setForm((prev) => {
       const gallery = [...prev.galleryImages];
@@ -100,7 +106,6 @@ const AddProduct = () => {
       return { ...prev, galleryImages: gallery };
     });
   };
-
   const handleThumbnailUpload = (file) => {
     setForm((prev) => ({ ...prev, thumbnail: file }));
   };
@@ -118,25 +123,33 @@ const AddProduct = () => {
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("name", form.name);
-      formData.append("category_id", Number(form.subCategoryId));
-      formData.append("unit_price", form.price);
-      formData.append("quantity", form.qty);
-      formData.append("description", form.description || "");
-      formData.append("meta_title", form.metaTitle || "");
-      formData.append("meta_description", form.metaDescription || "");
+      // Build JSON payload
+      const payload = {
+        name: form.name,
+        category_id: Number(form.subCategoryId),
+        description: form.description || "",
+        unit_price: form.price,
+        quantity: form.qty,
+        size_ids: form.sizes,
+        color_ids: form.colors,
+        thumbnail_image: form.thumbnail
+          ? URL.createObjectURL(form.thumbnail)
+          : CLOUDINARY_URL,
+        gallery1: form.galleryImages[0]
+          ? URL.createObjectURL(form.galleryImages[0])
+          : CLOUDINARY_URL,
+        gallery2: form.galleryImages[1]
+          ? URL.createObjectURL(form.galleryImages[1])
+          : CLOUDINARY_URL,
+        gallery3: form.galleryImages[2]
+          ? URL.createObjectURL(form.galleryImages[2])
+          : CLOUDINARY_URL,
+        meta_title: form.metaTitle || form.name,
+        meta_description: form.metaDescription || form.name,
+      };
 
-      form.sizes.forEach((id) => formData.append("size_ids", id));
-      form.colors.forEach((id) => formData.append("color_ids", id));
-
-      if (form.thumbnail) formData.append("thumbnail_image", form.thumbnail);
-      form.galleryImages.forEach((img, i) => {
-        if (img) formData.append(`gallery${i + 1}`, img);
-      });
-
-      await api.post("/api/product/create-product/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      await api.post("/api/product/create-product/", payload, {
+        headers: { "Content-Type": "application/json" },
       });
 
       Swal.fire("Success", "Product created successfully", "success");
@@ -145,7 +158,9 @@ const AddProduct = () => {
         name: "",
         description: "",
         mainCategoryId: "",
+        mainCategoryName: "",
         subCategoryId: "",
+        subCategoryName: "",
         price: "",
         qty: "",
         sizes: [],
@@ -185,7 +200,6 @@ const AddProduct = () => {
         {/* PRODUCT INFORMATION */}
         <div className="bg-white p-6 rounded-md shadow-sm space-y-6">
           <h2 className="text-xl font-bold">Product Information</h2>
-
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[16px] font-medium mb-1">
@@ -205,8 +219,15 @@ const AddProduct = () => {
               <select
                 value={parentCategoryId}
                 onChange={(e) => {
+                  const selected = parentCategories.find(
+                    (cat) => cat.id === Number(e.target.value)
+                  );
                   setParentCategoryId(e.target.value);
-                  setForm((prev) => ({ ...prev, mainCategoryId: e.target.value }));
+                  setForm((prev) => ({
+                    ...prev,
+                    mainCategoryId: e.target.value,
+                    mainCategoryName: selected?.name || "",
+                  }));
                 }}
                 className="w-full border border-black/20 rounded px-3 py-2"
               >
@@ -225,7 +246,16 @@ const AddProduct = () => {
               </label>
               <select
                 value={form.subCategoryId}
-                onChange={(e) => setForm({ ...form, subCategoryId: e.target.value })}
+                onChange={(e) => {
+                  const selected = subCategories.find(
+                    (sub) => sub.id === Number(e.target.value)
+                  );
+                  setForm((prev) => ({
+                    ...prev,
+                    subCategoryId: e.target.value,
+                    subCategoryName: selected?.name || "",
+                  }));
+                }}
                 className="w-full border border-black/20 rounded px-3 py-2"
               >
                 <option value="">Select Sub Category</option>
@@ -256,24 +286,24 @@ const AddProduct = () => {
                 className="w-full border border-black/20 rounded px-3 py-2"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-[16px] font-medium mb-1">Description</label>
-            <div className="border border-black/20 rounded">
-              <div className="flex gap-2 border-b bg-gray-50 px-3 py-2 text-gray-600">
-                <Bold size={16} />
-                <Italic size={16} />
-                <Underline size={16} />
-                <Link2 size={16} />
-                <List size={16} />
+            <div className="col-span-2">
+              <label className="block text-[16px] font-medium mb-1">Description</label>
+              <div className="border border-black/20 rounded">
+                <div className="flex gap-2 border-b bg-gray-50 px-3 py-2 text-gray-600">
+                  <Bold size={16} />
+                  <Italic size={16} />
+                  <Underline size={16} />
+                  <Link2 size={16} />
+                  <List size={16} />
+                </div>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={6}
+                  className="w-full p-4 outline-none resize-none"
+                />
               </div>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={6}
-                className="w-full p-4 outline-none resize-none"
-              />
             </div>
           </div>
         </div>
@@ -287,11 +317,10 @@ const AddProduct = () => {
                 key={size.id}
                 type="button"
                 onClick={() => toggleArray("sizes", size.id)}
-                className={`px-4 py-2 rounded border ${
-                  form.sizes.includes(size.id)
+                className={`px-4 py-2 rounded border ${form.sizes.includes(size.id)
                     ? "bg-black text-white"
                     : "border-black/20"
-                }`}
+                  }`}
               >
                 {size.name}
               </button>
@@ -310,9 +339,8 @@ const AddProduct = () => {
                 className="cursor-pointer text-center"
               >
                 <div
-                  className={`w-10 h-10 rounded-full border-2 mx-auto ${
-                    form.colors.includes(c.id) ? "border-black" : "border-black/20"
-                  }`}
+                  className={`w-10 h-10 rounded-full border-2 mx-auto ${form.colors.includes(c.id) ? "border-black" : "border-black/20"
+                    }`}
                   style={{ backgroundColor: c.hex_code }}
                 />
                 <span className="text-[16px] mt-1 block">{c.name}</span>
@@ -349,9 +377,7 @@ const AddProduct = () => {
 
           {[0, 1, 2].map((i) => (
             <div key={i}>
-              <label className="block text-[16px] font-medium mb-2">{`Gallery ${
-                i + 1
-              }`}</label>
+              <label className="block text-[16px] font-medium mb-2">{`Gallery ${i + 1}`}</label>
               <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit">
                 <Upload size={16} /> Choose Image
                 <input
@@ -412,4 +438,4 @@ const AddProduct = () => {
   );
 };
 
-export default AddProduct;
+export default AddProduct; 

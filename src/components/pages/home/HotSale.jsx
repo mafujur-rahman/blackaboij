@@ -1,113 +1,186 @@
 "use client";
 
-import React, { useState } from 'react';
-import Image from 'next/image';
-import { FiHeart } from 'react-icons/fi';
-import AnimatedButton from '@/components/utils/AnimatedButton';
+import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { FiHeart } from "react-icons/fi";
+import AnimatedButton from "@/components/utils/AnimatedButton";
+import api from "@/lib/axios";
+import { getImageUrl } from "@/components/utils/get-image-url";
 
-// Sample product for design
-const mainProduct = {
-    id: 1,
-    name: "Blackaboij Men's T-Shirt - White Edition",
-    price: "€40",
-    image: "/images/new.webp",
-    isNew: true,
-};
+/* ------------------ UI COMPONENTS ------------------ */
+const Loader = () => (
+    <div className="flex justify-center items-center py-20">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+    </div>
+);
 
-// Sample categories
-const categories = ['Men', 'Women', 'Accessories'];
-
-// New Badge Component
 const NewBadge = () => (
-    <div className="absolute right-0 top-0 bg-black px-2 py-1 text-[12px] md:text-[15px] font-semibold uppercase text-[#ffffff]">
+    <div className="absolute right-0 top-0 bg-black px-2 py-1 text-xs md:text-sm font-semibold uppercase text-white">
         New
     </div>
 );
 
-// New Product Card Component
-const ProductCard = ({ product }) => (
-    <div className="flex flex-col overflow-hidden  bg-white relative">
-        <div className="relative aspect-4/4 w-full bg-gray-100">
-            <Image
-                src={product.image}
-                alt={product.name}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover"
-                priority
-            />
+const ProductCard = ({ product }) => {
+    const router = useRouter();
+    const [isWishlisted, setIsWishlisted] = useState(false);
 
-            {/* New Badge */}
-            {product.isNew && <NewBadge />}
+    useEffect(() => {
+        const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+        setIsWishlisted(wishlist.some((item) => item.id === product.id));
+    }, [product.id]);
 
-            {/* Wishlist Heart Icon - Top Left */}
-            <button className="absolute top-2 left-2">
-                <FiHeart size={20} />
-            </button>
-        </div>
+    const toggleWishlist = () => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            router.push("/signin");
+            return;
+        }
 
-        {/* Product Info */}
-        <div className="p-4 bg-black flex flex-col">
-            <h3 className="text-[16px] md:text-[22px] font-medium text-[#ffffff]">{product.name}</h3>
-            <div className="mt-2 flex items-center justify-between">
-                <p className="text-[12px] md:text-[15px] font-bold text-[#ffffff]">{product.price}</p>
-                <AnimatedButton variant="white">Buy Now</AnimatedButton>
+        const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+        const updatedWishlist = isWishlisted
+            ? wishlist.filter((item) => item.id !== product.id)
+            : [...wishlist, product];
+
+        localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
+        setIsWishlisted(!isWishlisted);
+    };
+
+    return (
+        <div className="flex flex-col overflow-hidden bg-white relative mb-6">
+            <div className="relative aspect-square w-full bg-gray-100">
+                <Image
+                    src={getImageUrl(product.thumbnail_image)}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 25vw"
+                />
+
+                {product.is_new && <NewBadge />}
+
+                <button
+                    onClick={toggleWishlist}
+                    className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"}`}
+                >
+                    <FiHeart size={20} />
+                </button>
+            </div>
+
+            <div className="p-4 bg-black flex flex-col">
+                <h3 className="text-sm md:text-base font-medium text-white line-clamp-2">
+                    {product.name}
+                </h3>
+                <p className="text-xs text-gray-300 mt-1">{product.category?.parent_name}</p>
+                <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-white">€{product.unit_price}</p>
+                    <AnimatedButton variant="white">Buy Now</AnimatedButton>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-
-// Category Tab Component
 const CategoryTab = ({ category, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`pb-1 transition-colors ${isActive
-            ? 'border-b-2 border-black text-black font-bold'
-            : 'text-gray-700 hover:text-black'
+        className={`pb-1 transition-colors ${isActive ? "border-b-2 border-black text-black font-bold" : "text-gray-600 hover:text-black"
             }`}
     >
-        {category}
+        {category.name}
     </button>
 );
 
-// Main Component
+/* ------------------ MAIN COMPONENT ------------------ */
 const HotSale = () => {
-    const [activeCategory, setActiveCategory] = useState('Men');
+    const router = useRouter();
+    const [activeCategory, setActiveCategory] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [allProducts, setAllProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            router.push("/signin");
+            return;
+        }
+
+        const fetchProducts = async () => {
+            setLoading(true);
+            try {
+                const res = await api.get("/api/products/get-all-products/");
+                const products = res.data.data;
+
+                setAllProducts(products);
+
+                // Extract unique parent categories dynamically
+                const uniqueParentCategories = Array.from(
+                    new Map(
+                        products
+                            .filter((p) => p.category?.parent)
+                            .map((p) => [p.category.parent, p.category.parent_name])
+                    ).entries()
+                ).map(([id, name]) => ({ id, name }));
+
+                setCategories(uniqueParentCategories);
+                if (uniqueParentCategories.length > 0) setActiveCategory(uniqueParentCategories[0].id);
+
+                // Initial filtered products
+                const initialFiltered = products.filter(
+                    (product) => product.category?.parent === uniqueParentCategories[0]?.id
+                );
+                setFilteredProducts(initialFiltered);
+            } catch (error) {
+                console.error("Failed to fetch products", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, [router]);
+
+    useEffect(() => {
+        if (!activeCategory) return;
+        const filtered = allProducts.filter(
+            (product) => product.category?.parent === activeCategory
+        );
+        setFilteredProducts(filtered);
+    }, [activeCategory, allProducts]);
 
     return (
-        <div className="xl:min-h-screen mt-12.5 ">
-            <div className="px-4 lg:px-12 xl:px-12.5">
-                <h1 className="text-center text-3xl font-bold text-black">
-                    Hot Sale
-                </h1>
+        <div className=" mt-12.5 mb-12.5 xl:mb-25">
+            <div className="px-4 lg:px-12">
+                <h1 className="text-center text-3xl font-bold text-black">Hot Sale</h1>
 
-                {/* Category Tabs */}
-                <nav className="mt-8 lg:mt-5">
+                {/* CATEGORY TABS */}
+                <nav className="mt-8">
                     <div className="flex justify-center space-x-6">
                         {categories.map((category) => (
                             <CategoryTab
-                                key={category}
+                                key={category.id}
                                 category={category}
-                                isActive={activeCategory === category}
-                                onClick={() => setActiveCategory(category)}
+                                isActive={activeCategory === category.id}
+                                onClick={() => setActiveCategory(category.id)}
                             />
                         ))}
                     </div>
                 </nav>
 
-                {/* Product Cards Section */}
-                <div className="mt-12 flex flex-wrap justify-start ">
-                    {/* First Card */}
-                    <div className="w-full sm:w-1/2 lg:w-1/3">
-                        <ProductCard product={mainProduct} />
+                {/* PRODUCT CARDS */}
+                {loading ? (
+                    <Loader />
+                ) : filteredProducts.length === 0 ? (
+                    <p className="text-center mt-12 text-gray-500">No products found</p>
+                ) : (
+                    <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredProducts.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
                     </div>
-
-                    {/* Placeholder for Second Card */}
-                    <div className="w-full sm:w-1/2 lg:w-1/3">
-                        {/* Empty space for now */}
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

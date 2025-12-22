@@ -9,10 +9,10 @@ const ContactBanner = ( ) => {
       {/* Background Image Container with Overlay */}
       <Image
         src='/images/store.png'
-        alt="Black Stores"
+        alt="Our Shopping Mall"
         fill 
         priority 
-        className="opacity-70 object-cover" 
+        className="opacity-90 object-cover" 
       />
       
       {/* Content Container (Text and Button) */}
@@ -20,7 +20,7 @@ const ContactBanner = ( ) => {
 
         {/* Main Headline */}
         <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6">
-          Black Stores
+          Our Shopping Mall
         </h1>
         
         {/* Call-to-Action Button */}

@@ -23,7 +23,7 @@ const FooterLink = ({ href, children }) => (
 const Footer = () => {
     return (
         <footer className="bg-black text-white pt-10 pb-4 md:pt-16">
-            <div className="px-4 lg:px-12 xl:px-12.5">
+            <div className="px-4 lg:px-12">
                 {/* Logo Section */}
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block">

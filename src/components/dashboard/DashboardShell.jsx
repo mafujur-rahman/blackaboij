@@ -40,32 +40,25 @@ export default function DashboardShell({ children }) {
 
         if (!confirm.isConfirmed) return;
 
+        // Clear tokens locally first
+        localStorage.removeItem("auth_token");
+        sessionStorage.removeItem("auth_token");
+        localStorage.removeItem("user_role");
+
         try {
             await api.post("/api/user/logout/");
-
-            // Clear tokens
-            localStorage.removeItem("auth_token");
-            sessionStorage.removeItem("auth_token");
-            localStorage.removeItem("user_role");
-
-            Swal.fire({
-                icon: "success",
-                title: "Logged Out",
-                text: "You have been logged out successfully",
-                confirmButtonColor: "#000",
-            });
-
-            router.replace("/signin");
         } catch (error) {
-            Swal.fire({
-                icon: "error",
-                title: "Logout Failed",
-                text:
-                    error?.response?.data?.message ||
-                    "Unable to logout. Try again.",
-                confirmButtonColor: "#000",
-            });
+            console.warn("Logout API failed:", error?.response?.status);
         }
+
+        Swal.fire({
+            icon: "success",
+            title: "Logged Out",
+            text: "You have been logged out successfully",
+            confirmButtonColor: "#000",
+        });
+
+        router.replace("/signin");
     };
 
     const isActive = (path) =>

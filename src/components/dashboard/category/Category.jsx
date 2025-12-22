@@ -271,7 +271,7 @@ const Category = () => {
                     </div>
 
                     {/* CATEGORY LIST */}
-                    <div className="bg-white shadow-sm p-6 rounded-md flex-1 max-h-[500px] overflow-auto">
+                    <div className="bg-white shadow-sm p-6 rounded-md flex-1  overflow-auto">
                         <h2 className="text-2xl font-bold mb-4">
                             Category List
                         </h2>

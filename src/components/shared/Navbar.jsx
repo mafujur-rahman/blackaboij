@@ -42,20 +42,38 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Function to check if user is logged in
+  const isLoggedIn = () => !!localStorage.getItem("token");
 
+  // Handle profile click
+  const handleProfileClick = () => {
+    if (isLoggedIn()) {
+      router.push("/user/dashboard");
+    } else {
+      router.push("/signin");
+    }
+  };
+
+  // Handle wishlist click
+  const handleWishlistClick = () => {
+    if (isLoggedIn()) {
+      router.push("/user/wishlist");
+    }
+    // Do nothing if not logged in
+  };
 
   return (
     <>
       <nav className="bg-black text-white top-0 z-50">
         {/* ================= TOP BAR ================= */}
         <div className="md:border-b md:border-white/50">
-          <div className="px-4 lg:px-12 xl:px-12.5">
+          <div className="px-4 lg:px-12">
             <div className="relative flex items-center h-20">
               {/* LEFT */}
               <div className="flex items-center w-1/3">
@@ -67,9 +85,7 @@ export default function Navbar() {
                 </button>
 
                 {/* Desktop Search */}
-                <form
-                  className="hidden md:block w-full max-w-[270px] ml-2"
-                >
+                <form className="hidden md:block w-full max-w-[270px] ml-2">
                   <div className="relative rounded-full border border-white/40 px-4 py-1.5">
                     <input
                       type="text"
@@ -83,30 +99,39 @@ export default function Navbar() {
                 </form>
               </div>
 
-              {/* LOGO */} <div className="absolute left-1/2 -translate-x-1/2">
+              {/* LOGO */}
+              <div className="absolute left-1/2 -translate-x-1/2">
                 <Link href="/">
-                  <Image src="/images/logo-white.png"
+                  <Image
+                    src="/images/logo-white.png"
                     alt="Logo"
                     className="w-[100px] md:w-[120px] lg:w-[140px] xl:w-[180px]"
                     width={540}
                     height={540}
-                    priority />
+                    priority
+                  />
                 </Link>
               </div>
 
               {/* RIGHT */}
               <div className="flex items-center ml-auto">
-                <Link href="/signin" className="p-0 md:p-2 ">
+                <button
+                  onClick={handleProfileClick}
+                  className="p-0 md:p-2 cursor-pointer"
+                >
                   <FiUser className="w-4 h-4 md:w-5 md:h-5" />
-                </Link>
+                </button>
 
-                <button onClick={() => setIsCartOpen(true)} className="p-1 md:p-2 ">
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="p-1 md:p-2 cursor-pointer"
+                >
                   <FiShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
 
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="md:hidden p-1 md:p-2 "
+                  className="md:hidden p-1 md:p-2 cursor-pointer"
                 >
                   {mobileSearchOpen ? (
                     <FiX className="w-4 h-4" />
@@ -115,18 +140,18 @@ export default function Navbar() {
                   )}
                 </button>
 
-                <Link href="/" className="hidden md:block p-1 md:p-2 ">
+                <button
+                  onClick={handleWishlistClick}
+                  className="hidden md:block p-1 md:p-2 cursor-pointer"
+                >
                   <FiHeart className="w-5 h-5" />
-                </Link>
+                </button>
               </div>
-
             </div>
 
             {/* MOBILE SEARCH */}
             {mobileSearchOpen && (
-              <form
-                className="md:hidden flex justify-center pb-4"
-              >
+              <form className="md:hidden flex justify-center pb-4">
                 <div className="relative w-full max-w-xs">
                   <input
                     type="text"
