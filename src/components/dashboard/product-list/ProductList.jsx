@@ -8,6 +8,7 @@ import Link from "next/link";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import api from "@/lib/axios";
+import { getImageUrl } from "@/components/utils/get-image-url";
 
 const ProductList = () => {
     const router = useRouter();
@@ -150,7 +151,7 @@ const ProductList = () => {
                                             <td className="px-4 py-4 border-r border-black/10">
                                                 <div className="flex items-center gap-3">
                                                     <Image
-                                                        src={product.thumbnail_image || "/images/new.webp"}
+                                                        src={getImageUrl(product.thumbnail_image)}
                                                         alt={product.name}
                                                         width={40}
                                                         height={40}
@@ -160,11 +161,12 @@ const ProductList = () => {
                                                 </div>
                                             </td>
 
+
                                             <td className="px-4 py-4 border-r border-black/10 text-xs">
                                                 <span
                                                     className={`px-2 py-1 rounded-full font-semibold ${product.quantity > 0
-                                                            ? "bg-indigo-50 text-indigo-500"
-                                                            : "bg-red-50 text-red-500"
+                                                        ? "bg-indigo-50 text-indigo-500"
+                                                        : "bg-red-50 text-red-500"
                                                         }`}
                                                 >
                                                     {product.quantity > 0 ? "In Stock" : "Out of Stock"}

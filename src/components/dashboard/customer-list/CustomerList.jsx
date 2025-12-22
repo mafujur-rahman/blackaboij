@@ -15,7 +15,7 @@ const CustomerList = () => {
         const fetchCustomers = async () => {
             try {
                 const res = await api.get('/api/users/get-all-customers/');
-                setCustomers(res.data.data || []);
+                setCustomers(res.data.customers || []);
             } catch (err) {
                 console.error(err);
                 setError('Failed to fetch customers.');
@@ -74,7 +74,7 @@ const CustomerList = () => {
                                         <td className="px-4 py-4 border-r border-black/10">
                                             <div className="flex items-center space-x-3">
                                                 <Image
-                                                    src={customer.image || "/images/new.webp"}
+                                                    src={customer.image || "/images/user.jpg"}
                                                     alt={customer.name}
                                                     width={40}
                                                     height={40}

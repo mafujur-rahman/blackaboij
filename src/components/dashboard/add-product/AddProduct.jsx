@@ -130,10 +130,10 @@ const AddProduct = () => {
       form.sizes.forEach((id) => formData.append("size_ids", id));
       form.colors.forEach((id) => formData.append("color_ids", id));
 
-    //   if (form.thumbnail) formData.append("thumbnail_image", form.thumbnail);
-    //   form.galleryImages.forEach((img, i) => {
-    //     if (img) formData.append(`gallery${i + 1}`, img);
-    //   });
+      if (form.thumbnail) formData.append("thumbnail_image", form.thumbnail);
+      form.galleryImages.forEach((img, i) => {
+        if (img) formData.append(`gallery${i + 1}`, img);
+      });
 
       await api.post("/api/product/create-product/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
