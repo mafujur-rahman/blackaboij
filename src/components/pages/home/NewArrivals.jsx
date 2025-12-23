@@ -52,6 +52,7 @@ const ProductCard = ({ product }) => {
 
   return (
     <div className="flex flex-col overflow-hidden bg-white relative">
+      <Link href={`/product/${product.id}`}>
       <div className="relative aspect-square w-full bg-gray-100">
         <Image
           src={getImageUrl(product.thumbnail_image)}
@@ -71,6 +72,7 @@ const ProductCard = ({ product }) => {
           <FiHeart size={20} />
         </button>
       </div>
+      </Link>
 
       <div className="p-4 bg-black flex flex-col">
         <h3 className="text-xl font-medium text-white line-clamp-2">

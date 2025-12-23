@@ -56,26 +56,27 @@ const ProductCard = ({ product }) => {
 
   return (
     <div className="flex flex-col overflow-hidden bg-white relative mb-6">
-      <div className="relative aspect-square w-full bg-gray-100">
-        <Image
-          src={getImageUrl(product.thumbnail_image)}
-          alt={product.name}
-          fill
-          className="object-contain"
-          sizes="(max-width: 768px) 100vw, 25vw"
-        />
+      <Link href={`/product/${product.id}`}>
+        <div className="relative aspect-square w-full bg-gray-100">
+          <Image
+            src={getImageUrl(product.thumbnail_image)}
+            alt={product.name}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 25vw"
+          />
 
-        <NewBadge />
+          <NewBadge />
 
-        <button
-          onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${
-            isWishlisted ? "text-red-500" : "text-black"
-          }`}
-        >
-          <FiHeart size={20} />
-        </button>
-      </div>
+          <button
+            onClick={toggleWishlist}
+            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
+              }`}
+          >
+            <FiHeart size={20} />
+          </button>
+        </div>
+      </Link>
 
       <div className="p-4 bg-black flex flex-col">
         <h3 className="text-xl font-medium text-white line-clamp-2">
@@ -153,11 +154,10 @@ const MenCollectionArea = () => {
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded ${
-                      currentPage === i + 1
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-black border-gray-300"
-                    }`}
+                    className={`px-3 py-1 border rounded ${currentPage === i + 1
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-black border-gray-300"
+                      }`}
                   >
                     {i + 1}
                   </button>

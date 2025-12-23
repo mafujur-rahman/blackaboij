@@ -90,24 +90,26 @@ const MenHatArea = () => {
 
         return (
             <div className="relative flex flex-col overflow-hidden bg-white shadow-md rounded-md">
-                {/* Image */}
-                <div className="relative aspect-square w-full bg-gray-100">
-                    <Image
-                        src={getImageUrl(imageUrl)}
-                        alt={product.name || "Product"}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    />
-                    {product.is_new && <NewBadge />}
-                    <button
-                        onClick={toggleWishlist}
-                        className={`absolute top-2 left-2 z-10 ${isWishlisted ? "text-red-500" : "text-white"
-                            }`}
-                    >
-                        <FiHeart size={20} />
-                    </button>
-                </div>
+                <Link href={`/product/${product.id}`}>
+                    {/* Image */}
+                    <div className="relative aspect-square w-full bg-gray-100">
+                        <Image
+                            src={getImageUrl(imageUrl)}
+                            alt={product.name || "Product"}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        />
+                        {product.is_new && <NewBadge />}
+                        <button
+                            onClick={toggleWishlist}
+                            className={`absolute top-2 left-2 z-10 ${isWishlisted ? "text-red-500" : "text-white"
+                                }`}
+                        >
+                            <FiHeart size={20} />
+                        </button>
+                    </div>
+                </Link>
 
                 {/* Info */}
                 <div className="flex flex-col bg-black p-4">

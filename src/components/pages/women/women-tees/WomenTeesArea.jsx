@@ -89,6 +89,7 @@ const WomenTeesArea = () => {
 
         return (
             <div className="relative flex flex-col overflow-hidden bg-white shadow-md rounded-md">
+                <Link href={`/product/${product.id}`}>
                 {/* Image */}
                 <div className="relative aspect-square w-full bg-gray-100">
                     <Image
@@ -107,6 +108,7 @@ const WomenTeesArea = () => {
                         <FiHeart size={20} />
                     </button>
                 </div>
+                </Link>
 
                 {/* Info */}
                 <div className="flex flex-col bg-black p-4">

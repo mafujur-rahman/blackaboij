@@ -16,11 +16,11 @@ const Loader = () => (
 
 /* ---------------- ORDER PAGE ---------------- */
 const OrderHome = () => {
-    const { id } = useParams(); // dynamic product id
+    const { id } = useParams(); 
 
     const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true); // for fetching product
-    const [ordering, setOrdering] = useState(false); // for API call
+    const [loading, setLoading] = useState(true); 
+    const [ordering, setOrdering] = useState(false); 
     const [quantity, setQuantity] = useState(1);
 
     /* ---------------- FETCH PRODUCT ---------------- */

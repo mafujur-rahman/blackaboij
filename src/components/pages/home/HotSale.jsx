@@ -52,26 +52,27 @@ const ProductCard = ({ product }) => {
 
   return (
     <div className="flex flex-col overflow-hidden bg-white relative mb-6">
-      <div className="relative aspect-square w-full bg-gray-100">
-        <Image
-          src={getImageUrl(product.thumbnail_image)}
-          alt={product.name}
-          fill
-          className="object-contain"
-          sizes="(max-width: 768px) 100vw, 25vw"
-        />
+      <Link href={`/product/${product.id}`}>
+        <div className="relative aspect-square w-full bg-gray-100">
+          <Image
+            src={getImageUrl(product.thumbnail_image)}
+            alt={product.name}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 25vw"
+          />
 
-        {product.is_new && <NewBadge />}
+          {product.is_new && <NewBadge />}
 
-        <button
-          onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${
-            isWishlisted ? "text-red-500" : "text-black"
-          }`}
-        >
-          <FiHeart size={20} />
-        </button>
-      </div>
+          <button
+            onClick={toggleWishlist}
+            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
+              }`}
+          >
+            <FiHeart size={20} />
+          </button>
+        </div>
+      </Link>
 
       <div className="p-4 bg-black flex flex-col">
         <h3 className="text-xl font-medium text-white line-clamp-2">
@@ -93,11 +94,10 @@ const ProductCard = ({ product }) => {
 const CategoryTab = ({ category, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`pb-1 transition-colors ${
-      isActive
+    className={`pb-1 transition-colors ${isActive
         ? "border-b-2 border-black text-black font-bold"
         : "text-gray-600 hover:text-black"
-    }`}
+      }`}
   >
     {category.name}
   </button>
