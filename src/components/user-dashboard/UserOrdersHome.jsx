@@ -14,7 +14,7 @@ const UserOrdersHome = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const token = localStorage.getItem("authToken");
+        const token = localStorage.getItem("auth_token");
         const response = await api.get("/api/order/get-my-orders/", {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -45,7 +45,7 @@ const UserOrdersHome = () => {
 
     if (confirm.isConfirmed) {
       try {
-        const token = localStorage.getItem("authToken");
+        const token = localStorage.getItem("auth_token");
         const response = await api.get(
           `/api/order/cancel-order/${orderNumber}/`,
           {
