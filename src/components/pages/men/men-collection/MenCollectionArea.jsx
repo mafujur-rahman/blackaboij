@@ -53,7 +53,7 @@ const ProductCard = ({ product }) => {
                     src={getImageUrl(product.thumbnail_image)}
                     alt={product.name}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="(max-width: 768px) 100vw, 25vw"
                 />
 
@@ -68,12 +68,11 @@ const ProductCard = ({ product }) => {
             </div>
 
             <div className="p-4 bg-black flex flex-col">
-                <h3 className="text-sm md:text-base font-medium text-white line-clamp-2">
+                <h3 className="text-xl font-medium text-white line-clamp-2">
                     {product.name}
                 </h3>
-                <p className="text-xs text-gray-300 mt-1">{product.category?.parent_name}</p>
                 <div className="mt-2 flex items-center justify-between">
-                    <p className="text-sm font-bold text-white">€{product.unit_price}</p>
+                    <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
                     <AnimatedButton variant="white">Buy Now</AnimatedButton>
                 </div>
             </div>
