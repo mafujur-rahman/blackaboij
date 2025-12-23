@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   FiSearch,
@@ -14,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
 
+/* ================= NAV LINKS ================= */
 const navLinks = [
   {
     name: "Men",
@@ -43,35 +45,44 @@ const navLinks = [
 
 export default function Navbar() {
   const router = useRouter();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Function to check if user is logged in
-  const isLoggedIn = () => !!localStorage.getItem("token");
+  /* ================= AUTH CHECK ================= */
+  useEffect(() => {
+    const token =
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token");
 
-  // Handle profile click
+    setIsLoggedIn(!!token);
+  }, []);
+
+  /* ================= HANDLERS ================= */
   const handleProfileClick = () => {
-    if (isLoggedIn()) {
+    if (isLoggedIn) {
       router.push("/user/dashboard");
     } else {
       router.push("/signin");
     }
   };
 
-  // Handle wishlist click
   const handleWishlistClick = () => {
-    if (isLoggedIn()) {
+    if (isLoggedIn) {
       router.push("/user/wishlist");
+    } else {
+      router.push("/signin");
     }
-    // Do nothing if not logged in
   };
 
+  /* ================= RENDER ================= */
   return (
     <>
       <nav className="bg-black text-white top-0 z-50">
-        {/* ================= TOP BAR ================= */}
+        {/* ===== TOP BAR ===== */}
         <div className="md:border-b md:border-white/50">
           <div className="px-4 lg:px-12">
             <div className="relative flex items-center h-20">
@@ -92,9 +103,7 @@ export default function Navbar() {
                       placeholder="Search products..."
                       className="bg-transparent text-sm text-gray-300 placeholder-gray-300 focus:outline-none w-full pr-8"
                     />
-                    <button type="submit">
-                      <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
-                    </button>
+                    <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
                   </div>
                 </form>
               </div>
@@ -105,33 +114,26 @@ export default function Navbar() {
                   <Image
                     src="/images/logo-white.png"
                     alt="Logo"
-                    className="w-[100px] md:w-[120px] lg:w-[140px] xl:w-[180px]"
-                    width={540}
-                    height={540}
+                    width={160}
+                    height={60}
                     priority
                   />
                 </Link>
               </div>
 
               {/* RIGHT */}
-              <div className="flex items-center ml-auto">
-                <button
-                  onClick={handleProfileClick}
-                  className="p-0 md:p-2 cursor-pointer"
-                >
-                  <FiUser className="w-4 h-4 md:w-5 md:h-5" />
+              <div className="flex items-center ml-auto gap-2">
+                <button onClick={handleProfileClick}>
+                  <FiUser className="w-5 h-5" />
                 </button>
 
-                <button
-                  onClick={() => setIsCartOpen(true)}
-                  className="p-1 md:p-2 cursor-pointer"
-                >
-                  <FiShoppingBag className="w-4 h-4 md:w-5 md:h-5" />
+                <button onClick={() => setIsCartOpen(true)}>
+                  <FiShoppingBag className="w-5 h-5" />
                 </button>
 
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="md:hidden p-1 md:p-2 cursor-pointer"
+                  className="md:hidden"
                 >
                   {mobileSearchOpen ? (
                     <FiX className="w-4 h-4" />
@@ -142,32 +144,31 @@ export default function Navbar() {
 
                 <button
                   onClick={handleWishlistClick}
-                  className="hidden md:block p-1 md:p-2 cursor-pointer"
+                  className="hidden md:block"
                 >
-                  <FiHeart className="w-5 h-5" />
+                  <FiHeart
+                    className={`w-5 h-5 ${
+                      isLoggedIn ? "text-red-500" : "text-white"
+                    }`}
+                  />
                 </button>
               </div>
             </div>
 
             {/* MOBILE SEARCH */}
             {mobileSearchOpen && (
-              <form className="md:hidden flex justify-center pb-4">
-                <div className="relative w-full max-w-xs">
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 focus:outline-none"
-                  />
-                  <button type="submit">
-                    <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </button>
-                </div>
-              </form>
+              <div className="md:hidden pb-4">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 focus:outline-none"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* DESKTOP NAV */}
+        {/* ===== DESKTOP NAV ===== */}
         <div className="hidden md:flex justify-center space-x-8 py-4">
           {navLinks.map((link) => (
             <div key={link.name} className="relative group">
@@ -194,7 +195,7 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* MOBILE MENU */}
+        {/* ===== MOBILE MENU ===== */}
         {isMenuOpen && (
           <div className="md:hidden bg-black px-4">
             {navLinks.map((link) => (
@@ -231,6 +232,7 @@ export default function Navbar() {
         )}
       </nav>
 
+      {/* CART DRAWER */}
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
