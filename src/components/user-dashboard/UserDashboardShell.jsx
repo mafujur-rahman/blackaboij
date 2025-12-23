@@ -2,21 +2,63 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { FiHome, FiShoppingBag, FiHeart, FiUser, FiLogOut, } from "react-icons/fi";
+import {
+    FiHome,
+    FiShoppingBag,
+    FiHeart,
+    FiUser,
+    FiLogOut,
+} from "react-icons/fi";
+import Swal from "sweetalert2";
+import api from "@/lib/axios";
 
 export default function UserDashboardShell({ children }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
-
-
 
     const isActive = (path) =>
         pathname === path ? "bg-black/10" : "hover:bg-black/10";
 
-    const linkClass =
-        "flex items-center gap-3 py-2 px-3 rounded transition text-[16px]";
+    const linkClass = "flex items-center gap-3 py-2 px-3 rounded transition text-[16px]";
+
+    // handle logout 
+    const handleLogout = async () => {
+        const confirm = await Swal.fire({
+            title: "Are you sure?",
+            text: "You will be logged out from the dashboard",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#000",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, Logout",
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        // Clear tokens locally first
+        localStorage.removeItem("auth_token");
+        sessionStorage.removeItem("auth_token");
+        localStorage.removeItem("user_role");
+
+        try {
+            await api.post("/api/user/logout/");
+        } catch (error) {
+            console.warn("Logout API failed:", error?.response?.status);
+        }
+
+        Swal.fire({
+            icon: "success",
+            title: "Logged Out",
+            text: "You have been logged out successfully",
+            confirmButtonColor: "#000",
+        });
+
+        router.replace("/");
+    };
+
 
     return (
         <div className="flex min-h-screen bg-gray-100 px-4 lg:px-12">
@@ -34,7 +76,7 @@ export default function UserDashboardShell({ children }) {
                             height={80}
                             className="rounded-full object-cover"
                         />
-                        <h2 className="mt-4 text-lg font-semibold">John Doe</h2> 
+                        <h2 className="mt-4 text-lg font-semibold">John Doe</h2>
                         <p className="text-sm text-gray-500">john.doe@gmail.com</p>
                     </div>
 
@@ -73,26 +115,24 @@ export default function UserDashboardShell({ children }) {
                             <span>Profile</span>
                         </Link>
 
-                        <Link
-                            href="/logout"
-                            className="flex items-center gap-3 py-2 px-3 mt-8 rounded text-red-400 hover:bg-white/10"
+                        {/* LOGOUT BUTTON */}
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-3 py-2 px-3 mt-8 rounded text-red-400 hover:bg-white/10 w-full text-left cursor-pointer"
                         >
                             <FiLogOut className="text-xl" />
                             <span>Logout</span>
-                        </Link>
+                        </button>
 
                     </nav>
                 </aside>
             )}
 
-
             {/* RIGHT SIDE */}
             <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300`}>
 
                 {/* PAGE CONTENT */}
-                <main
-                    className={`flex-1 p-6 transition-all duration-300 `}
-                >
+                <main className={`flex-1 p-6 transition-all duration-300`}>
                     {children}
                 </main>
 

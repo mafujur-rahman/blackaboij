@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { getImageUrl } from "@/components/utils/get-image-url";
+import Link from "next/link";
 
 const WomenTeesArea = () => {
     const router = useRouter();
@@ -116,7 +117,11 @@ const WomenTeesArea = () => {
                         <p className="text-[12px] md:text-[15px] font-bold text-white">
                             €{product.unit_price || "0.00"}
                         </p>
-                        <AnimatedButton variant="white">Buy Now</AnimatedButton>
+                        <Link href={`/order/${product.id}`} passHref>
+                            <AnimatedButton variant="white" className="w-full">
+                                Buy Now
+                            </AnimatedButton>
+                        </Link>
                     </div>
                 </div>
             </div>

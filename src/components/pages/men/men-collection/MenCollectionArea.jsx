@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import AnimatedButton from "../../../utils/AnimatedButton";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
+import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
@@ -85,7 +86,11 @@ const ProductCard = ({ product }) => {
           <p className="text-2xl font-bold text-white">
             €{product.unit_price}
           </p>
-          <AnimatedButton variant="white">Buy Now</AnimatedButton>
+          <Link href={`/order/${product.id}`} passHref>
+            <AnimatedButton variant="white" className="w-full">
+              Buy Now
+            </AnimatedButton>
+          </Link>
         </div>
       </div>
     </div>

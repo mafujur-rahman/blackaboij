@@ -7,6 +7,7 @@ import { FiHeart } from "react-icons/fi";
 import AnimatedButton from "@/components/utils/AnimatedButton";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
+import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
@@ -64,9 +65,8 @@ const ProductCard = ({ product }) => {
 
         <button
           onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${
-            isWishlisted ? "text-red-500" : "text-black"
-          }`}
+          className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
+            }`}
         >
           <FiHeart size={20} />
         </button>
@@ -79,7 +79,11 @@ const ProductCard = ({ product }) => {
 
         <div className="mt-2 flex items-center justify-between">
           <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
-          <AnimatedButton variant="white">Buy Now</AnimatedButton>
+          <Link href={`/order/${product.id}`} passHref>
+            <AnimatedButton variant="white" className="w-full">
+              Buy Now
+            </AnimatedButton>
+          </Link>
         </div>
       </div>
     </div>
@@ -89,11 +93,10 @@ const ProductCard = ({ product }) => {
 const CategoryTab = ({ category, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`pb-1 transition-colors ${
-      isActive
-        ? "border-b-2 border-black text-black font-bold"
-        : "text-gray-600 hover:text-black"
-    }`}
+    className={`pb-1 transition-colors ${isActive
+      ? "border-b-2 border-black text-black font-bold"
+      : "text-gray-600 hover:text-black"
+      }`}
   >
     {category.name}
   </button>

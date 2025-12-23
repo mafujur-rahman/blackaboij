@@ -80,7 +80,7 @@ const AnimatedButton = ({ children, variant = "white" }) => {
         <button
             onMouseEnter={handleEnter}
             onMouseLeave={handleLeave}
-            className={`relative overflow-hidden ${bgColor} px-8 py-2 md:px-10 md:py-3 text-[12px] md:text-[16px] font-normal md:font-bold`}
+            className={`relative overflow-hidden ${bgColor} px-8 py-2 md:px-10 md:py-3 text-[12px] md:text-[16px] font-normal md:font-bold cursor-pointer`}
         >
             {/* Overlay */}
             <span
