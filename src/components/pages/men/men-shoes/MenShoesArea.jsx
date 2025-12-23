@@ -1,82 +1,145 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { FiHeart } from "react-icons/fi";
 import AnimatedButton from "../../../utils/AnimatedButton";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import Swal from "sweetalert2";
+import { getImageUrl } from "@/components/utils/get-image-url";
 
 const MenShoesArea = () => {
-    // Sample products (can be replaced with real data)
-    const products = [
-        {
-            id: 1,
-            name: "Blackaboij Men's T-Shirt - White Edition",
-            price: "€40",
-            image: "/images/new.webp",
-            isNew: true,
-        },
-        {
-            id: 2,
-            name: "Blackaboij Men's T-Shirt - Black Edition",
-            price: "€45",
-            image: "/images/new.webp",
-            isNew: false,
-        },
-        
-    ];
+    const router = useRouter();
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // New Badge
+    /* ------------------ FETCH PRODUCTS ------------------ */
+    const fetchProducts = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get(
+                "https://blackaboji.vercel.app/api/products/get-all-products/"
+            );
+
+            if (res.data?.success) {
+                // Filter only Men -> Shoes
+                const menShoes = res.data.data.filter(
+                    (p) =>
+                        p.category?.parent_name === "Men" &&
+                        p.category?.name?.toLowerCase() === "Shoes"
+                );
+
+                setProducts(menShoes);
+            } else {
+                console.warn("API did not return success:", res.data);
+            }
+        } catch (error) {
+            console.error("API fetch error:", error);
+            Swal.fire("Error", "Failed to load products", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    /* ------------------ UI COMPONENTS ------------------ */
     const NewBadge = () => (
         <div className="absolute right-0 top-0 bg-black px-2 py-1 text-[12px] md:text-[15px] font-semibold uppercase text-white">
             New
         </div>
     );
 
-    // Product Card
-    const ProductCard = ({ product }) => (
-        <div className="relative flex flex-col overflow-hidden  bg-white ">
-            {/* Image */}
-            <div className="relative aspect-4/4 w-full bg-gray-100">
-                <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    priority
-                />
+    const ProductCard = ({ product }) => {
+        const [isWishlisted, setIsWishlisted] = useState(false);
 
-                {product.isNew && <NewBadge />}
+        useEffect(() => {
+            const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+            setIsWishlisted(wishlist.some((item) => item.id === product.id));
+        }, [product.id]);
 
-                {/* Wishlist */}
-                <button className="absolute top-2 left-2 z-10 text-white">
-                    <FiHeart size={20} />
-                </button>
-            </div>
+        const toggleWishlist = () => {
+            const token =
+                localStorage.getItem("auth_token") ||
+                sessionStorage.getItem("auth_token");
 
-            {/* Info */}
-            <div className="flex flex-col bg-black p-4">
-                <h3 className="text-[16px] md:text-[22px] font-medium text-white">
-                    {product.name}
-                </h3>
+            // Redirect to signin only when user clicks wishlist and is not logged in
+            if (!token) {
+                router.push("/signin");
+                return;
+            }
 
-                <div className="mt-2 flex items-center justify-between">
-                    <p className="text-[12px] md:text-[15px] font-bold text-white">
-                        {product.price}
-                    </p>
-                    <AnimatedButton variant="white">Buy Now</AnimatedButton>
+            const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+            const updatedWishlist = isWishlisted
+                ? wishlist.filter((item) => item.id !== product.id)
+                : [...wishlist, product];
+
+            localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
+            setIsWishlisted(!isWishlisted);
+        };
+
+        const imageUrl = product.thumbnail_image
+            ? product.thumbnail_image.startsWith("http")
+                ? product.thumbnail_image
+                : `${process.env.NEXT_PUBLIC_BASE_URL}${product.thumbnail_image}`
+            : "/placeholder.png";
+
+        return (
+            <div className="relative flex flex-col overflow-hidden bg-white shadow-md rounded-md">
+                {/* Image */}
+                <div className="relative aspect-square w-full bg-gray-100">
+                    <Image
+                        src={getImageUrl(imageUrl)}
+                        alt={product.name || "Product"}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    />
+                    {product.is_new && <NewBadge />}
+                    <button
+                        onClick={toggleWishlist}
+                        className={`absolute top-2 left-2 z-10 ${isWishlisted ? "text-red-500" : "text-white"
+                            }`}
+                    >
+                        <FiHeart size={20} />
+                    </button>
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-col bg-black p-4">
+                    <h3 className="text-[16px] md:text-[22px] font-medium text-white line-clamp-2">
+                        {product.name || "Unnamed Product"}
+                    </h3>
+                    <div className="mt-2 flex items-center justify-between">
+                        <p className="text-[12px] md:text-[15px] font-bold text-white">
+                            €{product.unit_price || "0.00"}
+                        </p>
+                        <AnimatedButton variant="white">Buy Now</AnimatedButton>
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
-        <div className="min-h-screen my-12.5 ">
+        <div className="my-12.5">
             <div className="px-4 lg:px-12">
-                {/* Grid */}
-                {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div> */}
+                {loading ? (
+                    <div className="flex justify-center py-20">
+                        <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+                    </div>
+                ) : products.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+                        {products.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center col-span-full">No products found</p>
+                )}
             </div>
         </div>
     );

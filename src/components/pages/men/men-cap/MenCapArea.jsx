@@ -9,7 +9,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { getImageUrl } from "@/components/utils/get-image-url";
 
-const WomenShoesArea = () => {
+const MenCapArea = () => {
     const router = useRouter();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,14 +23,14 @@ const WomenShoesArea = () => {
             );
 
             if (res.data?.success) {
-                // Filter only Women -> Shoes
-                const womenShoes = res.data.data.filter(
+                // Filter only Men -> Cap
+                const menCap = res.data.data.filter(
                     (p) =>
-                        p.category?.parent_name === "Women" &&
-                        p.category?.name?.toLowerCase() === "Shoes"
+                        p.category?.parent_name === "Men" &&
+                        p.category?.name?.toLowerCase() === "Cap"
                 );
 
-                setProducts(womenShoes);
+                setProducts(menCap);
             } else {
                 console.warn("API did not return success:", res.data);
             }
@@ -145,4 +145,4 @@ const WomenShoesArea = () => {
     );
 };
 
-export default WomenShoesArea;
+export default MenCapArea;

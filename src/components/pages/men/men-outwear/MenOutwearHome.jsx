@@ -1,12 +1,13 @@
 import React from 'react';
 import MenOutwearBanner from './MenOutwearBanner';
-import MenOutwearnArea from './MenOutwearArea';
+import MenOutwearArea from './MenOutwearArea';
+
 
 const MenOutwearHome = () => {
     return (
         <div>
             <MenOutwearBanner />
-            <MenOutwearnArea />
+            <MenOutwearArea />
         </div>
     );
 };

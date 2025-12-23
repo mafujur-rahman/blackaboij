@@ -26,6 +26,8 @@ const navLinks = [
       { name: "Pants", href: "/men/men-pants" },
       { name: "Outwears", href: "/men/men-outwears" },
       { name: "Shoes", href: "/men/men-shoes" },
+      { name: "Cap", href: "/men/men-cap" },
+      { name: "Hat", href: "/men/men-hat" },
     ],
   },
   {
@@ -37,6 +39,8 @@ const navLinks = [
       { name: "Pants", href: "/women/women-pants" },
       { name: "Outwears", href: "/women/women-outwears" },
       { name: "Shoes", href: "/women/women-shoes" },
+      { name: "Cap", href: "/women/women-cap" },
+      { name: "Hat", href: "/women/women-hat" },
     ],
   },
   { name: "Accessories", href: "/accessories" },
