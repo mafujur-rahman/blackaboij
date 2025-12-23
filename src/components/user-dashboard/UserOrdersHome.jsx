@@ -34,7 +34,18 @@ const UserOrdersHome = () => {
     fetchOrders();
   }, []);
 
-  const handleCancelOrder = async (orderNumber) => {
+  const handleCancelOrder = async (orderNumber, status) => {
+    // Only allow cancelling pending orders
+    if (status !== "pending") {
+      Swal.fire({
+        icon: "info",
+        title: "Cannot Cancel",
+        text: "This order can not be cancelled now",
+        confirmButtonColor: "#000",
+      });
+      return;
+    }
+
     const confirm = await Swal.fire({
       title: "Are you sure?",
       text: "Do you want to cancel this order?",
@@ -43,33 +54,40 @@ const UserOrdersHome = () => {
       confirmButtonText: "Yes, cancel it!",
     });
 
-    if (confirm.isConfirmed) {
-      try {
-        const token = localStorage.getItem("auth_token");
-        const response = await api.get(
-          `/api/order/cancel-order/${orderNumber}/`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+    if (!confirm.isConfirmed) return;
 
-        if (response.data.success) {
-          Swal.fire("Cancelled!", response.data.message, "success");
-          // Update orders list
-          setOrders((prev) =>
-            prev.map((o) =>
-              o.order_number === orderNumber ? { ...o, status: "cancelled" } : o
-            )
-          );
+    try {
+      const token = localStorage.getItem("auth_token");
+
+      const response = await api.post(
+        `/api/order/cancel-order/${orderNumber}/`,
+        undefined, // No body
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      } catch (error) {
-        console.error("Error cancelling order:", error);
-        Swal.fire("Error", "Failed to cancel order", "error");
-      }
+      );
+
+      Swal.fire("Cancelled!", "Order has been cancelled successfully", "success");
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.order_number === orderNumber
+            ? { ...o, status: "cancelled" }
+            : o
+        )
+      );
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      Swal.fire("Error", "Failed to cancel order", "error");
     }
   };
+
+
+
+
+
 
   if (loading) return <p className="text-center mt-6">Loading orders...</p>;
 
@@ -121,13 +139,12 @@ const UserOrdersHome = () => {
                 </td>
                 <td className="px-6 py-4 border-r border-black/10">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      order.status === "delivered"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "cancelled"
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "delivered"
+                      ? "bg-green-100 text-green-700"
+                      : order.status === "cancelled"
                         ? "bg-red-100 text-red-700"
                         : "bg-yellow-100 text-yellow-700"
-                    }`}
+                      }`}
                   >
                     {order.status}
                   </span>
@@ -144,12 +161,13 @@ const UserOrdersHome = () => {
                   </button>
                   {order.status !== "cancelled" && (
                     <button
-                      onClick={() => handleCancelOrder(order.order_number)}
+                      onClick={() => handleCancelOrder(order.order_number, order.status)}
                       className="p-2 hover:bg-gray-100 rounded"
                     >
                       <Trash2 size={18} color="red" />
                     </button>
                   )}
+
                 </td>
               </tr>
             ))}

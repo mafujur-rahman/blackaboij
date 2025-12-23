@@ -8,43 +8,52 @@ import { FiHome, FiShoppingBag, FiHeart, FiUser, FiLogOut } from "react-icons/fi
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 
-export default function UserDashboardShell({ children, user, setUser }) {
+export default function UserDashboardShell({ children }) {
     const pathname = usePathname();
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const CLOUDINARY_BASE = "https://res.cloudinary.com/dwsp8rft8/";
+
+    const [user, setUser] = useState({
+        first_name: "",
+        last_name: "",
+        email: "",
+        profile_pic: "/images/profile.webp",
+    });
 
     const isActive = (path) =>
         pathname === path ? "bg-black/10" : "hover:bg-black/10";
 
     const linkClass = "flex items-center gap-3 py-2 px-3 rounded transition text-[16px]";
 
-    // Fetch user profile if user state is empty
+    // Fetch user profile on mount
     useEffect(() => {
-        if (user?.username) return; // already have user data
-
         const fetchProfile = async () => {
             try {
                 const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
                 if (!token) return;
 
-                const response = await api.get("/api/user/get-my-profile/", {
-                    headers: { Authorization: `Bearer ${token}` }
+                const res = await api.get("/api/user/get-my-profile/", {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
 
                 setUser({
-                    ...response.data,
-                    profile_pic: response.data.profile_pic ? `${CLOUDINARY_BASE}${response.data.profile_pic}` : "/images/profile.webp",
+                    first_name: res.data.first_name,
+                    last_name: res.data.last_name,
+                    email: res.data.email,
+                    profile_pic: res.data.profile_pic
+                        ? `${CLOUDINARY_BASE}${res.data.profile_pic}`
+                        : "/images/profile.webp",
                 });
-
             } catch (error) {
                 console.error("Failed to fetch user profile:", error);
             }
         };
-        fetchProfile();
-    }, [user, setUser]);
 
-    // handle logout 
+        fetchProfile();
+    }, []);
+
+    // Logout handler
     const handleLogout = async () => {
         const confirm = await Swal.fire({
             title: "Are you sure?",
@@ -86,19 +95,19 @@ export default function UserDashboardShell({ children, user, setUser }) {
                     {/* USER PROFILE */}
                     <div className="flex flex-col items-center py-8 border-b border-black/10">
                         <Image
-                            src={user?.profile_pic || "/images/profile.webp"}
-                            alt="Update Profile"
+                            src={user.profile_pic || "/images/profile.webp"}
+                            alt="User Profile"
                             width={80}
                             height={80}
                             className="rounded-full object-cover"
                         />
                         <h2 className="mt-4 text-lg font-semibold">
-                            {user?.first_name ? `${user.first_name} ${user.last_name}` : "Loading..."}
+                            {user.first_name ? `${user.first_name} ${user.last_name}` : "Loading..."}
                         </h2>
-                        <p className="text-sm text-gray-500">{user?.email || "Loading..."}</p>
+                        <p className="text-sm text-gray-500">{user.email || "Loading..."}</p>
                     </div>
 
-                    {/* NAV */}
+                    {/* NAVIGATION */}
                     <nav className="flex-1 px-4 py-6">
                         <Link href="/user/dashboard" className={`${linkClass} ${isActive("/user/dashboard")}`}>
                             <FiHome className="text-xl" />
