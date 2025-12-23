@@ -26,7 +26,7 @@ const WomenHoodiesSweatersArea = () => {
                 // Filter only Women -> Hoodies
                 const womenHoodies = res.data.data.filter(
                     (p) =>
-                        p.category?.parent_name === "Women" &&
+                        p.category?.parent_name?.toLowerCase() === "women" &&
                         p.category?.name?.toLowerCase() === "hoodies & sweaters"
                 );
 

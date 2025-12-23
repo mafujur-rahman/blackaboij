@@ -26,8 +26,8 @@ const MenCapArea = () => {
                 // Filter only Men -> Cap
                 const menCap = res.data.data.filter(
                     (p) =>
-                        p.category?.parent_name === "Men" &&
-                        p.category?.name?.toLowerCase() === "Cap"
+                        p.category?.parent_name?.toLowerCase() === "men" &&
+                        p.category?.name?.toLowerCase() === "cap"
                 );
 
                 setProducts(menCap);

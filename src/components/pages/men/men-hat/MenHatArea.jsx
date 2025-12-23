@@ -26,8 +26,8 @@ const MenHatArea = () => {
                 // Filter only Men -> Hat
                 const menHat = res.data.data.filter(
                     (p) =>
-                        p.category?.parent_name === "Men" &&
-                        p.category?.name?.toLowerCase() === "Hat"
+                        p.category?.parent_name?.toLowerCase() === "men" &&
+                        p.category?.name?.toLowerCase() === "hat"
                 );
 
                 setProducts(menHat);

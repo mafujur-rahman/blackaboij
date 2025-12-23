@@ -106,7 +106,7 @@ const WomenCollectionArea = () => {
       try {
         const res = await api.get("/api/products/get-all-products/");
         const womenProducts = res.data.data
-          .filter((p) => p.category?.parent_name === "Women")
+          .filter((p) => p.category?.parent_name?.toLowerCase() === "women")
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 20);
 

@@ -107,7 +107,7 @@ const AccessoriesArea = () => {
       try {
         const res = await api.get("/api/products/get-all-products/");
         const accessoriesProducts = res.data.data
-          .filter((p) => p.category?.parent_name === "Accessories")
+          .filter((p) => p.category?.parent_name?.toLowerCase() === "accessories")
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 20);
 
