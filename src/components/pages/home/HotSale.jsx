@@ -10,179 +10,182 @@ import { getImageUrl } from "@/components/utils/get-image-url";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-    <div className="flex justify-center items-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
-    </div>
+  <div className="flex justify-center items-center py-20">
+    <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+  </div>
 );
 
 const NewBadge = () => (
-    <div className="absolute right-0 top-0 bg-black px-2 py-1 text-xs md:text-sm font-semibold uppercase text-white">
-        New
-    </div>
+  <div className="absolute right-0 top-0 bg-black px-2 py-1 text-xs md:text-sm font-semibold uppercase text-white">
+    New
+  </div>
 );
 
 const ProductCard = ({ product }) => {
-    const router = useRouter();
-    const [isWishlisted, setIsWishlisted] = useState(false);
+  const router = useRouter();
+  const [isWishlisted, setIsWishlisted] = useState(false);
 
-    useEffect(() => {
-        const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
-        setIsWishlisted(wishlist.some((item) => item.id === product.id));
-    }, [product.id]);
+  useEffect(() => {
+    const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+    setIsWishlisted(wishlist.some((item) => item.id === product.id));
+  }, [product.id]);
 
-    const toggleWishlist = () => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            router.push("/signin");
-            return;
-        }
+  const toggleWishlist = () => {
+    const token =
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token");
 
-        const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
-        const updatedWishlist = isWishlisted
-            ? wishlist.filter((item) => item.id !== product.id)
-            : [...wishlist, product];
+    if (!token) {
+      router.push("/signin");
+      return;
+    }
 
-        localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
-        setIsWishlisted(!isWishlisted);
-    };
+    const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
+    const updatedWishlist = isWishlisted
+      ? wishlist.filter((item) => item.id !== product.id)
+      : [...wishlist, product];
 
-    return (
-        <div className="flex flex-col overflow-hidden bg-white relative mb-6">
-            <div className="relative aspect-square w-full bg-gray-100">
-                <Image
-                    src={getImageUrl(product.thumbnail_image)}
-                    alt={product.name}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 100vw, 25vw"
-                />
+    localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
+    setIsWishlisted(!isWishlisted);
+  };
 
-                {product.is_new && <NewBadge />}
+  return (
+    <div className="flex flex-col overflow-hidden bg-white relative mb-6">
+      <div className="relative aspect-square w-full bg-gray-100">
+        <Image
+          src={getImageUrl(product.thumbnail_image)}
+          alt={product.name}
+          fill
+          className="object-contain"
+          sizes="(max-width: 768px) 100vw, 25vw"
+        />
 
-                <button
-                    onClick={toggleWishlist}
-                    className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"}`}
-                >
-                    <FiHeart size={20} />
-                </button>
-            </div>
+        {product.is_new && <NewBadge />}
 
-            <div className="p-4 bg-black flex flex-col">
-                <h3 className="text-xl font-medium text-white line-clamp-2">
-                    {product.name}
-                </h3>
-                <div className="mt-2 flex items-center justify-between">
-                    <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
-                    <AnimatedButton variant="white">Buy Now</AnimatedButton>
-                </div>
-            </div>
+        <button
+          onClick={toggleWishlist}
+          className={`absolute top-2 left-2 ${
+            isWishlisted ? "text-red-500" : "text-black"
+          }`}
+        >
+          <FiHeart size={20} />
+        </button>
+      </div>
+
+      <div className="p-4 bg-black flex flex-col">
+        <h3 className="text-xl font-medium text-white line-clamp-2">
+          {product.name}
+        </h3>
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
+          <AnimatedButton variant="white">Buy Now</AnimatedButton>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 const CategoryTab = ({ category, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`pb-1 transition-colors ${isActive ? "border-b-2 border-black text-black font-bold" : "text-gray-600 hover:text-black"
-            }`}
-    >
-        {category.name}
-    </button>
+  <button
+    onClick={onClick}
+    className={`pb-1 transition-colors ${
+      isActive
+        ? "border-b-2 border-black text-black font-bold"
+        : "text-gray-600 hover:text-black"
+    }`}
+  >
+    {category.name}
+  </button>
 );
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const HotSale = () => {
-    const router = useRouter();
-    const [activeCategory, setActiveCategory] = useState(null);
-    const [categories, setCategories] = useState([]);
-    const [allProducts, setAllProducts] = useState([]);
-    const [filteredProducts, setFilteredProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            router.push("/signin");
-            return;
-        }
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get("/api/products/get-all-products/");
+        const products = res.data.data;
 
-        const fetchProducts = async () => {
-            setLoading(true);
-            try {
-                const res = await api.get("/api/products/get-all-products/");
-                const products = res.data.data;
+        setAllProducts(products);
 
-                setAllProducts(products);
+        // Extract unique parent categories dynamically
+        const uniqueParentCategories = Array.from(
+          new Map(
+            products
+              .filter((p) => p.category?.parent)
+              .map((p) => [p.category.parent, p.category.parent_name])
+          ).entries()
+        ).map(([id, name]) => ({ id, name }));
 
-                // Extract unique parent categories dynamically
-                const uniqueParentCategories = Array.from(
-                    new Map(
-                        products
-                            .filter((p) => p.category?.parent)
-                            .map((p) => [p.category.parent, p.category.parent_name])
-                    ).entries()
-                ).map(([id, name]) => ({ id, name }));
+        setCategories(uniqueParentCategories);
 
-                setCategories(uniqueParentCategories);
-                if (uniqueParentCategories.length > 0) setActiveCategory(uniqueParentCategories[0].id);
+        if (uniqueParentCategories.length > 0)
+          setActiveCategory(uniqueParentCategories[0].id);
 
-                // Initial filtered products
-                const initialFiltered = products.filter(
-                    (product) => product.category?.parent === uniqueParentCategories[0]?.id
-                );
-                setFilteredProducts(initialFiltered);
-            } catch (error) {
-                console.error("Failed to fetch products", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProducts();
-    }, [router]);
-
-    useEffect(() => {
-        if (!activeCategory) return;
-        const filtered = allProducts.filter(
-            (product) => product.category?.parent === activeCategory
+        // Initial filtered products
+        const initialFiltered = products.filter(
+          (product) => product.category?.parent === uniqueParentCategories[0]?.id
         );
-        setFilteredProducts(filtered);
-    }, [activeCategory, allProducts]);
+        setFilteredProducts(initialFiltered);
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return (
-        <div className=" mt-12.5 mb-12.5 xl:mb-25">
-            <div className="px-4 lg:px-12">
-                <h1 className="text-center text-3xl font-bold text-black">Hot Sale</h1>
+    fetchProducts();
+  }, []);
 
-                {/* CATEGORY TABS */}
-                <nav className="mt-8">
-                    <div className="flex justify-center space-x-6">
-                        {categories.map((category) => (
-                            <CategoryTab
-                                key={category.id}
-                                category={category}
-                                isActive={activeCategory === category.id}
-                                onClick={() => setActiveCategory(category.id)}
-                            />
-                        ))}
-                    </div>
-                </nav>
-
-                {/* PRODUCT CARDS */}
-                {loading ? (
-                    <Loader />
-                ) : filteredProducts.length === 0 ? (
-                    <p className="text-center mt-12 text-gray-500">No products found</p>
-                ) : (
-                    <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredProducts.map((product) => (
-                            <ProductCard key={product.id} product={product} />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </div>
+  useEffect(() => {
+    if (!activeCategory) return;
+    const filtered = allProducts.filter(
+      (product) => product.category?.parent === activeCategory
     );
+    setFilteredProducts(filtered);
+  }, [activeCategory, allProducts]);
+
+  return (
+    <div className="mt-12.5 mb-12.5 xl:mb-25">
+      <div className="px-4 lg:px-12">
+        <h1 className="text-center text-3xl font-bold text-black">Hot Sale</h1>
+
+        {/* CATEGORY TABS */}
+        <nav className="mt-8">
+          <div className="flex justify-center space-x-6">
+            {categories.map((category) => (
+              <CategoryTab
+                key={category.id}
+                category={category}
+                isActive={activeCategory === category.id}
+                onClick={() => setActiveCategory(category.id)}
+              />
+            ))}
+          </div>
+        </nav>
+
+        {/* PRODUCT CARDS */}
+        {loading ? (
+          <Loader />
+        ) : filteredProducts.length === 0 ? (
+          <p className="text-center mt-12 text-gray-500">No products found</p>
+        ) : (
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default HotSale;

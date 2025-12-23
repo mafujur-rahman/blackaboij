@@ -31,7 +31,10 @@ const ProductCard = ({ product }) => {
   }, [product.id]);
 
   const toggleWishlist = () => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token");
+
     if (!token) {
       router.push("/signin");
       return;
@@ -57,11 +60,13 @@ const ProductCard = ({ product }) => {
           className="object-contain"
         />
 
-        <NewBadge />
+        {product.is_new && <NewBadge />}
 
         <button
           onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"}`}
+          className={`absolute top-2 left-2 ${
+            isWishlisted ? "text-red-500" : "text-black"
+          }`}
         >
           <FiHeart size={20} />
         </button>
@@ -84,8 +89,11 @@ const ProductCard = ({ product }) => {
 const CategoryTab = ({ category, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`pb-1 transition-colors ${isActive ? "border-b-2 border-black text-black font-bold" : "text-gray-600 hover:text-black"
-      }`}
+    className={`pb-1 transition-colors ${
+      isActive
+        ? "border-b-2 border-black text-black font-bold"
+        : "text-gray-600 hover:text-black"
+    }`}
   >
     {category.name}
   </button>
@@ -93,7 +101,6 @@ const CategoryTab = ({ category, isActive, onClick }) => (
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const NewArrivals = () => {
-  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState(null);
   const [categories, setCategories] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -102,12 +109,6 @@ const NewArrivals = () => {
 
   /* ---------------- FETCH PRODUCTS ---------------- */
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/signin");
-      return;
-    }
-
     const fetchProducts = async () => {
       setLoading(true);
       try {
@@ -117,7 +118,7 @@ const NewArrivals = () => {
         );
         setAllProducts(sorted);
 
-        // Extract unique parent categories dynamically with names
+        // Extract unique parent categories dynamically
         const uniqueParentCategories = Array.from(
           new Map(
             sorted
@@ -127,9 +128,10 @@ const NewArrivals = () => {
         ).map(([id, name]) => ({ id, name }));
 
         setCategories(uniqueParentCategories);
-        if (uniqueParentCategories.length > 0) setActiveCategory(uniqueParentCategories[0].id);
 
-        // Initial filtered products
+        if (uniqueParentCategories.length > 0)
+          setActiveCategory(uniqueParentCategories[0].id);
+
         const initialFiltered = sorted.filter(
           (product) => product.category?.parent === uniqueParentCategories[0]?.id
         );
@@ -142,9 +144,9 @@ const NewArrivals = () => {
     };
 
     fetchProducts();
-  }, [router]);
+  }, []);
 
-  /* ---------------- FILTER BY PARENT CATEGORY ID ---------------- */
+  /* ---------------- FILTER BY CATEGORY ---------------- */
   useEffect(() => {
     if (!activeCategory) return;
 
@@ -156,7 +158,7 @@ const NewArrivals = () => {
   }, [activeCategory, allProducts]);
 
   return (
-    <div className=" mt-12.5 mb-12.5 xl:mb-25">
+    <div className="mt-12.5 mb-12.5 xl:mb-25">
       <div className="px-4 lg:px-12">
         <h1 className="text-center text-3xl font-bold text-black">New Arrivals</h1>
 
