@@ -3,6 +3,7 @@ import Image from "next/image";
 import { IoLogoFacebook, IoLogoInstagram, IoLogoYoutube } from "react-icons/io5";
 import { FaPinterest } from "react-icons/fa6";
 import AnimatedButton from "@/components/utils/AnimatedButton";
+import Link from "next/link";
 
 const SOCIAL_LINKS = [
     { icon: IoLogoFacebook, href: "https://www.facebook.com/BBOIJ", label: "Facebook" },
@@ -48,8 +49,12 @@ const Banner = () => {
                 </h1>
 
                 <div className="flex gap-4 flex-row sm:gap-6">
-                    <AnimatedButton variant="black">Shop Men</AnimatedButton>
-                    <AnimatedButton variant="black">Shop Women</AnimatedButton>
+                    <Link href="/men/men-collection" passHref>
+                        <AnimatedButton as="a" variant="black">Shop Men</AnimatedButton>
+                    </Link>
+                    <Link href="/women/women-collection" passHref>
+                        <AnimatedButton as="a" variant="black">Shop Women</AnimatedButton>
+                    </Link>
                 </div>
             </div>
 
