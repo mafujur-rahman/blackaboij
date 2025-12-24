@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   FiSearch,
@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
+import gsap from "gsap";
 
 /* ================= NAV LINKS ================= */
 const navLinks = [
@@ -55,6 +56,39 @@ export default function Navbar() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const tickerRef = useRef(null);
+
+
+  /* ================= GSAP SCROLL ================= */
+  useEffect(() => {
+    const ticker = tickerRef.current;
+
+    // Create original text items
+    const textArray = [];
+    for (let i = 0; i < 5; i++) {
+      const span = document.createElement("span");
+      span.innerText = "Black Friday Discount 20% Off";
+      span.className = "ticker-item text-black font-medium text-lg px-8";
+      ticker.appendChild(span);
+      textArray.push(span);
+    }
+
+    // Duplicate the content for seamless infinite scroll
+    ticker.innerHTML += ticker.innerHTML;
+
+    // Get width of original content
+    const originalWidth = Array.from(ticker.children)
+      .slice(0, textArray.length)
+      .reduce((total, item) => total + item.offsetWidth, 0) + 8 * 5; 
+
+    // Animate the entire container
+    gsap.to(ticker, {
+      x: -originalWidth,
+      duration: 25, // adjust speed
+      ease: "linear",
+      repeat: -1,
+    });
+  }, []);
 
   /* ================= AUTH CHECK ================= */
   useEffect(() => {
@@ -85,6 +119,17 @@ export default function Navbar() {
   /* ================= RENDER ================= */
   return (
     <>
+      {/* ===== TOP SCROLLING BAR ===== */}
+      <div className="w-full overflow-hidden bg-white">
+        <div
+          ref={tickerRef}
+          className="relative flex whitespace-nowrap py-2"
+          style={{ height: "40px" }}
+        ></div>
+      </div>
+
+
+      {/* ===== NAVBAR ===== */}
       <nav className="bg-black text-white top-0 z-50">
         {/* ===== TOP BAR ===== */}
         <div className="md:border-b md:border-white/50">
@@ -151,9 +196,8 @@ export default function Navbar() {
                   className="hidden md:block"
                 >
                   <FiHeart
-                    className={`w-5 h-5 ${
-                      isLoggedIn ? "text-red-500" : "text-white"
-                    }`}
+                    className={`w-5 h-5 ${isLoggedIn ? "text-red-500" : "text-white"
+                      }`}
                   />
                 </button>
               </div>
