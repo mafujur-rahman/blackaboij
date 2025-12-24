@@ -86,7 +86,7 @@ const ProductCard = ({ product }) => {
           <p className="text-2xl font-bold text-white">
             €{product.unit_price}
           </p>
-          <Link href={`/order/${product.id}`} passHref>
+          <Link href={`/product/${product.id}`} passHref>
             <AnimatedButton variant="white" className="w-full">
               Buy Now
             </AnimatedButton>

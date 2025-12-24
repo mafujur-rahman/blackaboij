@@ -124,7 +124,7 @@ const WomenShoesArea = () => {
                         <p className="text-[12px] md:text-[15px] font-bold text-white">
                             €{product.unit_price || "0.00"}
                         </p>
-                        <Link href={`/order/${product.id}`} passHref>
+                        <Link href={`/product/${product.id}`} passHref>
                             <AnimatedButton variant="white" className="w-full">
                                 Buy Now
                             </AnimatedButton>
