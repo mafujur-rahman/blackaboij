@@ -63,58 +63,67 @@ export default function DashboardHome() {
 
     return (
         <DashboardShell>
-            <div className="bg-white rounded-md px-6 py-4 mb-6">
-                <h2 className="font-semibold text-lg text-black">Dashboard</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <StatCard
-                    icon={<FiShoppingBag />}
-                    iconBg="bg-gray-200 text-black"
-                    title="Total Orders"
-                    value={totalOrders}
-                />
-                <StatCard
-                    icon={<FiDollarSign />}
-                    iconBg="bg-gray-200 text-black"
-                    title="Total Income"
-                    value={`$${totalIncome}`}
-                />
-                <StatCard
-                    icon={<FiBox />}
-                    iconBg="bg-gray-200 text-black"
-                    title="Total Products"
-                    value={productsCount}
-                />
-            </div>
-
-            <div className="bg-white rounded-md p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 flex flex-col gap-4">
-                        <div className="bg-gray-100 rounded-md p-6 flex flex-col h-full">
-                            <span className="text-3xl font-semibold text-black">{totalOrders}</span>
-                            <span className="text-[16px] mt-1 text-black">Total Orders</span>
-                            <button className="mt-auto bg-black text-white py-3 text-[16px] rounded-md">All Orders</button>
-                        </div>
-
-                        <div className="bg-gray-300 text-black text-[16px] rounded-md px-5 py-6 flex justify-between items-center">
-                            <span className="flex items-center gap-2">
-                                <FiClock /> Pending Orders
-                            </span>
-                            <span className="font-semibold">{pendingOrders}</span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <OrderCard icon={<FiCheckCircle />} label="Confirmed Orders" value={confirmedOrders} />
-                        <OrderCard icon={<FiTruck />} label="Shipped Orders" value={shippedOrders} />
-                        <OrderCard icon={<FiPackage />} label="Delivered Orders" value={deliveredOrders} />
-                        <OrderCard icon={<FiArchive />} label="Cancelled Orders" value={cancelledOrders} />
-                    </div>
+            {loading ? (
+                <div className="flex justify-center items-center min-h-[60vh]">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
                 </div>
-            </div>
+            ) : (
+                <>
+                    <div className="bg-white rounded-md px-6 py-4 mb-6">
+                        <h2 className="font-semibold text-lg text-black">Dashboard</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <StatCard
+                            icon={<FiShoppingBag />}
+                            iconBg="bg-gray-200 text-black"
+                            title="Total Orders"
+                            value={totalOrders}
+                        />
+                        <StatCard
+                            icon={<FiDollarSign />}
+                            iconBg="bg-gray-200 text-black"
+                            title="Total Income"
+                            value={`$${totalIncome}`}
+                        />
+                        <StatCard
+                            icon={<FiBox />}
+                            iconBg="bg-gray-200 text-black"
+                            title="Total Products"
+                            value={productsCount}
+                        />
+                    </div>
+
+                    <div className="bg-white rounded-md p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 flex flex-col gap-4">
+                                <div className="bg-gray-100 rounded-md p-6 flex flex-col h-full">
+                                    <span className="text-3xl font-semibold text-black">{totalOrders}</span>
+                                    <span className="text-[16px] mt-1 text-black">Total Orders</span>
+                                    <button className="mt-auto bg-black text-white py-3 text-[16px] rounded-md">All Orders</button>
+                                </div>
+
+                                <div className="bg-gray-300 text-black text-[16px] rounded-md px-5 py-6 flex justify-between items-center">
+                                    <span className="flex items-center gap-2">
+                                        <FiClock /> Pending Orders
+                                    </span>
+                                    <span className="font-semibold">{pendingOrders}</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <OrderCard icon={<FiCheckCircle />} label="Confirmed Orders" value={confirmedOrders} />
+                                <OrderCard icon={<FiTruck />} label="Shipped Orders" value={shippedOrders} />
+                                <OrderCard icon={<FiPackage />} label="Delivered Orders" value={deliveredOrders} />
+                                <OrderCard icon={<FiArchive />} label="Cancelled Orders" value={cancelledOrders} />
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
         </DashboardShell>
     );
+
 }
 
 function StatCard({ icon, iconBg, title, value }) {

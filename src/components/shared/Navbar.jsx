@@ -116,7 +116,7 @@ export default function Navbar() {
               <div className="absolute left-1/2 -translate-x-1/2">
                 <Link href="/">
                   <Image
-                    src="/images/logo-white.png"
+                    src="/images/new-logo.png"
                     alt="Logo"
                     width={160}
                     height={60}

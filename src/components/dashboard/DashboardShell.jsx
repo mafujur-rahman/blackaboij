@@ -74,7 +74,7 @@ export default function DashboardShell({ children }) {
                     <div className="h-16 flex items-center justify-center border-b border-white/10">
                         <Link href={'/'}>
                             <Image
-                                src="/images/logo-white.png"
+                                src="/images/new-logo.png"
                                 alt="Blackaboj"
                                 width={140}
                                 height={40}

@@ -28,7 +28,7 @@ const Footer = () => {
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block">
                         <Image
-                            src="/images/logo-white.png"
+                            src="/images/new-logo.png"
                             alt="BlackaboiJ Logo"
                             width={180}
                             height={50}
@@ -91,7 +91,7 @@ const Footer = () => {
 
                 {/* Copyright */}
                 <div className="mt-12 pt-4 text-center">
-                    <p className="text-sm text-gray-300">Copyright &copy; 2025 BlackaboiJ</p>
+                    <p className="text-sm text-gray-300">Copyright &copy; {new Date().getFullYear()} BlackaboiJ</p>
                 </div>
             </div>
 
