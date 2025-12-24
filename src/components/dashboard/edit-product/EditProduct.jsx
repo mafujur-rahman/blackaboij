@@ -204,7 +204,9 @@ const EditProduct = () => {
     }
   };
 
-  if (loading) return <div className="py-20 text-center">Loading...</div>;
+  if (loading) return <div className="flex justify-center min-h-[60vh]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
+  </div>;
 
   return (
     <DashboardShell>
@@ -385,7 +387,7 @@ const EditProduct = () => {
           </div>
         </div>
 
-        {/* MEDIA UPLOAD */}
+
         {/* MEDIA UPLOAD */}
         <div className="bg-white p-6 rounded-md shadow-sm space-y-6">
           <h2 className="text-xl font-bold">Media</h2>
@@ -444,7 +446,7 @@ const EditProduct = () => {
             </div>
           </div>
 
-          {/* GALLERY PREVIEW (BOTTOM – SAME AS ADD PRODUCT) */}
+          {/* GALLERY PREVIEW  */}
           <div className="flex gap-4">
             {form.galleryImages.map(
               (img, i) =>

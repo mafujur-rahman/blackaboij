@@ -175,8 +175,8 @@ export default function ProductDetailsHome() {
     /* ---------------- LOADING ---------------- */
     if (loading) {
         return (
-            <div className="flex justify-center py-24">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+            <div className="flex justify-center items-center min-h-[60vh]">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
             </div>
         );
     }
@@ -223,8 +223,8 @@ export default function ProductDetailsHome() {
                                             key={size.id}
                                             onClick={() => setSelectedSize(size)}
                                             className={`min-w-[44px] border px-4 py-2 text-sm ${selectedSize?.id === size.id
-                                                    ? "bg-black text-white"
-                                                    : "bg-white hover:border-black"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:border-black"
                                                 }`}
                                         >
                                             {size.name}
@@ -245,8 +245,8 @@ export default function ProductDetailsHome() {
                                                 setSelectedColor(color)
                                             }
                                             className={`h-7 w-7 rounded-full border-2 ${selectedColor?.id === color.id
-                                                    ? "border-black scale-110"
-                                                    : "border-gray-300 hover:border-black"
+                                                ? "border-black scale-110"
+                                                : "border-gray-300 hover:border-black"
                                                 }`}
                                             style={{
                                                 backgroundColor:

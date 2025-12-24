@@ -79,7 +79,7 @@ export default function Navbar() {
     // Get width of original content
     const originalWidth = Array.from(ticker.children)
       .slice(0, textArray.length)
-      .reduce((total, item) => total + item.offsetWidth, 0) + 8 * 5; 
+      .reduce((total, item) => total + item.offsetWidth, 0) + 8 * 5;
 
     // Animate the entire container
     gsap.to(ticker, {
@@ -90,6 +90,7 @@ export default function Navbar() {
     });
   }, []);
 
+
   /* ================= AUTH CHECK ================= */
   useEffect(() => {
     const token =
@@ -99,14 +100,26 @@ export default function Navbar() {
     setIsLoggedIn(!!token);
   }, []);
 
+
   /* ================= HANDLERS ================= */
   const handleProfileClick = () => {
     if (isLoggedIn) {
-      router.push("/user/dashboard");
+      const userRole =
+        localStorage.getItem("user_role") ||
+        sessionStorage.getItem("user_role");
+
+      if (userRole === "CUSTOMER") {
+        router.push("/user/dashboard");
+      } else if (userRole === "ADMIN") {
+        router.push("/dashboard");
+      } else {
+        router.push("/signin");
+      }
     } else {
       router.push("/signin");
     }
   };
+
 
   const handleWishlistClick = () => {
     if (isLoggedIn) {
