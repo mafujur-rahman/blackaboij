@@ -68,7 +68,7 @@ export default function Navbar() {
     for (let i = 0; i < 5; i++) {
       const span = document.createElement("span");
       span.innerText = "Black Friday Discount 20% Off";
-      span.className = "ticker-item text-black font-medium text-lg px-8";
+      span.className = "ticker-item text-black font-medium text-[16px] px-8";
       ticker.appendChild(span);
       textArray.push(span);
     }
@@ -133,13 +133,18 @@ export default function Navbar() {
   return (
     <>
       {/* ===== TOP SCROLLING BAR ===== */}
-      <div className="w-full overflow-hidden bg-white">
-        <div
-          ref={tickerRef}
-          className="relative flex whitespace-nowrap py-2"
-          style={{ height: "40px" }}
-        ></div>
+      <div className="w-full bg-white flex justify-center py-2">
+        {/* Fixed-width "window" for the ticker */}
+        <div className="overflow-hidden" style={{ width: "400px", height: "30px" }}>
+          <div
+            ref={tickerRef}
+            className="flex whitespace-nowrap"
+            style={{ animation: "ticker 10s linear infinite" }}
+          >
+          </div>
+        </div>
       </div>
+
 
 
       {/* ===== NAVBAR ===== */}

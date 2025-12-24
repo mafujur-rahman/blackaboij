@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Swal from "sweetalert2";
-import { getImageUrl } from "@/components/utils/get-image-url";
 import api from "@/lib/axios";
+import { getImageUrl } from "@/components/utils/get-image-url";
 
 export default function ProductDetailsHome() {
     const { id } = useParams();
@@ -13,30 +13,31 @@ export default function ProductDetailsHome() {
 
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+
     const [selectedSize, setSelectedSize] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
-    const [ordering, setOrdering] = useState(false);
-    const [quantity] = useState(1); // ✅ FIX
 
-    /* ---------------- FETCH PRODUCT ---------------- */
+    const [activeImage, setActiveImage] = useState(null);
+    const [activeTab, setActiveTab] = useState("description");
+
     useEffect(() => {
         const fetchProduct = async () => {
-            setLoading(true);
             try {
                 const res = await api.get("/api/products/get-all-products/");
-                const products = res.data?.data || [];
-
-                const found = products.find(
+                const found = res.data?.data?.find(
                     (p) => String(p.id) === String(id)
                 );
 
                 if (!found) {
                     Swal.fire("Error", "Product not found", "error");
+                    return;
                 }
 
-                setProduct(found || null);
-            } catch (error) {
-                console.error("Failed to fetch product", error);
+                setProduct(found);
+                setActiveImage(
+                    found.gallery_images?.[0] || found.thumbnail_image
+                );
+            } catch {
                 Swal.fire("Error", "Failed to load product", "error");
             } finally {
                 setLoading(false);
@@ -46,238 +47,251 @@ export default function ProductDetailsHome() {
         if (id) fetchProduct();
     }, [id]);
 
-    /* ---------------- AUTH TOKEN ---------------- */
-    const getToken = () =>
-        localStorage.getItem("auth_token") ||
-        sessionStorage.getItem("auth_token");
-
-    /* ---------------- ADD TO CART ---------------- */
     const handleAddToCart = () => {
-        const token = getToken();
-
-        if (!token) {
-            Swal.fire({
-                icon: "error",
-                title: "Unauthorized",
-                text: "Please login to add to cart",
-            });
-            router.push("/signin");
-            return;
-        }
-
         if (!selectedSize || !selectedColor) {
-            Swal.fire({
-                icon: "warning",
-                title: "Missing Selection",
-                text: "Please select size and color",
-            });
+            Swal.fire("Missing", "Select size & color", "warning");
             return;
         }
 
-        const cart =
-            JSON.parse(localStorage.getItem("cart_items")) || [];
+        const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
 
-        const cartItem = {
+        cart.push({
             product_id: product.id,
             name: product.name,
             price: product.unit_price,
-            thumbnail_image: product.thumbnail_image,
+            image: product.thumbnail_image,
             size: selectedSize.name,
             color: selectedColor.name,
             quantity: 1,
-        };
-
-        cart.push(cartItem);
-        localStorage.setItem("cart_items", JSON.stringify(cart));
-
-        Swal.fire({
-            icon: "success",
-            title: "Added to Cart",
-            text: `${product.name} has been added to your cart`,
-            timer: 1500,
-            showConfirmButton: false,
         });
+
+        localStorage.setItem("cart_items", JSON.stringify(cart));
+        Swal.fire("Added", "Product added to cart", "success");
     };
 
-    /* ---------------- ORDER HANDLER (REAL API) ---------------- */
-    const handleOrder = async () => {
-        if (!product) return;
-
-        const token = getToken();
-
-        if (!token) {
-            Swal.fire({
-                icon: "error",
-                title: "Unauthorized",
-                text: "Please login to place an order",
-            });
-            router.push("/signin");
-            return;
-        }
-
+    const handleOrderNow = () => {
         if (!selectedSize || !selectedColor) {
-            Swal.fire(
-                "Select options",
-                "Please select size and color",
-                "warning"
-            );
+            Swal.fire("Missing", "Select size & color", "warning");
             return;
         }
 
-        setOrdering(true);
+        localStorage.setItem(
+            "checkout_item",
+            JSON.stringify({
+                id: product.id,
+                name: product.name,
+                price: product.unit_price,
+                image: product.thumbnail_image,
+                size: selectedSize.name,
+                color: selectedColor.name,
+                quantity: 1,
+            })
+        );
 
-        try {
-            const payload = {
-                payment_method: "online",
-                items: [
-                    {
-                        product_id: product.id,
-                        quantity: quantity, // ✅ FIXED
-                    },
-                ],
-            };
-
-            const res = await api.post(
-                "/api/order/create-order/",
-                payload,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (res.data?.success) {
-                Swal.fire({
-                    icon: "success",
-                    title: "Order Placed",
-                    text: `Your order number is ${res.data.data.order_number}`,
-                });
-            } else {
-                Swal.fire({
-                    icon: "error",
-                    title: "Order Failed",
-                    text: res.data?.message || "Something went wrong",
-                });
-            }
-        } catch (error) {
-            console.error("Failed to create order", error);
-            Swal.fire({
-                icon: "error",
-                title: "Order Failed",
-                text: "Something went wrong",
-            });
-        } finally {
-            setOrdering(false);
-        }
+        router.push("/checkout");
     };
 
-    /* ---------------- LOADING ---------------- */
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
+                <div className="h-12 w-12 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
     if (!product) return null;
 
-
     return (
         <div className="px-4 lg:px-16 py-12">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-                {/* IMAGE */}
-                <div className="relative h-[420px] md:h-[480px] bg-gray-100 flex items-center justify-center">
-                    <Image
-                        src={getImageUrl(product.thumbnail_image)}
-                        alt={product.name}
-                        fill
-                        className="object-contain"
-                    />
+            {/* TOP */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                {/* IMAGE GALLERY */}
+                <div>
+                    <div className="relative h-[420px] bg-gray-100 rounded-xl">
+                        <Image
+                            src={getImageUrl(activeImage)}
+                            alt={product.name}
+                            fill
+                            className="object-contain"
+                        />
+                    </div>
+
+                    <div className="mt-4 flex gap-4">
+                        {[product.thumbnail_image, ...(product.gallery_images || [])]
+                            .slice(0, 4)
+                            .map((img, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setActiveImage(img)}
+                                    className={`relative w-24 h-24 border rounded-lg ${activeImage === img
+                                            ? "border-black"
+                                            : "border-gray-200"
+                                        }`}
+                                >
+                                    <Image
+                                        src={getImageUrl(img)}
+                                        alt="gallery"
+                                        fill
+                                        className="object-contain"
+                                    />
+                                </button>
+                            ))}
+                    </div>
                 </div>
 
-
                 {/* DETAILS */}
-                <div className="flex flex-col">
-                    <h1 className="text-2xl md:text-3xl font-bold">
-                        {product.name}
-                    </h1>
-
-                    <p className="mt-4 text-gray-600 leading-relaxed">
-                        {product.description}
-                    </p>
-
+                <div>
+                    <h1 className="text-3xl font-bold">{product.name}</h1>
+                    <p className="mt-4 text-gray-600">{product.description}</p>
                     <p className="mt-6 text-2xl font-semibold">
                         €{product.unit_price}
                     </p>
 
-                    {/* SIZE & COLOR */}
-                    <div className="mt-8 flex flex-col md:flex-row gap-8">
-                        {product.sizes?.length > 0 && (
-                            <div>
-                                <p className="mb-2 font-medium">Size</p>
-                                <div className="flex gap-2">
-                                    {product.sizes.map((size) => (
-                                        <button
-                                            key={size.id}
-                                            onClick={() => setSelectedSize(size)}
-                                            className={`min-w-[44px] border px-4 py-2 text-sm ${selectedSize?.id === size.id
+                    {/* SIZE */}
+                    {product.sizes?.length > 0 && (
+                        <div className="mt-6">
+                            <p className="mb-2 font-medium">Size</p>
+                            <div className="flex gap-2 flex-wrap">
+                                {product.sizes.map((size) => (
+                                    <button
+                                        key={size.id}
+                                        onClick={() => setSelectedSize(size)}
+                                        className={`px-4 py-2 border rounded ${selectedSize?.id === size.id
                                                 ? "bg-black text-white"
-                                                : "bg-white hover:border-black"
-                                                }`}
-                                        >
-                                            {size.name}
-                                        </button>
-                                    ))}
-                                </div>
+                                                : "hover:bg-gray-100"
+                                            }`}
+                                    >
+                                        {size.name}
+                                    </button>
+                                ))}
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {product.colors?.length > 0 && (
-                            <div>
-                                <p className="mb-2 font-medium">Color</p>
-                                <div className="flex gap-3">
-                                    {product.colors.map((color) => (
-                                        <button
-                                            key={color.id}
-                                            onClick={() =>
-                                                setSelectedColor(color)
-                                            }
-                                            className={`h-7 w-7 rounded-full border-2 ${selectedColor?.id === color.id
+                    {/* COLOR */}
+                    {product.colors?.length > 0 && (
+                        <div className="mt-6">
+                            <p className="mb-2 font-medium">Color</p>
+                            <div className="flex gap-3">
+                                {product.colors.map((color) => (
+                                    <button
+                                        key={color.id}
+                                        onClick={() => setSelectedColor(color)}
+                                        className={`h-8 w-8 rounded-full border-2 ${selectedColor?.id === color.id
                                                 ? "border-black scale-110"
-                                                : "border-gray-300 hover:border-black"
-                                                }`}
-                                            style={{
-                                                backgroundColor:
-                                                    color.code ||
-                                                    color.hex ||
-                                                    color.name.toLowerCase(),
-                                            }}
-                                        />
-                                    ))}
-                                </div>
+                                                : "border-gray-300"
+                                            }`}
+                                        style={{
+                                            backgroundColor:
+                                                color.code ||
+                                                color.hex ||
+                                                color.name.toLowerCase(),
+                                        }}
+                                    />
+                                ))}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    {/* BUTTONS */}
+                    {/* ACTIONS */}
                     <div className="mt-10 flex gap-4">
                         <button
-                            onClick={handleOrder}
-                            disabled={ordering}
-                            className="w-full px-6 py-3 bg-black text-white rounded cursor-pointer"
+                            onClick={handleOrderNow}
+                            className="w-full py-3 bg-black text-white rounded-lg  cursor-pointer"
                         >
-                            {ordering ? "Ordering..." : "Order Now"}
+                            Order Now
                         </button>
 
                         <button
                             onClick={handleAddToCart}
-                            className="w-full px-6 py-3 bg-black text-white rounded cursor-pointer"
+                            className="w-full py-3 border border-black rounded-lg hover:bg-black hover:text-white transition cursor-pointer"
                         >
                             Add to Cart
                         </button>
                     </div>
+                </div>
+            </div>
+
+            {/* TABS */}
+            <div className="mt-20">
+                <div className="flex gap-8 border-b border-black/10">
+                    {["description", "reviews", "recommended"].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`pb-3 capitalize font-medium ${activeTab === tab
+                                    ? "border-b-2 border-black"
+                                    : "text-gray-500"
+                                }`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="mt-8">
+                    {activeTab === "description" && (
+                        <p className="max-w-3xl text-gray-600 leading-relaxed">
+                            {product.description}
+                        </p>
+                    )}
+
+                    {activeTab === "reviews" && (
+                        <div className="space-y-6 max-w-3xl">
+                            {[1, 2].map((i) => (
+                                <div key={i} className="border border-black/10 p-5 rounded-lg">
+                                    <p className="font-semibold">John Doe</p>
+                                    <p className="text-sm text-gray-500">⭐⭐⭐⭐⭐</p>
+                                    <p className="mt-2 text-gray-600">
+                                        Excellent product quality!
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {activeTab === "recommended" && (
+                        <div className="space-y-6 max-w-5xl">
+                            {[1, 2, 3].map((i) => (
+                                <div
+                                    key={i}
+                                    className="flex flex-col sm:flex-row items-center gap-6 border border-black/10 rounded-xl p-5 hover:shadow-sm transition"
+                                >
+                                    {/* IMAGE */}
+                                    <div className="relative w-32 h-32 bg-gray-100 rounded-lg shrink-0">
+                                        <Image
+                                            src="/images/placeholder.png"
+                                            alt="recommended"
+                                            fill
+                                            className="object-contain"
+                                        />
+                                    </div>
+
+                                    {/* INFO */}
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-lg">
+                                            Recommended Product
+                                        </h3>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            High quality product with premium finish
+                                        </p>
+                                        <p className="mt-2 font-semibold text-lg">€120</p>
+                                    </div>
+
+                                    {/* ACTION */}
+                                    <div className="w-full sm:w-auto">
+                                        <button
+                                            onClick={() => router.push("/checkout")}
+                                            className="w-full sm:w-auto px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900"
+                                        >
+                                            Buy Now
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                    )}
                 </div>
             </div>
         </div>

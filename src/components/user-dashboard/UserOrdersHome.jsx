@@ -34,9 +34,9 @@ const UserOrdersHome = () => {
     fetchOrders();
   }, []);
 
-  const handleCancelOrder = async (orderNumber, status) => {
+  const handleCancelOrder = async (order) => {
     // Only allow cancelling pending orders
-    if (status !== "pending") {
+    if (order.status !== "pending") {
       Swal.fire({
         icon: "info",
         title: "Cannot Cancel",
@@ -59,21 +59,32 @@ const UserOrdersHome = () => {
     try {
       const token = localStorage.getItem("auth_token");
 
-      const response = await api.post(
-        `/api/order/cancel-order/${orderNumber}/`,
-        undefined, // No body
-        {
+      if (order.payment_method === "cod") {
+        // Cancel COD order
+        await api.post(
+          `/api/order/cancel-order/${order.order_number}/`,
+          undefined,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      } else {
+        // Cancel Online / PayPal order
+        await api.get(`/api/paypal/cancel/${order.id}/`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      );
+        });
+      }
 
       Swal.fire("Cancelled!", "Order has been cancelled successfully", "success");
 
+      // Update order status in UI
       setOrders((prev) =>
         prev.map((o) =>
-          o.order_number === orderNumber
+          o.order_number === order.order_number
             ? { ...o, status: "cancelled" }
             : o
         )
@@ -83,11 +94,6 @@ const UserOrdersHome = () => {
       Swal.fire("Error", "Failed to cancel order", "error");
     }
   };
-
-
-
-
-
 
   if (loading) return <p className="text-center mt-6">Loading orders...</p>;
 
@@ -128,9 +134,7 @@ const UserOrdersHome = () => {
                 key={order.order_number}
                 className="border-b border-black/10 hover:bg-gray-50"
               >
-                <td className="px-6 py-4 border-r border-black/10">
-                  {order.order_number}
-                </td>
+                <td className="px-6 py-4 border-r border-black/10">{order.order_number}</td>
                 <td className="px-6 py-4 border-r border-black/10">
                   {new Date(order.created_at).toLocaleDateString()}
                 </td>
@@ -140,18 +144,16 @@ const UserOrdersHome = () => {
                 <td className="px-6 py-4 border-r border-black/10">
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "delivered"
-                      ? "bg-green-100 text-green-700"
-                      : order.status === "cancelled"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-yellow-100 text-yellow-700"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "cancelled"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-yellow-100 text-yellow-700"
                       }`}
                   >
                     {order.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 border-r border-black/10">
-                  {order.payment_method}
-                </td>
+                <td className="px-6 py-4 border-r border-black/10">{order.payment_method}</td>
                 <td className="px-6 py-4 text-center flex justify-center gap-2">
                   <button
                     onClick={() => setSelectedOrder(order)}
@@ -161,13 +163,12 @@ const UserOrdersHome = () => {
                   </button>
                   {order.status !== "cancelled" && (
                     <button
-                      onClick={() => handleCancelOrder(order.order_number, order.status)}
+                      onClick={() => handleCancelOrder(order)}
                       className="p-2 hover:bg-gray-100 rounded"
                     >
                       <Trash2 size={18} color="red" />
                     </button>
                   )}
-
                 </td>
               </tr>
             ))}
@@ -202,8 +203,7 @@ const UserOrdersHome = () => {
                 <strong>Status:</strong> {selectedOrder.status}
               </p>
               <p>
-                <strong>Payment Method:</strong>{" "}
-                {selectedOrder.payment_method}
+                <strong>Payment Method:</strong> {selectedOrder.payment_method}
               </p>
             </div>
 
