@@ -150,15 +150,19 @@ const ProductList = () => {
 
                                             <td className="px-4 py-4 border-r border-black/10">
                                                 <div className="flex items-center gap-3">
-                                                    <Image
-                                                        src={getImageUrl(product.thumbnail_image)}
-                                                        alt={product.name}
-                                                        width={40}
-                                                        height={40}
-                                                        className="rounded border border-black/10 object-cover"
-                                                    />
+                                                    <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-full border border-black/10">
+                                                        <Image
+                                                            src={getImageUrl(product.thumbnail_image)}
+                                                            alt={product.name}
+                                                            width={40}
+                                                            height={40}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+
                                                     <span className="text-sm font-medium">{product.name}</span>
                                                 </div>
+
                                             </td>
 
 
@@ -185,7 +189,7 @@ const ProductList = () => {
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() =>
-                                                            router.push(`/dashboard/product/${product.id}`)
+                                                            router.push(`/product/${product.id}`)
                                                         }
                                                         className="p-1.5 bg-yellow-50 text-yellow-600 rounded-md hover:bg-yellow-100 cursor-pointer"
                                                     >
