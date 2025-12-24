@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { FiHeart } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-
 import AnimatedButton from "../../../utils/AnimatedButton";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
@@ -12,8 +11,8 @@ import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-  <div className="flex justify-center items-center py-20">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+  <div className="flex justify-center min-h-[60vh]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
   </div>
 );
 
@@ -34,7 +33,6 @@ const ProductCard = ({ product }) => {
   }, [product.id]);
 
   const toggleWishlist = () => {
-    // ✅ FIX: correct token key
     const token =
       localStorage.getItem("auth_token") ||
       sessionStorage.getItem("auth_token");
@@ -45,7 +43,6 @@ const ProductCard = ({ product }) => {
     }
 
     const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
-
     const updatedWishlist = isWishlisted
       ? wishlist.filter((item) => item.id !== product.id)
       : [...wishlist, product];
@@ -65,13 +62,10 @@ const ProductCard = ({ product }) => {
             className="object-contain"
             sizes="(max-width: 768px) 100vw, 25vw"
           />
-
           <NewBadge />
-
           <button
             onClick={toggleWishlist}
-            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
-              }`}
+            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"}`}
           >
             <FiHeart size={20} />
           </button>
@@ -82,11 +76,8 @@ const ProductCard = ({ product }) => {
         <h3 className="text-xl font-medium text-white line-clamp-2">
           {product.name}
         </h3>
-
         <div className="mt-2 flex items-center justify-between">
-          <p className="text-2xl font-bold text-white">
-            €{product.unit_price}
-          </p>
+          <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
           <Link href={`/order/${product.id}`} passHref>
             <AnimatedButton variant="white" className="w-full">
               Buy Now
@@ -109,6 +100,14 @@ const MenCollectionArea = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // ✅ Check session cache
+      const cached = sessionStorage.getItem("men_products");
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const res = await api.get("/api/products/get-all-products/");
@@ -118,6 +117,7 @@ const MenCollectionArea = () => {
           .slice(0, 20);
 
         setProducts(menProducts);
+        sessionStorage.setItem("men_products", JSON.stringify(menProducts));
       } catch (error) {
         console.error("Failed to fetch products", error);
       } finally {
@@ -142,7 +142,6 @@ const MenCollectionArea = () => {
         ) : (
           <>
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {/* ✅ FIX: use paginated products */}
               {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -154,10 +153,11 @@ const MenCollectionArea = () => {
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded ${currentPage === i + 1
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-gray-300"
-                      }`}
+                    className={`px-3 py-1 border rounded ${
+                      currentPage === i + 1
+                        ? "bg-black text-white border-black"
+                        : "bg-white text-black border-gray-300"
+                    }`}
                   >
                     {i + 1}
                   </button>

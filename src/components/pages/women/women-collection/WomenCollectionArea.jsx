@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { FiHeart } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-
 import AnimatedButton from "../../../utils/AnimatedButton";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
@@ -12,8 +11,8 @@ import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-    <div className="flex justify-center items-center py-20">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+    <div className="flex justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
     </div>
 );
 
@@ -44,7 +43,6 @@ const ProductCard = ({ product }) => {
         }
 
         const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
-
         const updatedWishlist = isWishlisted
             ? wishlist.filter((item) => item.id !== product.id)
             : [...wishlist, product];
@@ -56,25 +54,22 @@ const ProductCard = ({ product }) => {
     return (
         <div className="flex flex-col overflow-hidden bg-white relative mb-6">
             <Link href={`/product/${product.id}`}>
-            <div className="relative aspect-square w-full bg-gray-100">
-                <Image
-                    src={getImageUrl(product.thumbnail_image)}
-                    alt={product.name}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 100vw, 25vw"
-                />
-
-                <NewBadge />
-
-                <button
-                    onClick={toggleWishlist}
-                    className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
-                        }`}
-                >
-                    <FiHeart size={20} />
-                </button>
-            </div>
+                <div className="relative aspect-square w-full bg-gray-100">
+                    <Image
+                        src={getImageUrl(product.thumbnail_image)}
+                        alt={product.name}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 25vw"
+                    />
+                    {product.is_new && <NewBadge />}
+                    <button
+                        onClick={toggleWishlist}
+                        className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"}`}
+                    >
+                        <FiHeart size={20} />
+                    </button>
+                </div>
             </Link>
 
             <div className="p-4 bg-black flex flex-col">
@@ -83,9 +78,7 @@ const ProductCard = ({ product }) => {
                 </h3>
 
                 <div className="mt-2 flex items-center justify-between">
-                    <p className="text-2xl font-bold text-white">
-                        €{product.unit_price}
-                    </p>
+                    <p className="text-2xl font-bold text-white">€{product.unit_price}</p>
                     <Link href={`/order/${product.id}`} passHref>
                         <AnimatedButton variant="white" className="w-full">
                             Buy Now
@@ -102,13 +95,21 @@ const WomenCollectionArea = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
+
+            // ✅ Check sessionStorage first
+            const cached = sessionStorage.getItem("women_collection_products");
+            if (cached) {
+                setProducts(JSON.parse(cached));
+                setLoading(false);
+                return;
+            }
+
             try {
                 const res = await api.get("/api/products/get-all-products/");
                 const womenProducts = res.data.data
@@ -117,6 +118,7 @@ const WomenCollectionArea = () => {
                     .slice(0, 20);
 
                 setProducts(womenProducts);
+                sessionStorage.setItem("women_collection_products", JSON.stringify(womenProducts));
             } catch (error) {
                 console.error("Failed to fetch products", error);
             } finally {

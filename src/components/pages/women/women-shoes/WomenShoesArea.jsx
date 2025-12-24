@@ -17,6 +17,14 @@ const WomenShoesArea = () => {
 
     /* ------------------ FETCH PRODUCTS ------------------ */
     const fetchProducts = async () => {
+        // ✅ Check sessionStorage cache first
+        const cached = sessionStorage.getItem("women_shoes_products");
+        if (cached) {
+            setProducts(JSON.parse(cached));
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
             const res = await axios.get(
@@ -24,7 +32,6 @@ const WomenShoesArea = () => {
             );
 
             if (res.data?.success) {
-                // Filter only Women -> Shoes
                 const womenShoes = res.data.data.filter(
                     (p) =>
                         p.category?.parent_name?.toLowerCase() === "women" &&
@@ -32,6 +39,7 @@ const WomenShoesArea = () => {
                 );
 
                 setProducts(womenShoes);
+                sessionStorage.setItem("women_shoes_products", JSON.stringify(womenShoes));
             } else {
                 console.warn("API did not return success:", res.data);
             }
@@ -67,7 +75,6 @@ const WomenShoesArea = () => {
                 localStorage.getItem("auth_token") ||
                 sessionStorage.getItem("auth_token");
 
-            // Redirect to signin only when user clicks wishlist and is not logged in
             if (!token) {
                 router.push("/signin");
                 return;
@@ -91,27 +98,24 @@ const WomenShoesArea = () => {
         return (
             <div className="relative flex flex-col overflow-hidden bg-white shadow-md rounded-md">
                 <Link href={`/product/${product.id}`}>
-                {/* Image */}
-                <div className="relative aspect-square w-full bg-gray-100">
-                    <Image
-                        src={getImageUrl(imageUrl)}
-                        alt={product.name || "Product"}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    />
-                    {product.is_new && <NewBadge />}
-                    <button
-                        onClick={toggleWishlist}
-                        className={`absolute top-2 left-2 z-10 ${isWishlisted ? "text-red-500" : "text-white"
-                            }`}
-                    >
-                        <FiHeart size={20} />
-                    </button>
-                </div>
+                    <div className="relative aspect-square w-full bg-gray-100">
+                        <Image
+                            src={getImageUrl(imageUrl)}
+                            alt={product.name || "Product"}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        />
+                        {product.is_new && <NewBadge />}
+                        <button
+                            onClick={toggleWishlist}
+                            className={`absolute top-2 left-2 z-10 ${isWishlisted ? "text-red-500" : "text-white"}`}
+                        >
+                            <FiHeart size={20} />
+                        </button>
+                    </div>
                 </Link>
 
-                {/* Info */}
                 <div className="flex flex-col bg-black p-4">
                     <h3 className="text-[16px] md:text-[22px] font-medium text-white line-clamp-2">
                         {product.name || "Unnamed Product"}
@@ -135,8 +139,8 @@ const WomenShoesArea = () => {
         <div className="my-12.5">
             <div className="px-4 lg:px-12">
                 {loading ? (
-                    <div className="flex justify-center py-20">
-                        <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+                    <div className="flex justify-center min-h-[60vh]">
+                        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
                     </div>
                 ) : products.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">

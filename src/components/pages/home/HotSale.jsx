@@ -11,8 +11,8 @@ import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-  <div className="flex justify-center items-center py-20">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+  <div className="flex justify-center  min-h-[60vh]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
   </div>
 );
 
@@ -66,8 +66,9 @@ const ProductCard = ({ product }) => {
 
           <button
             onClick={toggleWishlist}
-            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
-              }`}
+            className={`absolute top-2 left-2 ${
+              isWishlisted ? "text-red-500" : "text-black"
+            }`}
           >
             <FiHeart size={20} />
           </button>
@@ -94,10 +95,11 @@ const ProductCard = ({ product }) => {
 const CategoryTab = ({ category, isActive, onClick }) => (
   <button
     onClick={onClick}
-    className={`pb-1 transition-colors ${isActive
+    className={`pb-1 transition-colors ${
+      isActive
         ? "border-b-2 border-black text-black font-bold"
         : "text-gray-600 hover:text-black"
-      }`}
+    }`}
   >
     {category.name}
   </button>
@@ -113,14 +115,24 @@ const HotSale = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      // Check cache first
+      const cached = sessionStorage.getItem("hot_sale_products");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setAllProducts(parsed.allProducts);
+        setCategories(parsed.categories);
+        setActiveCategory(parsed.activeCategory);
+        setFilteredProducts(parsed.filteredProducts);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true); // only show loader if no cache
       try {
         const res = await api.get("/api/products/get-all-products/");
         const products = res.data.data;
-
         setAllProducts(products);
 
-        // Extract unique parent categories dynamically
         const uniqueParentCategories = Array.from(
           new Map(
             products
@@ -130,15 +142,24 @@ const HotSale = () => {
         ).map(([id, name]) => ({ id, name }));
 
         setCategories(uniqueParentCategories);
+        const initialActiveCategory = uniqueParentCategories[0]?.id || null;
+        setActiveCategory(initialActiveCategory);
 
-        if (uniqueParentCategories.length > 0)
-          setActiveCategory(uniqueParentCategories[0].id);
-
-        // Initial filtered products
         const initialFiltered = products.filter(
-          (product) => product.category?.parent === uniqueParentCategories[0]?.id
+          (product) => product.category?.parent === initialActiveCategory
         );
         setFilteredProducts(initialFiltered);
+
+        // Cache the data
+        sessionStorage.setItem(
+          "hot_sale_products",
+          JSON.stringify({
+            allProducts: products,
+            categories: uniqueParentCategories,
+            activeCategory: initialActiveCategory,
+            filteredProducts: initialFiltered,
+          })
+        );
       } catch (error) {
         console.error("Failed to fetch products", error);
       } finally {
@@ -151,6 +172,7 @@ const HotSale = () => {
 
   useEffect(() => {
     if (!activeCategory) return;
+
     const filtered = allProducts.filter(
       (product) => product.category?.parent === activeCategory
     );

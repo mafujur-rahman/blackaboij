@@ -12,8 +12,8 @@ import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-  <div className="flex justify-center items-center py-20">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+  <div className="flex justify-center min-h-[60vh]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
   </div>
 );
 
@@ -34,7 +34,6 @@ const ProductCard = ({ product }) => {
   }, [product.id]);
 
   const toggleWishlist = () => {
-    // ✅ FIX: correct token key
     const token =
       localStorage.getItem("auth_token") ||
       sessionStorage.getItem("auth_token");
@@ -45,7 +44,6 @@ const ProductCard = ({ product }) => {
     }
 
     const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
-
     const updatedWishlist = isWishlisted
       ? wishlist.filter((item) => item.id !== product.id)
       : [...wishlist, product];
@@ -57,26 +55,26 @@ const ProductCard = ({ product }) => {
   return (
     <div className="flex flex-col overflow-hidden bg-white relative mb-6">
       <Link href={`/product/${product.id}`}>
-      <div className="relative aspect-square w-full bg-gray-100">
-        <Image
-          src={getImageUrl(product.thumbnail_image)}
-          alt={product.name}
-          fill
-          className="object-contain"
-          sizes="(max-width: 768px) 100vw, 25vw"
-        />
+        <div className="relative aspect-square w-full bg-gray-100">
+          <Image
+            src={getImageUrl(product.thumbnail_image)}
+            alt={product.name}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 25vw"
+          />
 
-        <NewBadge />
+          <NewBadge />
 
-        <button
-          onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${
-            isWishlisted ? "text-red-500" : "text-black"
-          }`}
-        >
-          <FiHeart size={20} />
-        </button>
-      </div>
+          <button
+            onClick={toggleWishlist}
+            className={`absolute top-2 left-2 ${
+              isWishlisted ? "text-red-500" : "text-black"
+            }`}
+          >
+            <FiHeart size={20} />
+          </button>
+        </div>
       </Link>
 
       <div className="p-4 bg-black flex flex-col">
@@ -88,7 +86,7 @@ const ProductCard = ({ product }) => {
           <p className="text-2xl font-bold text-white">
             €{product.unit_price}
           </p>
-           <Link href={`/order/${product.id}`} passHref>
+          <Link href={`/order/${product.id}`} passHref>
             <AnimatedButton variant="white" className="w-full">
               Buy Now
             </AnimatedButton>
@@ -110,6 +108,15 @@ const AccessoriesArea = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // Check cache first
+      const cached = sessionStorage.getItem("accessories_products");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setProducts(parsed);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const res = await api.get("/api/products/get-all-products/");
@@ -119,6 +126,7 @@ const AccessoriesArea = () => {
           .slice(0, 20);
 
         setProducts(accessoriesProducts);
+        sessionStorage.setItem("accessories_products", JSON.stringify(accessoriesProducts));
       } catch (error) {
         console.error("Failed to fetch products", error);
       } finally {

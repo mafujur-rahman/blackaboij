@@ -11,8 +11,8 @@ import Link from "next/link";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
-  <div className="flex justify-center items-center py-20">
-    <div className="h-10 w-10 animate-spin rounded-full border-4 border-black border-t-transparent" />
+  <div className="flex justify-center min-h-[60vh]">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
   </div>
 );
 
@@ -53,25 +53,25 @@ const ProductCard = ({ product }) => {
   return (
     <div className="flex flex-col overflow-hidden bg-white relative">
       <Link href={`/product/${product.id}`}>
-      <div className="relative aspect-square w-full bg-gray-100">
-        <Image
-          src={getImageUrl(product.thumbnail_image)}
-          alt={product.name}
-          fill
-          sizes="(max-width: 768px) 100vw, 25vw"
-          className="object-contain"
-        />
+        <div className="relative aspect-square w-full bg-gray-100">
+          <Image
+            src={getImageUrl(product.thumbnail_image)}
+            alt={product.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 25vw"
+            className="object-contain"
+          />
 
-        {product.is_new && <NewBadge />}
+          {product.is_new && <NewBadge />}
 
-        <button
-          onClick={toggleWishlist}
-          className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
-            }`}
-        >
-          <FiHeart size={20} />
-        </button>
-      </div>
+          <button
+            onClick={toggleWishlist}
+            className={`absolute top-2 left-2 ${isWishlisted ? "text-red-500" : "text-black"
+              }`}
+          >
+            <FiHeart size={20} />
+          </button>
+        </div>
       </Link>
 
       <div className="p-4 bg-black flex flex-col">
@@ -115,7 +115,19 @@ const NewArrivals = () => {
   /* ---------------- FETCH PRODUCTS ---------------- */
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      // Check if data is cached
+      const cached = sessionStorage.getItem("new_arrivals_products");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setAllProducts(parsed.allProducts);
+        setCategories(parsed.categories);
+        setActiveCategory(parsed.activeCategory);
+        setFilteredProducts(parsed.filteredProducts);
+        setLoading(false);
+        return; // no need to fetch again
+      }
+
+      setLoading(true); // only show loader if no cache
       try {
         const res = await api.get("/api/products/get-all-products/");
         const sorted = res.data.data.sort(
@@ -123,7 +135,6 @@ const NewArrivals = () => {
         );
         setAllProducts(sorted);
 
-        // Extract unique parent categories dynamically
         const uniqueParentCategories = Array.from(
           new Map(
             sorted
@@ -133,14 +144,24 @@ const NewArrivals = () => {
         ).map(([id, name]) => ({ id, name }));
 
         setCategories(uniqueParentCategories);
-
-        if (uniqueParentCategories.length > 0)
-          setActiveCategory(uniqueParentCategories[0].id);
+        const initialActiveCategory = uniqueParentCategories[0]?.id || null;
+        setActiveCategory(initialActiveCategory);
 
         const initialFiltered = sorted.filter(
-          (product) => product.category?.parent === uniqueParentCategories[0]?.id
+          (product) => product.category?.parent === initialActiveCategory
         );
         setFilteredProducts(initialFiltered.slice(0, 12));
+
+        // Cache the data
+        sessionStorage.setItem(
+          "new_arrivals_products",
+          JSON.stringify({
+            allProducts: sorted,
+            categories: uniqueParentCategories,
+            activeCategory: initialActiveCategory,
+            filteredProducts: initialFiltered.slice(0, 12),
+          })
+        );
       } catch (error) {
         console.error("Failed to fetch products", error);
       } finally {
@@ -165,7 +186,9 @@ const NewArrivals = () => {
   return (
     <div className="mt-12.5 mb-12.5 xl:mb-25">
       <div className="px-4 lg:px-12">
-        <h1 className="text-center text-3xl font-bold text-black">New Arrivals</h1>
+        <h1 className="text-center text-3xl font-bold text-black">
+          New Arrivals
+        </h1>
 
         {/* CATEGORY TABS */}
         <nav className="mt-8">
