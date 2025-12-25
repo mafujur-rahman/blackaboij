@@ -76,6 +76,7 @@ const SignInForm = () => {
                     {/* Email */}
                     <div className="relative">
                         <input
+                            id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -83,12 +84,13 @@ const SignInForm = () => {
                             placeholder=" "
                             required
                         />
-                        <label className={labelStyle}>Email Address *</label>
+                        <label htmlFor="email" className={labelStyle}>Email Address *</label>
                     </div>
 
                     {/* Password */}
                     <div className="relative">
                         <input
+                            id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -96,18 +98,19 @@ const SignInForm = () => {
                             placeholder=" "
                             required
                         />
-                        <label className={labelStyle}>Password *</label>
+                        <label htmlFor="password" className={labelStyle}>Password *</label>
                     </div>
 
                     {/* Remember Me */}
                     <div className="flex items-center">
                         <input
+                            id="rememberMe"
                             type="checkbox"
                             checked={rememberMe}
                             onChange={(e) => setRememberMe(e.target.checked)}
                             className="h-4 w-4"
                         />
-                        <label className="ml-2 text-sm">Remember me</label>
+                        <label htmlFor="rememberMe" className="ml-2 text-sm">Remember me</label>
                     </div>
 
                     {/* Button */}
@@ -123,9 +126,9 @@ const SignInForm = () => {
                 <div className="mt-4 text-center">
                     <a
                         href="/signUp"
-                        className="text-lg text-blue-600 hover:text-blue-800"
+                        className="text-lg text-black"
                     >
-                        You don’t have an account? Sign Up
+                        You don’t have an account? <span className="text-blue-600 hover:text-blue-800">Sign Up</span>
                     </a>
                 </div>
             </div>
