@@ -16,6 +16,7 @@ export default function ProductDetailsHome() {
 
     const [selectedSize, setSelectedSize] = useState(null);
     const [selectedColor, setSelectedColor] = useState(null);
+    const [quantity, setQuantity] = useState(1);
 
     const [activeImage, setActiveImage] = useState(null);
     const [activeTab, setActiveTab] = useState("description");
@@ -47,6 +48,9 @@ export default function ProductDetailsHome() {
         if (id) fetchProduct();
     }, [id]);
 
+    /* =========================
+        ADD TO CART
+    ========================= */
     const handleAddToCart = () => {
         if (!selectedSize || !selectedColor) {
             Swal.fire("Missing", "Select size & color", "warning");
@@ -56,36 +60,57 @@ export default function ProductDetailsHome() {
         const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
 
         cart.push({
-            product_id: product.id,
+            // 🔑 REQUIRED FOR CHECKOUT
+            id: Number(product.id),
+            product_id: Number(product.id),
+
             name: product.name,
-            price: product.unit_price,
+            price: Number(product.unit_price),
             image: product.thumbnail_image,
+
+            quantity: Number(quantity),
+
             size: selectedSize.name,
+            size_id: Number(selectedSize.id),
+
             color: selectedColor.name,
-            quantity: 1,
+            color_id: Number(selectedColor.id),
         });
 
         localStorage.setItem("cart_items", JSON.stringify(cart));
+
         Swal.fire("Added", "Product added to cart", "success");
     };
 
+    /* =========================
+        ORDER NOW
+    ========================= */
     const handleOrderNow = () => {
         if (!selectedSize || !selectedColor) {
             Swal.fire("Missing", "Select size & color", "warning");
             return;
         }
 
+        const checkoutItem = {
+            id: Number(product.id),
+            product_id: Number(product.id),
+
+            name: product.name,
+            price: Number(product.unit_price),
+            image: product.thumbnail_image,
+
+            quantity: Number(quantity),
+
+            size: selectedSize.name,
+            size_id: Number(selectedSize.id),
+
+            color: selectedColor.name,
+            color_id: Number(selectedColor.id),
+        };
+
         localStorage.setItem(
             "checkout_item",
-            JSON.stringify({
-                id: product.id,
-                name: product.name,
-                price: product.unit_price,
-                image: product.thumbnail_image,
-                size: selectedSize.name,
-                color: selectedColor.name,
-                quantity: 1,
-            })
+            JSON.stringify(checkoutItem)
         );
 
         router.push("/checkout");
@@ -103,9 +128,8 @@ export default function ProductDetailsHome() {
 
     return (
         <div className="px-4 lg:px-16 py-12">
-            {/* TOP */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* IMAGE GALLERY */}
+                {/* IMAGE */}
                 <div>
                     <div className="relative h-[420px] bg-gray-100 rounded-xl">
                         <Image
@@ -123,10 +147,11 @@ export default function ProductDetailsHome() {
                                 <button
                                     key={i}
                                     onClick={() => setActiveImage(img)}
-                                    className={`relative w-24 h-24 border rounded-lg ${activeImage === img
+                                    className={`relative w-24 h-24 border rounded-lg ${
+                                        activeImage === img
                                             ? "border-black"
                                             : "border-gray-200"
-                                        }`}
+                                    }`}
                                 >
                                     <Image
                                         src={getImageUrl(img)}
@@ -156,10 +181,11 @@ export default function ProductDetailsHome() {
                                     <button
                                         key={size.id}
                                         onClick={() => setSelectedSize(size)}
-                                        className={`px-4 py-2 border rounded ${selectedSize?.id === size.id
+                                        className={`px-4 py-2 border rounded ${
+                                            selectedSize?.id === size.id
                                                 ? "bg-black text-white"
                                                 : "hover:bg-gray-100"
-                                            }`}
+                                        }`}
                                     >
                                         {size.name}
                                     </button>
@@ -177,10 +203,11 @@ export default function ProductDetailsHome() {
                                     <button
                                         key={color.id}
                                         onClick={() => setSelectedColor(color)}
-                                        className={`h-8 w-8 rounded-full border-2 ${selectedColor?.id === color.id
+                                        className={`h-8 w-8 rounded-full border-2 ${
+                                            selectedColor?.id === color.id
                                                 ? "border-black scale-110"
                                                 : "border-gray-300"
-                                            }`}
+                                        }`}
                                         style={{
                                             backgroundColor:
                                                 color.code ||
@@ -193,105 +220,46 @@ export default function ProductDetailsHome() {
                         </div>
                     )}
 
+                    {/* QUANTITY */}
+                    <div className="mt-6">
+                        <p className="mb-2 font-medium">Quantity</p>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() =>
+                                    setQuantity((q) => Math.max(1, q - 1))
+                                }
+                                className="px-4 py-2 border rounded"
+                            >
+                                −
+                            </button>
+                            <span className="font-semibold">{quantity}</span>
+                            <button
+                                onClick={() => setQuantity((q) => q + 1)}
+                                className="px-4 py-2 border rounded"
+                            >
+                                +
+                            </button>
+                        </div>
+                    </div>
+
                     {/* ACTIONS */}
                     <div className="mt-10 flex gap-4">
                         <button
                             onClick={handleOrderNow}
-                            className="w-full py-3 bg-black text-white rounded-lg  cursor-pointer"
+                            disabled={!selectedSize || !selectedColor}
+                            className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-900"
                         >
                             Order Now
                         </button>
 
                         <button
                             onClick={handleAddToCart}
-                            className="w-full py-3 border border-black rounded-lg hover:bg-black hover:text-white transition cursor-pointer"
+                            disabled={!selectedSize || !selectedColor}
+                            className="w-full py-3 border border-black rounded-lg hover:bg-black hover:text-white"
                         >
                             Add to Cart
                         </button>
                     </div>
-                </div>
-            </div>
-
-            {/* TABS */}
-            <div className="mt-20">
-                <div className="flex gap-8 border-b border-black/10">
-                    {["description", "reviews", "recommended"].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`pb-3 capitalize font-medium ${activeTab === tab
-                                    ? "border-b-2 border-black"
-                                    : "text-gray-500"
-                                }`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="mt-8">
-                    {activeTab === "description" && (
-                        <p className="max-w-3xl text-gray-600 leading-relaxed">
-                            {product.description}
-                        </p>
-                    )}
-
-                    {activeTab === "reviews" && (
-                        <div className="space-y-6 max-w-3xl">
-                            {[1, 2].map((i) => (
-                                <div key={i} className="border border-black/10 p-5 rounded-lg">
-                                    <p className="font-semibold">John Doe</p>
-                                    <p className="text-sm text-gray-500">⭐⭐⭐⭐⭐</p>
-                                    <p className="mt-2 text-gray-600">
-                                        Excellent product quality!
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {activeTab === "recommended" && (
-                        <div className="space-y-6 max-w-5xl">
-                            {[1, 2, 3].map((i) => (
-                                <div
-                                    key={i}
-                                    className="flex flex-col sm:flex-row items-center gap-6 border border-black/10 rounded-xl p-5 hover:shadow-sm transition"
-                                >
-                                    {/* IMAGE */}
-                                    <div className="relative w-32 h-32 bg-gray-100 rounded-lg shrink-0">
-                                        <Image
-                                            src="/images/placeholder.png"
-                                            alt="recommended"
-                                            fill
-                                            className="object-contain"
-                                        />
-                                    </div>
-
-                                    {/* INFO */}
-                                    <div className="flex-1">
-                                        <h3 className="font-semibold text-lg">
-                                            Recommended Product
-                                        </h3>
-                                        <p className="text-sm text-gray-500 mt-1">
-                                            High quality product with premium finish
-                                        </p>
-                                        <p className="mt-2 font-semibold text-lg">€120</p>
-                                    </div>
-
-                                    {/* ACTION */}
-                                    <div className="w-full sm:w-auto">
-                                        <button
-                                            onClick={() => router.push("/checkout")}
-                                            className="w-full sm:w-auto px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900"
-                                        >
-                                            Buy Now
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                    )}
                 </div>
             </div>
         </div>

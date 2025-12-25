@@ -22,25 +22,28 @@ const OrderList = () => {
         const fetchOrders = async () => {
             try {
                 setLoading(true);
-                const response = await api.get("/api/orders/get-all-orders/");
+
+                const response = await api.get("/api/orders/get-all-orders/", {
+                    
+                });
+                console.log(response.data.data)
                 setOrders(response.data.data || []);
                 setLoading(false);
             } catch (err) {
                 console.error(err);
-                setError("Failed to fetch orders.");
+                setError(err.message || "Failed to fetch orders.");
                 setLoading(false);
             }
         };
+
         fetchOrders();
     }, []);
 
+
     const handleTrackingChange = async (order_number, newStatus) => {
         try {
-            if (!newStatus) {
-                throw new Error("No status selected");
-            }
+            if (!newStatus) throw new Error("No status selected");
 
-            // Check allowed statuses
             const allowedStatuses = ["confirmed", "delivered", "cancelled", "shipped"];
             if (!allowedStatuses.includes(newStatus.toLowerCase())) {
                 Swal.fire({
@@ -59,14 +62,10 @@ const OrderList = () => {
             );
 
 
-
-
             const response = await api.put(
                 `/api/admin/order/update-status/${order_number}/`,
                 { status: newStatus },
             );
-
-            console.log("API Response:", response.data);
 
             if (response.data.success) {
                 Swal.fire({
@@ -91,6 +90,7 @@ const OrderList = () => {
             setOrders((prev) => [...prev]);
         }
     };
+
 
 
     // Filtered orders
@@ -186,7 +186,7 @@ const OrderList = () => {
                                                 {(currentPage - 1) * itemsPerPage + index + 1}
                                             </td>
                                             <td className="px-4 py-4 border-r border-black/10 font-semibold">{order.order_number}</td>
-                                            <td className="px-4 py-4 border-r border-black/10">{order.customer_name}</td>
+                                            <td className="px-4 py-4 border-r border-black/10">{order.full_name}</td> {/* Updated */}
                                             <td className="px-4 py-4 border-r border-black/10 font-semibold">{order.total_amount}</td>
                                             <td className="px-4 py-4 border-r border-black/10">{order.status}</td>
                                             <td className="px-4 py-4 border-r border-black/10">{order.payment_method}</td>
@@ -215,6 +215,7 @@ const OrderList = () => {
                                         </tr>
                                     ))}
                                 </tbody>
+
                             </table>
 
                             {/* Pagination */}
@@ -250,7 +251,7 @@ const OrderList = () => {
                 {/* Modal */}
                 {modalOrder && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-2xl shadow-2xl w-1/3 max-w-4xl relative overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-2xl w-2/3 max-w-5xl relative overflow-auto max-h-[90vh]">
                             {/* Header */}
                             <div className="px-6 py-4 flex justify-between items-center border-b border-gray-200">
                                 <h2 className="text-black text-xl font-semibold">Order Details</h2>
@@ -264,25 +265,49 @@ const OrderList = () => {
 
                             {/* Content */}
                             <div className="p-6 space-y-4">
-                                <div className="flex justify-between">
-                                    <span className="font-medium text-gray-700">Order Number:</span>
-                                    <span className="text-black font-semibold">{modalOrder.order_number}</span>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p><span className="font-medium">Order Number:</span> {modalOrder.order_number}</p>
+                                        <p><span className="font-medium">Customer Name:</span> {modalOrder.full_name}</p>
+                                        <p><span className="font-medium">Phone:</span> {modalOrder.phone_number}</p>
+                                        <p><span className="font-medium">Address:</span> {modalOrder.street_address}, {modalOrder.city}, {modalOrder.zip_code}</p>
+                                    </div>
+                                    <div>
+                                        <p><span className="font-medium">Status:</span> {modalOrder.status}</p>
+                                        <p><span className="font-medium">Payment Method:</span> {modalOrder.payment_method}</p>
+                                        <p><span className="font-medium">Total Amount:</span> {modalOrder.total_amount}</p>
+                                        <p><span className="font-medium">Created At:</span> {new Date(modalOrder.created_at).toLocaleString()}</p>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium text-gray-700">Customer Name:</span>
-                                    <span className="text-black font-semibold">{modalOrder.customer_name}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium text-gray-700">Amount:</span>
-                                    <span className="text-black font-semibold">{modalOrder.total_amount}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium text-gray-700">Status:</span>
-                                    <span className="text-black font-semibold">{modalOrder.status}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="font-medium text-gray-700">Payment Method:</span>
-                                    <span className="text-black font-semibold">{modalOrder.payment_method}</span>
+
+                                {/* Items Table */}
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse border border-gray-200">
+                                        <thead className="bg-gray-100">
+                                            <tr>
+                                                <th className="px-3 py-2 border">SL</th>
+                                                <th className="px-3 py-2 border">Product Name</th>
+                                                <th className="px-3 py-2 border">Size</th>
+                                                <th className="px-3 py-2 border">Color</th>
+                                                <th className="px-3 py-2 border">Quantity</th>
+                                                <th className="px-3 py-2 border">Unit Price</th>
+                                                <th className="px-3 py-2 border">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {modalOrder.items.map((item, idx) => (
+                                                <tr key={item.id} className="border-b border-gray-200">
+                                                    <td className="px-3 py-2 border">{idx + 1}</td>
+                                                    <td className="px-3 py-2 border">{item.product_name}</td>
+                                                    <td className="px-3 py-2 border">{item?.size_name}</td>
+                                                    <td className="px-3 py-2 border">{item?.color_name}</td>
+                                                    <td className="px-3 py-2 border">{item.quantity}</td>
+                                                    <td className="px-3 py-2 border">{item.unit_price}</td>
+                                                    <td className="px-3 py-2 border">{(item.quantity * parseFloat(item.unit_price)).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
@@ -298,6 +323,7 @@ const OrderList = () => {
                         </div>
                     </div>
                 )}
+
             </div>
         </DashboardShell>
     );
