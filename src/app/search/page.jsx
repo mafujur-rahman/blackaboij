@@ -1,17 +1,9 @@
-"use client"; // keep this
+"use client"; // make the page itself a client component
 
-import SearchHome from '@/components/search/Search';
-import React from 'react';
+import SearchHome from "@/components/search/Search";
 
-// Force Next.js to treat this page as fully dynamic (CSR)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"; // ensures CSR, no pre-render
 
-const SearchPage = () => {
-    return (
-        <div>
-            <SearchHome />
-        </div>
-    );
-};
-
-export default SearchPage;
+export default function SearchPage() {
+  return <SearchHome />;
+}
