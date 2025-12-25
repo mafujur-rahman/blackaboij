@@ -24,7 +24,7 @@ const Available = () => {
         </h1>
 
         {/* Navigable Button */}
-        <Link href="/men/men-collection">
+        <Link href="/shop">
           <AnimatedButton variant="black">
             Shop Collections
           </AnimatedButton>

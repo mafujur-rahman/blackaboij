@@ -126,43 +126,52 @@ export default function CheckoutCartHome() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <input
+                                    type="text"
                                     placeholder="Full Name"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    className="input"
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
+
                                 <input
+                                    type="tel"
                                     placeholder="Phone Number"
                                     value={phoneNumber}
-                                    onChange={(e) =>
-                                        setPhoneNumber(e.target.value)
-                                    }
-                                    className="input"
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
+
                                 <input
+                                    type="text"
                                     placeholder="Street Address"
                                     value={streetAddress}
-                                    onChange={(e) =>
-                                        setStreetAddress(e.target.value)
-                                    }
-                                    className="input md:col-span-2"
+                                    onChange={(e) => setStreetAddress(e.target.value)}
+                                    className="md:col-span-2 w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
+
                                 <input
+                                    type="text"
                                     placeholder="City / Town"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    className="input"
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
+
                                 <input
+                                    type="text"
                                     placeholder="ZIP / Postal Code"
                                     value={zipCode}
-                                    onChange={(e) =>
-                                        setZipCode(e.target.value)
-                                    }
-                                    className="input"
+                                    onChange={(e) => setZipCode(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
                             </div>
                         </section>
+
 
                         {/* PAYMENT */}
                         <section className="bg-white rounded-2xl p-8 shadow-sm">
@@ -172,11 +181,10 @@ export default function CheckoutCartHome() {
 
                             <div className="space-y-4">
                                 <label
-                                    className={`flex items-center justify-between gap-4 rounded-xl border p-5 cursor-pointer transition ${
-                                        payment === "cod"
+                                    className={`flex items-center justify-between gap-4 rounded-xl border p-5 cursor-pointer transition ${payment === "cod"
                                             ? "border-black bg-gray-50"
                                             : "border-gray-200 hover:border-gray-400"
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-4">
                                         <FaMoneyBillWave size={22} />
@@ -198,11 +206,10 @@ export default function CheckoutCartHome() {
                                 </label>
 
                                 <label
-                                    className={`flex items-center justify-between gap-4 rounded-xl border p-5 cursor-pointer transition ${
-                                        payment === "visa"
+                                    className={`flex items-center justify-between gap-4 rounded-xl border p-5 cursor-pointer transition ${payment === "visa"
                                             ? "border-black bg-gray-50"
                                             : "border-gray-200 hover:border-gray-400"
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-4">
                                         <FaCcVisa size={26} />
@@ -289,11 +296,10 @@ export default function CheckoutCartHome() {
                         <button
                             onClick={handlePlaceOrder}
                             disabled={loading || hasInvalidOptions}
-                            className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition ${
-                                loading || hasInvalidOptions
+                            className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition ${loading || hasInvalidOptions
                                     ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                                     : "bg-black text-white hover:bg-gray-900"
-                            }`}
+                                }`}
                         >
                             <FaLock />
                             {loading ? "Processing..." : "Place Order"}

@@ -1,6 +1,7 @@
 "use client"
 import AnimatedButton from '@/components/utils/AnimatedButton';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const FridaySale = (props) => {
   return (
@@ -29,8 +30,12 @@ const FridaySale = (props) => {
           Black Friday Sale
         </h1>
 
-        {/* Call-to-Action Button */}
-        <AnimatedButton variant="white">Shop Now</AnimatedButton>
+        {/* Navigable Button */}
+        <Link href="/shop">
+          <AnimatedButton variant="black">
+            Shop Collections
+          </AnimatedButton>
+        </Link>
 
       </div>
     </div>

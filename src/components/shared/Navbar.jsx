@@ -46,6 +46,7 @@ const navLinks = [
     ],
   },
   { name: "Accessories", href: "/accessories" },
+  { name: "Shop", href: "/shop" },
   { name: "Store", href: "/store" },
 ];
 
@@ -236,8 +237,7 @@ export default function Navbar() {
                   className="hidden md:block"
                 >
                   <FiHeart
-                    className={`w-5 h-5 ${isLoggedIn ? "text-red-500" : "text-white"
-                      }`}
+                    className="w-5 h-5 text-white"
                   />
                 </button>
               </div>

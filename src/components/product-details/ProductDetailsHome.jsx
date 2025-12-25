@@ -49,18 +49,48 @@ export default function ProductDetailsHome() {
     }, [id]);
 
     /* =========================
+        VALIDATION
+    ========================= */
+    const validateOptions = () => {
+        if (!selectedSize && !selectedColor) {
+            Swal.fire({
+                icon: "warning",
+                title: "Select Options",
+                text: "Please select both size and color",
+            });
+            return false;
+        }
+
+        if (!selectedSize) {
+            Swal.fire({
+                icon: "warning",
+                title: "Size Required",
+                text: "Please select a size",
+            });
+            return false;
+        }
+
+        if (!selectedColor) {
+            Swal.fire({
+                icon: "warning",
+                title: "Color Required",
+                text: "Please select a color",
+            });
+            return false;
+        }
+
+        return true;
+    };
+
+    /* =========================
         ADD TO CART
     ========================= */
     const handleAddToCart = () => {
-        if (!selectedSize || !selectedColor) {
-            Swal.fire("Missing", "Select size & color", "warning");
-            return;
-        }
+        if (!validateOptions()) return;
 
         const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
 
         cart.push({
-            // 🔑 REQUIRED FOR CHECKOUT
             id: Number(product.id),
             product_id: Number(product.id),
 
@@ -79,17 +109,18 @@ export default function ProductDetailsHome() {
 
         localStorage.setItem("cart_items", JSON.stringify(cart));
 
-        Swal.fire("Added", "Product added to cart", "success");
+        Swal.fire({
+            icon: "success",
+            title: "Added to Cart",
+            text: "Product added successfully",
+        });
     };
 
     /* =========================
         ORDER NOW
     ========================= */
     const handleOrderNow = () => {
-        if (!selectedSize || !selectedColor) {
-            Swal.fire("Missing", "Select size & color", "warning");
-            return;
-        }
+        if (!validateOptions()) return;
 
         const checkoutItem = {
             id: Number(product.id),
@@ -108,11 +139,7 @@ export default function ProductDetailsHome() {
             color_id: Number(selectedColor.id),
         };
 
-        localStorage.setItem(
-            "checkout_item",
-            JSON.stringify(checkoutItem)
-        );
-
+        localStorage.setItem("checkout_item", JSON.stringify(checkoutItem));
         router.push("/checkout");
     };
 
@@ -147,11 +174,10 @@ export default function ProductDetailsHome() {
                                 <button
                                     key={i}
                                     onClick={() => setActiveImage(img)}
-                                    className={`relative w-24 h-24 border rounded-lg ${
-                                        activeImage === img
+                                    className={`relative w-24 h-24 border rounded-lg ${activeImage === img
                                             ? "border-black"
                                             : "border-gray-200"
-                                    }`}
+                                        }`}
                                 >
                                     <Image
                                         src={getImageUrl(img)}
@@ -181,11 +207,10 @@ export default function ProductDetailsHome() {
                                     <button
                                         key={size.id}
                                         onClick={() => setSelectedSize(size)}
-                                        className={`px-4 py-2 border rounded ${
-                                            selectedSize?.id === size.id
+                                        className={`px-4 py-2 border rounded ${selectedSize?.id === size.id
                                                 ? "bg-black text-white"
                                                 : "hover:bg-gray-100"
-                                        }`}
+                                            }`}
                                     >
                                         {size.name}
                                     </button>
@@ -203,11 +228,10 @@ export default function ProductDetailsHome() {
                                     <button
                                         key={color.id}
                                         onClick={() => setSelectedColor(color)}
-                                        className={`h-8 w-8 rounded-full border-2 ${
-                                            selectedColor?.id === color.id
+                                        className={`h-8 w-8 rounded-full border-2 ${selectedColor?.id === color.id
                                                 ? "border-black scale-110"
                                                 : "border-gray-300"
-                                        }`}
+                                            }`}
                                         style={{
                                             backgroundColor:
                                                 color.code ||

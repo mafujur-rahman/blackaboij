@@ -64,7 +64,7 @@ export default function ExecutePaypalPayment() {
                         error.message ||
                         "Failed to execute PayPal payment.",
                 });
-                router.replace("/checkout");
+                router.replace("/");
             } finally {
                 setLoading(false);
             }

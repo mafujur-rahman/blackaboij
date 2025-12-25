@@ -22,7 +22,7 @@ export default function ThankYouPage() {
 
                 <div className="flex flex-col gap-3">
                     <button
-                        onClick={() => router.push("/user/order")}
+                        onClick={() => router.push("/user/orders")}
                         className="w-full bg-black text-white py-2 rounded-md hover:bg-gray-800 transition"
                     >
                         View My Orders
