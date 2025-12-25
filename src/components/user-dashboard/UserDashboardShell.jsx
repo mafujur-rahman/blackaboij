@@ -17,9 +17,11 @@ export default function UserDashboardShell({ children }) {
     const [user, setUser] = useState({
         first_name: "",
         last_name: "",
+        username: "", 
         email: "",
         profile_pic: "/images/profile.webp",
     });
+
 
     const isActive = (path) =>
         pathname === path ? "bg-black/10" : "hover:bg-black/10";
@@ -37,9 +39,12 @@ export default function UserDashboardShell({ children }) {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
+                console.log(res.data)
+
                 setUser({
                     first_name: res.data.first_name,
                     last_name: res.data.last_name,
+                    username: res.data.username,
                     email: res.data.email,
                     profile_pic: res.data.profile_pic
                         ? `${CLOUDINARY_BASE}${res.data.profile_pic}`
@@ -102,7 +107,7 @@ export default function UserDashboardShell({ children }) {
                             className="rounded-full object-cover"
                         />
                         <h2 className="mt-4 text-lg font-semibold">
-                            {user.first_name ? `${user.first_name} ${user.last_name}` : "Loading..."}
+                            {user.first_name ? `${user.first_name} ${user.last_name}` : user.username}
                         </h2>
                         <p className="text-sm text-gray-500">{user.email || "Loading..."}</p>
                     </div>
