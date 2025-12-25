@@ -1,3 +1,4 @@
+"use client"
 import Available from "@/components/pages/home/Available";
 import Banner from "@/components/pages/home/Banner";
 import FridaySale from "@/components/pages/home/FridaySale";
