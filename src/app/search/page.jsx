@@ -1,3 +1,4 @@
+"use client";
 import SearchHome from '@/components/search/Search';
 import React from 'react';
 
