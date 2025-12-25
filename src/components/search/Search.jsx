@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -92,8 +92,8 @@ const ProductCard = ({ product }) => {
     );
 };
 
-/* ------------------ SEARCH PAGE ------------------ */
-export default function SearchHome() {
+/* ------------------ SEARCH CONTENT (uses useSearchParams) ------------------ */
+function SearchContent() {
     const searchParams = useSearchParams();
     const query = searchParams.get("q") || "";
 
@@ -149,5 +149,20 @@ export default function SearchHome() {
                 </div>
             )}
         </div>
+    );
+}
+
+/* ------------------ MAIN SEARCH PAGE ------------------ */
+export default function SearchHome() {
+    return (
+        <Suspense fallback={
+            <div className="px-4 lg:px-12 py-12.5">
+                <div className="flex justify-center min-h-[50vh] items-center">
+                    <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-black"></div>
+                </div>
+            </div>
+        }>
+            <SearchContent />
+        </Suspense>
     );
 }
