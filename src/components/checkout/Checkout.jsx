@@ -21,12 +21,34 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         const data = localStorage.getItem("checkout_item");
-        if (data) setItem(JSON.parse(data));
+        if (data) {
+            const parsedItem = JSON.parse(data);
+            setItem(parsedItem);
+        }
     }, []);
 
     if (!item) return null;
 
     const handlePlaceOrder = async () => {
+        // Check if user is authenticated
+        const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+        if (!token) {
+            Swal.fire({
+                icon: "warning",
+                title: "Authentication Required",
+                text: "Please login to place an order",
+                showCancelButton: true,
+                confirmButtonText: "Login",
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "/signin";
+                }
+            });
+            return;
+        }
+
+        // Validate shipping information
         if (!fullName || !phoneNumber || !streetAddress || !city || !zipCode) {
             Swal.fire({
                 icon: "warning",
@@ -38,7 +60,7 @@ export default function CheckoutPage() {
 
         setLoading(true);
         try {
-            // 1️⃣ Create Order
+            // Create Order with the exact API structure
             const orderRes = await api.post("/api/order/create-order/", {
                 payment_method: payment === "cod" ? "cod" : "online",
                 full_name: fullName,
@@ -50,29 +72,50 @@ export default function CheckoutPage() {
                     {
                         product_id: item.id,
                         quantity: item.quantity || 1,
-                        size: item.size || null,
-                        color: item.color || null,
+                        size_id: item.size_id, // Send ID from item
+                        color_id: item.color_id // Send ID from item
                     },
                 ],
             });
 
-            const orderNumber = orderRes.data.data.order_number;
-            const orderId = orderRes.data.data.id;
+            const orderData = orderRes.data.data;
+            const orderNumber = orderData.order_number;
+            const orderId = orderData.order_id;
 
             if (payment === "cod") {
                 Swal.fire({
                     icon: "success",
                     title: "Order Placed!",
                     text: `Your order number is ${orderNumber}`,
+                    confirmButtonText: "Continue Shopping"
+                }).then(() => {
+                    localStorage.removeItem("checkout_item");
+                    window.location.href = "/";
                 });
-                localStorage.removeItem("checkout_item");
             } else {
+                // For PayPal payment
                 const paypalRes = await api.post(`/api/paypal/create/${orderId}/`);
                 const approvalUrl = paypalRes.data.approval_url;
                 window.location.href = approvalUrl;
             }
         } catch (error) {
-            console.error(error);
+            console.error("Order error:", error);
+            
+            // Handle 401 Unauthorized
+            if (error.response?.status === 401) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Session Expired",
+                    text: "Your session has expired. Please login again.",
+                    confirmButtonText: "Login"
+                }).then(() => {
+                    localStorage.removeItem("token");
+                    sessionStorage.removeItem("token");
+                    window.location.href = "/login";
+                });
+                return;
+            }
+            
             Swal.fire({
                 icon: "error",
                 title: "Oops...",
@@ -82,7 +125,6 @@ export default function CheckoutPage() {
             setLoading(false);
         }
     };
-
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -109,6 +151,7 @@ export default function CheckoutPage() {
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
 
                                 <input
@@ -117,6 +160,7 @@ export default function CheckoutPage() {
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
 
                                 <input
@@ -125,6 +169,7 @@ export default function CheckoutPage() {
                                     value={streetAddress}
                                     onChange={(e) => setStreetAddress(e.target.value)}
                                     className="md:col-span-2 w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
 
                                 <input
@@ -133,6 +178,7 @@ export default function CheckoutPage() {
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
 
                                 <input
@@ -141,6 +187,7 @@ export default function CheckoutPage() {
                                     value={zipCode}
                                     onChange={(e) => setZipCode(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 px-4 py-3 placeholder-gray-400 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    required
                                 />
                             </div>
                         </section>
@@ -167,6 +214,7 @@ export default function CheckoutPage() {
 
                                     <input
                                         type="radio"
+                                        name="payment"
                                         checked={payment === "cod"}
                                         onChange={() => setPayment("cod")}
                                         className="hidden"
@@ -190,6 +238,7 @@ export default function CheckoutPage() {
 
                                     <input
                                         type="radio"
+                                        name="payment"
                                         checked={payment === "visa"}
                                         onChange={() => setPayment("visa")}
                                         className="hidden"
@@ -213,10 +262,18 @@ export default function CheckoutPage() {
                                 />
                             </div>
 
-                            <div>
+                            <div className="flex-1">
                                 <p className="font-semibold">{item.name}</p>
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Size: {item.size} · Color: {item.color}
+                                
+                                {/* Show size and color */}
+                                {item.size && item.color && (
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Size: {item.size} · Color: {item.color}
+                                    </p>
+                                )}
+                                
+                                <p className="mt-2 text-sm text-gray-500">
+                                    Quantity: {item.quantity || 1}
                                 </p>
                                 <p className="mt-2 font-semibold">€{item.price}</p>
                             </div>
@@ -225,12 +282,15 @@ export default function CheckoutPage() {
                         <div className="mt-6 border-t pt-4 space-y-3">
                             <div className="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
-                                <span>€{item.price}</span>
+                                <span>€{(item.price * (item.quantity || 1)).toFixed(2)}</span>
                             </div>
-
-                            <div className="flex justify-between text-lg font-semibold">
+                            <div className="flex justify-between text-gray-600">
+                                <span>Shipping</span>
+                                <span className="text-green-600">Free</span>
+                            </div>
+                            <div className="flex justify-between text-lg font-semibold border-t pt-3">
                                 <span>Total</span>
-                                <span>€{item.price}</span>
+                                <span>€{(item.price * (item.quantity || 1)).toFixed(2)}</span>
                             </div>
                         </div>
 
@@ -242,7 +302,7 @@ export default function CheckoutPage() {
                         <button
                             onClick={handlePlaceOrder}
                             disabled={loading}
-                            className="mt-8 w-full rounded-xl bg-black py-4 text-white font-medium flex items-center justify-center gap-2 hover:bg-gray-900 transition disabled:opacity-50"
+                            className="mt-8 w-full rounded-xl bg-black py-4 text-white font-medium flex items-center justify-center gap-2 hover:bg-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <FaLock />
                             {loading ? "Processing..." : "Place Order"}
