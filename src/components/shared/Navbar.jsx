@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
 import gsap from "gsap";
 
+
 /* ================= NAV LINKS ================= */
 const navLinks = [
   {
@@ -129,6 +130,19 @@ export default function Navbar() {
     }
   };
 
+
+  /* ================= Searcg Handler ================= */
+  const [searchQuery, setSearchQuery] = useState("");
+
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+    setSearchQuery("");
+  };
+
+
   /* ================= RENDER ================= */
   return (
     <>
@@ -163,16 +177,24 @@ export default function Navbar() {
                 </button>
 
                 {/* Desktop Search */}
-                <form className="hidden md:block w-full max-w-[270px] ml-2">
+                <form
+                  onSubmit={handleSearch}
+                  className="hidden md:block w-full max-w-[270px] ml-2"
+                >
                   <div className="relative rounded-full border border-white/40 px-4 py-1.5">
                     <input
                       type="text"
                       placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       className="bg-transparent text-sm text-gray-300 placeholder-gray-300 focus:outline-none w-full pr-8"
                     />
-                    <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                    <button type="submit">
+                      <FiSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                    </button>
                   </div>
                 </form>
+
               </div>
 
               {/* LOGO */}
@@ -223,14 +245,17 @@ export default function Navbar() {
 
             {/* MOBILE SEARCH */}
             {mobileSearchOpen && (
-              <div className="md:hidden pb-4">
+              <form onSubmit={handleSearch} className="md:hidden pb-4">
                 <input
                   type="text"
                   placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-full border border-white/40 bg-black px-4 py-2 text-sm text-gray-300 focus:outline-none"
                 />
-              </div>
+              </form>
             )}
+
           </div>
         </div>
 
