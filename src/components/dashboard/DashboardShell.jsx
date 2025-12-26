@@ -129,6 +129,10 @@ export default function DashboardShell({ children }) {
                             <FiUsers className="text-xl" />
                             <span>Customer List</span>
                         </Link>
+                        <Link href="/dashboard/subscriber-list" className={`${linkClass} ${isActive("/dashboard/subscriber-list")}`}>
+                            <FiUsers className="text-xl" />
+                            <span>Subscriber List</span>
+                        </Link>
 
                         {/* LOGOUT */}
                         <button
