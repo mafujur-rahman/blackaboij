@@ -6,6 +6,7 @@ import Image from "next/image";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
+import { addToCart } from "../utils/CartUtlis";
 
 export default function ProductDetailsHome() {
     const { id } = useParams();
@@ -175,8 +176,8 @@ export default function ProductDetailsHome() {
                                     key={i}
                                     onClick={() => setActiveImage(img)}
                                     className={`relative w-24 h-24 border rounded-lg ${activeImage === img
-                                            ? "border-black"
-                                            : "border-gray-200"
+                                        ? "border-black"
+                                        : "border-gray-200"
                                         }`}
                                 >
                                     <Image
@@ -208,8 +209,8 @@ export default function ProductDetailsHome() {
                                         key={size.id}
                                         onClick={() => setSelectedSize(size)}
                                         className={`px-4 py-2 border rounded ${selectedSize?.id === size.id
-                                                ? "bg-black text-white"
-                                                : "hover:bg-gray-100"
+                                            ? "bg-black text-white"
+                                            : "hover:bg-gray-100"
                                             }`}
                                     >
                                         {size.name}
@@ -229,8 +230,8 @@ export default function ProductDetailsHome() {
                                         key={color.id}
                                         onClick={() => setSelectedColor(color)}
                                         className={`h-8 w-8 rounded-full border-2 ${selectedColor?.id === color.id
-                                                ? "border-black scale-110"
-                                                : "border-gray-300"
+                                            ? "border-black scale-110"
+                                            : "border-gray-300"
                                             }`}
                                         style={{
                                             backgroundColor:
@@ -277,12 +278,37 @@ export default function ProductDetailsHome() {
                         </button>
 
                         <button
-                            onClick={handleAddToCart}
-                            disabled={!selectedSize || !selectedColor}
+                            onClick={() => {
+                                if (!selectedSize || !selectedColor) {
+                                    Swal.fire({
+                                        icon: "warning",
+                                        title: "Select Options",
+                                        text: "Please select both size and color",
+                                    });
+                                    return;
+                                }
+
+                                const success = addToCart(product, quantity, selectedSize, selectedColor);
+
+                                if (success) {
+                                    Swal.fire({
+                                        icon: "success",
+                                        title: "Added to Cart",
+                                        text: "Product added successfully",
+                                    });
+                                } else {
+                                    Swal.fire({
+                                        icon: "error",
+                                        title: "Error",
+                                        text: "Failed to add product to cart",
+                                    });
+                                }
+                            }}
                             className="w-full py-3 border border-black rounded-lg hover:bg-black hover:text-white"
                         >
                             Add to Cart
                         </button>
+
                     </div>
                 </div>
             </div>

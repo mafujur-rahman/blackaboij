@@ -24,7 +24,7 @@ export default function DashboardShell({ children }) {
     };
 
     const openWebsite = () => {
-        window.open("http://www.blackaboij.com", "_blank");
+        window.open("https://blackaboij.com", "_blank");
     };
 
     const handleLogout = async () => {

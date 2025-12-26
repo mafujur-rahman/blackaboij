@@ -44,7 +44,7 @@ const SignInForm = () => {
             });
 
             // redirect to dashboard after login
-            window.location.href = "/user/dashboard";
+            window.location.href = "/";
 
         } catch (error) {
             Swal.fire({

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import {
   FiSearch,
@@ -15,7 +15,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
 import gsap from "gsap";
-
 
 /* ================= NAV LINKS ================= */
 const navLinks = [
@@ -50,6 +49,35 @@ const navLinks = [
   { name: "Store", href: "/store" },
 ];
 
+// Helper function to get cart count
+const getCartCount = () => {
+  if (typeof window === 'undefined') return 0;
+  
+  try {
+    const cart = JSON.parse(localStorage.getItem('cart_items') || '[]');
+    if (Array.isArray(cart)) {
+      return cart.reduce((total, item) => total + (item.quantity || 1), 0);
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error reading cart:', error);
+    return 0;
+  }
+};
+
+// Helper function to get wishlist count
+const getWishlistCount = () => {
+  if (typeof window === 'undefined') return 0;
+  
+  try {
+    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+    return Array.isArray(wishlist) ? wishlist.length : 0;
+  } catch (error) {
+    console.error('Error reading wishlist:', error);
+    return 0;
+  }
+};
+
 export default function Navbar() {
   const router = useRouter();
 
@@ -58,8 +86,9 @@ export default function Navbar() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const tickerRef = useRef(null);
-
 
   /* ================= GSAP SCROLL ================= */
   useEffect(() => {
@@ -86,22 +115,77 @@ export default function Navbar() {
     // Animate the entire container
     gsap.to(ticker, {
       x: -originalWidth,
-      duration: 25, // adjust speed
+      duration: 25,
       ease: "linear",
       repeat: -1,
     });
   }, []);
 
-
-  /* ================= AUTH CHECK ================= */
+  /* ================= AUTH CHECK & LOAD COUNTS ================= */
   useEffect(() => {
+    // Check auth
     const token =
       localStorage.getItem("auth_token") ||
       sessionStorage.getItem("auth_token");
-
+    
     setIsLoggedIn(!!token);
+    
+    // Load initial counts
+    setCartCount(getCartCount());
+    setWishlistCount(getWishlistCount());
   }, []);
 
+  /* ================= REAL-TIME UPDATES ================= */
+  useEffect(() => {
+    // Function to update counts from localStorage
+    const updateCounts = () => {
+      setCartCount(getCartCount());
+      setWishlistCount(getWishlistCount());
+    };
+
+    // Listen for custom events
+    const handleCartUpdate = () => {
+      setTimeout(updateCounts, 100); // Small delay to ensure localStorage is updated
+    };
+
+    const handleWishlistUpdate = () => {
+      setTimeout(updateCounts, 100);
+    };
+
+    // Listen for storage events (if another tab updates)
+    const handleStorageChange = (e) => {
+      if (e.key === 'cart' || e.key === 'wishlist') {
+        updateCounts();
+      }
+    };
+
+    // Listen for custom events
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener('wishlistUpdated', handleWishlistUpdate);
+    window.addEventListener('storage', handleStorageChange);
+
+    // Polling for updates (fallback)
+    const interval = setInterval(updateCounts, 2000); // Update every 2 seconds
+
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('wishlistUpdated', handleWishlistUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Function to trigger cart update (call this when adding/removing from cart)
+  const triggerCartUpdate = useCallback(() => {
+    const event = new CustomEvent('cartUpdated');
+    window.dispatchEvent(event);
+  }, []);
+
+  // Function to trigger wishlist update (call this when adding/removing from wishlist)
+  const triggerWishlistUpdate = useCallback(() => {
+    const event = new CustomEvent('wishlistUpdated');
+    window.dispatchEvent(event);
+  }, []);
 
   /* ================= HANDLERS ================= */
   const handleProfileClick = () => {
@@ -122,7 +206,6 @@ export default function Navbar() {
     }
   };
 
-
   const handleWishlistClick = () => {
     if (isLoggedIn) {
       router.push("/user/wishlist");
@@ -131,10 +214,8 @@ export default function Navbar() {
     }
   };
 
-
-  /* ================= Searcg Handler ================= */
+  /* ================= Search Handler ================= */
   const [searchQuery, setSearchQuery] = useState("");
-
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -143,24 +224,30 @@ export default function Navbar() {
     setSearchQuery("");
   };
 
+  /* ================= Counter Badge Component ================= */
+  const CounterBadge = ({ count, className = "" }) => {
+    if (count <= 0) return null;
+    
+    return (
+      <div className={`absolute -top-2 -right-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-white text-black text-xs font-bold ${className}`}>
+        {count > 99 ? "99+" : count}
+      </div>
+    );
+  };
 
   /* ================= RENDER ================= */
   return (
     <>
       {/* ===== TOP SCROLLING BAR ===== */}
       <div className="w-full bg-white flex justify-center py-2">
-        {/* Fixed-width "window" for the ticker */}
         <div className="overflow-hidden" style={{ width: "400px", height: "30px" }}>
           <div
             ref={tickerRef}
             className="flex whitespace-nowrap"
             style={{ animation: "ticker 10s linear infinite" }}
-          >
-          </div>
+          ></div>
         </div>
       </div>
-
-
 
       {/* ===== NAVBAR ===== */}
       <nav className="bg-black text-white top-0 z-50">
@@ -195,7 +282,6 @@ export default function Navbar() {
                     </button>
                   </div>
                 </form>
-
               </div>
 
               {/* LOGO */}
@@ -212,33 +298,49 @@ export default function Navbar() {
               </div>
 
               {/* RIGHT */}
-              <div className="flex items-center ml-auto gap-2">
-                <button onClick={handleProfileClick}>
-                  <FiUser className="w-5 h-5" />
+              <div className="flex items-center ml-auto gap-4">
+                {/* Profile */}
+                <button onClick={handleProfileClick} className="relative p-1">
+                  <FiUser className="w-6 h-6" />
                 </button>
 
-                <button onClick={() => setIsCartOpen(true)}>
-                  <FiShoppingBag className="w-5 h-5" />
+                {/* Cart with Counter */}
+                <button 
+                  onClick={() => setIsCartOpen(true)} 
+                  className="relative p-1"
+                >
+                  <FiShoppingBag className="w-6 h-6" />
+                  <CounterBadge count={cartCount} />
                 </button>
 
+                {/* Mobile Search Toggle */}
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="md:hidden"
+                  className="md:hidden p-1"
                 >
                   {mobileSearchOpen ? (
-                    <FiX className="w-4 h-4" />
+                    <FiX className="w-5 h-5" />
                   ) : (
-                    <FiSearch className="w-4 h-4" />
+                    <FiSearch className="w-5 h-5" />
                   )}
                 </button>
 
+                {/* Wishlist with Counter (Desktop) */}
                 <button
                   onClick={handleWishlistClick}
-                  className="hidden md:block"
+                  className="hidden md:block relative p-1"
                 >
-                  <FiHeart
-                    className="w-5 h-5 text-white"
-                  />
+                  <FiHeart className="w-6 h-6 text-white" />
+                  <CounterBadge count={wishlistCount} />
+                </button>
+                
+                {/* Wishlist with Counter (Mobile - inside menu) */}
+                <button
+                  onClick={handleWishlistClick}
+                  className="md:hidden relative p-1"
+                >
+                  <FiHeart className="w-6 h-6 text-white" />
+                  <CounterBadge count={wishlistCount} />
                 </button>
               </div>
             </div>
@@ -255,7 +357,6 @@ export default function Navbar() {
                 />
               </form>
             )}
-
           </div>
         </div>
 
@@ -275,7 +376,7 @@ export default function Navbar() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className="block px-5 py-2 text-sm uppercase"
+                      className="block px-5 py-2 text-sm uppercase hover:bg-white/10"
                     >
                       {item.name}
                     </Link>
@@ -310,7 +411,8 @@ export default function Navbar() {
                       <Link
                         key={item.name}
                         href={item.href}
-                        className="block px-8 py-3 text-sm"
+                        className="block px-8 py-3 text-sm hover:bg-white/10"
+                        onClick={() => setIsMenuOpen(false)}
                       >
                         {item.name}
                       </Link>
@@ -323,8 +425,12 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* CART DRAWER */}
-      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      {/* CART DRAWER - Pass update triggers */}
+      <Cart 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)}
+        onCartUpdate={triggerCartUpdate}
+      />
     </>
   );
 }
