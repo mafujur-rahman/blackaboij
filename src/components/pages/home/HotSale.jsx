@@ -129,7 +129,7 @@ const HotSale = () => {
 
       setLoading(true); // only show loader if no cache
       try {
-        const res = await api.get("/api/products/get-all-products/");
+        const res = await api.get("/api/products/get-hot-sale-products/");
         const products = res.data.data;
         setAllProducts(products);
 

@@ -12,35 +12,54 @@ export default function ExecutePaypalPayment() {
 
     const [loading, setLoading] = useState(true);
 
+    // Cancel payment helper
+    const cancelPayment = async (message = "Payment cancelled") => {
+        try {
+            const token = localStorage.getItem("auth_token");
+
+            const res = await api.get(`/api/paypal/cancel/${id}/`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            await Swal.fire({
+                icon: "error",
+                title: "Payment Cancelled",
+                text: res.data?.message || message,
+            });
+        } catch (error) {
+            Swal.fire({
+                icon: "error",
+                title: "Payment Cancelled",
+                text: message,
+            });
+        } finally {
+            router.replace("/");
+        }
+    };
+
     useEffect(() => {
         if (!id) return;
 
-        const paymentID = searchParams.get("paymentId"); // frontend param from PayPal
+        const paymentID = searchParams.get("paymentId");
         const payerID = searchParams.get("PayerID");
-        console.log(payerID, paymentID)
 
         if (!paymentID || !payerID) {
-            Swal.fire({
-                icon: "error",
-                title: "Payment Failed",
-                text: "Missing PayPal payment information.",
-            });
             setLoading(false);
+            cancelPayment("Missing PayPal payment information.");
             return;
         }
 
         const executePayment = async () => {
             try {
-                // ✅ Send as POST with exact key names backend expects
                 const response = await api.post(
                     `/api/paypal/execute/${id}/`,
                     {
-                        paymentID, // must match backend key
-                        payerID,   // must match backend key
+                        paymentID,
+                        payerID,
                     }
                 );
-
-                console.log("PayPal execute response:", response.data);
 
                 if (response.data.success) {
                     await Swal.fire({
@@ -52,19 +71,14 @@ export default function ExecutePaypalPayment() {
                     localStorage.removeItem("checkout_item");
                     router.replace("/thank-you");
                 } else {
-                    throw new Error(response.data.message || "Payment failed");
+                    throw new Error(response.data.message);
                 }
             } catch (error) {
                 console.error(error);
-                Swal.fire({
-                    icon: "error",
-                    title: "Payment Failed",
-                    text:
-                        error.response?.data?.message ||
-                        error.message ||
-                        "Failed to execute PayPal payment.",
-                });
-                router.replace("/");
+                await cancelPayment(
+                    error.response?.data?.message ||
+                    "Failed to execute PayPal payment."
+                );
             } finally {
                 setLoading(false);
             }
