@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
-import { FiMenu, FiGlobe, FiMaximize2, FiRefreshCcw, FiGrid, FiBox, FiPlusSquare, FiLayers, FiMaximize, FiDroplet, FiShoppingCart, FiUsers, FiLogOut, } from "react-icons/fi";
+import { FiMenu, FiGlobe, FiMaximize2, FiRefreshCcw, FiGrid, FiBox, FiPlusSquare, FiLayers, FiMaximize, FiDroplet, FiShoppingCart, FiUsers, FiLogOut, FiPercent, } from "react-icons/fi";
+
 
 export default function DashboardShell({ children }) {
     const pathname = usePathname();
@@ -114,6 +115,13 @@ export default function DashboardShell({ children }) {
                         <Link href="/dashboard/color" className={`${linkClass} ${isActive("/dashboard/color")}`}>
                             <FiDroplet className="text-xl" />
                             <span>Color</span>
+                        </Link>
+                        <Link
+                            href="/dashboard/discount"
+                            className={`${linkClass} ${isActive("/dashboard/discount")}`}
+                        >
+                            <FiPercent className="text-xl" />
+                            <span>Discount</span>
                         </Link>
 
                         <p className="mt-5 mb-2 text-[16px] text-white/50">Order</p>

@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Cart from "../cart/Cart";
 import gsap from "gsap";
+import api from "@/lib/axios";
 
 /* ================= NAV LINKS ================= */
 const navLinks = [
@@ -52,7 +53,7 @@ const navLinks = [
 // Helper function to get cart count
 const getCartCount = () => {
   if (typeof window === 'undefined') return 0;
-  
+
   try {
     const cart = JSON.parse(localStorage.getItem('cart_items') || '[]');
     if (Array.isArray(cart)) {
@@ -68,7 +69,7 @@ const getCartCount = () => {
 // Helper function to get wishlist count
 const getWishlistCount = () => {
   if (typeof window === 'undefined') return 0;
-  
+
   try {
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
     return Array.isArray(wishlist) ? wishlist.length : 0;
@@ -93,33 +94,77 @@ export default function Navbar() {
   /* ================= GSAP SCROLL ================= */
   useEffect(() => {
     const ticker = tickerRef.current;
+    if (!ticker) return;
 
-    // Create original text items
-    const textArray = [];
-    for (let i = 0; i < 5; i++) {
-      const span = document.createElement("span");
-      span.innerText = "Black Friday Discount 20% Off";
-      span.className = "ticker-item text-black font-medium text-[16px] px-8";
-      ticker.appendChild(span);
-      textArray.push(span);
-    }
+    let animation;
 
-    // Duplicate the content for seamless infinite scroll
-    ticker.innerHTML += ticker.innerHTML;
+    if (ticker.dataset.animated) return;
+    ticker.dataset.animated = "true";
 
-    // Get width of original content
-    const originalWidth = Array.from(ticker.children)
-      .slice(0, textArray.length)
-      .reduce((total, item) => total + item.offsetWidth, 0) + 8 * 5;
+    const initTicker = async () => {
+      try {
+        const res = await api.get("/api/products/get-discounted-percentage/");
 
-    // Animate the entire container
-    gsap.to(ticker, {
-      x: -originalWidth,
-      duration: 25,
-      ease: "linear",
-      repeat: -1,
-    });
+        const discountPercent = res.data?.data;
+
+        const text =
+          discountPercent && discountPercent > 0
+            ? `Black Friday Discount ${discountPercent}% Off`
+            : "There is no discount available right now";
+
+        // Clear old content
+        ticker.innerHTML = "";
+
+        const items = [];
+
+        // Create items
+        for (let i = 0; i < 6; i++) {
+          const span = document.createElement("span");
+          span.textContent = text;
+          span.className =
+            "text-black font-medium text-[16px] px-8 whitespace-nowrap";
+          ticker.appendChild(span);
+          items.push(span);
+        }
+
+        // Duplicate for infinite loop
+        items.forEach((item) => {
+          ticker.appendChild(item.cloneNode(true));
+        });
+
+        // Wait for DOM paint
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const totalWidth = items.reduce(
+              (sum, el) => sum + el.offsetWidth,
+              0
+            );
+
+            if (!totalWidth) return;
+
+            gsap.set(ticker, { x: 0 });
+
+            animation = gsap.to(ticker, {
+              x: -totalWidth,
+              duration: totalWidth / 40, // auto speed
+              ease: "linear",
+              repeat: -1,
+            });
+          });
+        });
+      } catch (error) {
+        console.error("Discount API failed:", error);
+      }
+    };
+
+    initTicker();
+
+    return () => {
+      if (animation) animation.kill();
+    };
   }, []);
+
+
 
   /* ================= AUTH CHECK & LOAD COUNTS ================= */
   useEffect(() => {
@@ -127,9 +172,9 @@ export default function Navbar() {
     const token =
       localStorage.getItem("auth_token") ||
       sessionStorage.getItem("auth_token");
-    
+
     setIsLoggedIn(!!token);
-    
+
     // Load initial counts
     setCartCount(getCartCount());
     setWishlistCount(getWishlistCount());
@@ -227,7 +272,7 @@ export default function Navbar() {
   /* ================= Counter Badge Component ================= */
   const CounterBadge = ({ count, className = "" }) => {
     if (count <= 0) return null;
-    
+
     return (
       <div className={`absolute -top-2 -right-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-white text-black text-xs font-bold ${className}`}>
         {count > 99 ? "99+" : count}
@@ -240,14 +285,18 @@ export default function Navbar() {
     <>
       {/* ===== TOP SCROLLING BAR ===== */}
       <div className="w-full bg-white flex justify-center py-2">
-        <div className="overflow-hidden" style={{ width: "400px", height: "30px" }}>
+        <div
+          className="overflow-hidden relative"
+          style={{ width: "400px", height: "30px" }}
+        >
           <div
             ref={tickerRef}
-            className="flex whitespace-nowrap"
-            style={{ animation: "ticker 10s linear infinite" }}
-          ></div>
+            className="flex whitespace-nowrap absolute left-0 top-0 will-change-transform"
+          />
         </div>
       </div>
+
+
 
       {/* ===== NAVBAR ===== */}
       <nav className="bg-black text-white top-0 z-50">
@@ -305,8 +354,8 @@ export default function Navbar() {
                 </button>
 
                 {/* Cart with Counter */}
-                <button 
-                  onClick={() => setIsCartOpen(true)} 
+                <button
+                  onClick={() => setIsCartOpen(true)}
                   className="relative p-1"
                 >
                   <FiShoppingBag className="w-6 h-6" />
@@ -333,7 +382,7 @@ export default function Navbar() {
                   <FiHeart className="w-6 h-6 text-white" />
                   <CounterBadge count={wishlistCount} />
                 </button>
-                
+
                 {/* Wishlist with Counter (Mobile - inside menu) */}
                 <button
                   onClick={handleWishlistClick}
@@ -426,8 +475,8 @@ export default function Navbar() {
       </nav>
 
       {/* CART DRAWER - Pass update triggers */}
-      <Cart 
-        isOpen={isCartOpen} 
+      <Cart
+        isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         onCartUpdate={triggerCartUpdate}
       />

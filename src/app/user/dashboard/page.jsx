@@ -5,7 +5,7 @@ import React from 'react';
 
 const UserDashboardPage = () => {
     // Only customer can access
-    // useAuthRedirect("CUSTOMER");
+    useAuthRedirect("CUSTOMER");
     return (
         <div>
             <UserDashboardHome />
