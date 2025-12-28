@@ -6,6 +6,8 @@ import Swal from "sweetalert2";
 import { FaMoneyBillWave, FaCcVisa, FaLock, FaShieldAlt } from "react-icons/fa";
 import { getImageUrl } from "@/components/utils/get-image-url";
 import api from "@/lib/axios";
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 export default function CheckoutCartHome() {
     const [items, setItems] = useState([]);
@@ -23,21 +25,88 @@ export default function CheckoutCartHome() {
         const singleData = localStorage.getItem("checkout_item");
 
         if (cartData) {
-            setItems(JSON.parse(cartData));
+            try {
+                const parsedItems = JSON.parse(cartData);
+                // Calculate discount for each item
+                const itemsWithDiscount = parsedItems.map(item => {
+                    const originalPrice = Number(item.original_price) || Number(item.price);
+                    const discountPrice = Number(item.discounted_price) || Number(item.price);
+                    const hasDiscount = discountPrice < originalPrice;
+                    
+                    return {
+                        ...item,
+                        original_price: originalPrice,
+                        discounted_price: discountPrice,
+                        has_discount: hasDiscount,
+                        display_price: hasDiscount ? discountPrice : Number(item.price)
+                    };
+                });
+                setItems(itemsWithDiscount);
+            } catch (error) {
+                console.error("Error parsing cart data:", error);
+                window.location.href = "/";
+            }
         } else if (singleData) {
-            setItems([JSON.parse(singleData)]);
+            try {
+                const singleItem = JSON.parse(singleData);
+                const originalPrice = Number(singleItem.original_price) || Number(singleItem.price);
+                const discountPrice = Number(singleItem.discounted_price) || Number(singleItem.price);
+                const hasDiscount = discountPrice < originalPrice;
+                
+                const itemWithDiscount = {
+                    ...singleItem,
+                    original_price: originalPrice,
+                    discounted_price: discountPrice,
+                    has_discount: hasDiscount,
+                    display_price: hasDiscount ? discountPrice : Number(singleItem.price)
+                };
+                setItems([itemWithDiscount]);
+            } catch (error) {
+                console.error("Error parsing single item:", error);
+                window.location.href = "/";
+            }
         } else {
             window.location.href = "/";
         }
     }, []);
 
-    if (!items.length) return null;
+    if (!items.length) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="h-12 w-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+                </div>
+            </div>
+        );
+    }
 
-    const subtotal = items.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
+    // Calculate totals with discount awareness
+    const calculateTotals = () => {
+        let subtotal = 0;
+        let originalSubtotal = 0;
+        let totalDiscount = 0;
+        
+        items.forEach(item => {
+            const quantity = Number(item.quantity) || 1;
+            const displayPrice = item.display_price || Number(item.price);
+            const originalPrice = item.original_price || displayPrice;
+            
+            subtotal += displayPrice * quantity;
+            originalSubtotal += originalPrice * quantity;
+            totalDiscount += (originalPrice - displayPrice) * quantity;
+        });
 
+        return {
+            subtotal: parseFloat(subtotal.toFixed(2)),
+            originalSubtotal: parseFloat(originalSubtotal.toFixed(2)),
+            totalDiscount: parseFloat(totalDiscount.toFixed(2)),
+            total: parseFloat(subtotal.toFixed(2)),
+            hasDiscount: totalDiscount > 0
+        };
+    };
+
+    const totals = calculateTotals();
     const hasInvalidOptions = items.some(
         (item) => !item.size_id || !item.color_id
     );
@@ -48,17 +117,43 @@ export default function CheckoutCartHome() {
             sessionStorage.getItem("auth_token");
 
         if (!token) {
-            Swal.fire("Login required", "", "warning");
+            Swal.fire({
+                icon: "warning",
+                title: "Login Required",
+                text: "Please login to place an order",
+                showCancelButton: true,
+                confirmButtonText: "Login",
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "/signin";
+                }
+            });
             return;
         }
 
         if (!fullName || !phoneNumber || !streetAddress || !city || !zipCode) {
-            Swal.fire("Fill all shipping fields", "", "warning");
+            Swal.fire({
+                icon: "warning",
+                title: "Missing Information",
+                text: "Please fill in all shipping details."
+            });
             return;
         }
 
         if (hasInvalidOptions) {
-            Swal.fire("Missing size or color", "", "warning");
+            Swal.fire({
+                icon: "warning",
+                title: "Product Selection Incomplete",
+                text: "Please go back and reselect product options.",
+                showCancelButton: true,
+                confirmButtonText: "Go Back",
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.history.back();
+                }
+            });
             return;
         }
 
@@ -80,15 +175,27 @@ export default function CheckoutCartHome() {
                 })),
             };
 
+            console.log("Sending order data:", orderData);
+
             const res = await api.post("/api/order/create-order/", orderData);
 
             if (payment === "cod") {
-                Swal.fire(
-                    "Order Placed",
-                    `Order #${res.data.data.order_number}`,
-                    "success"
-                ).then(() => {
-                    localStorage.clear();
+                Swal.fire({
+                    icon: "success",
+                    title: "Order Placed!",
+                    html: `
+                        <div class="text-center">
+                            <h3 class="text-xl font-bold mb-2">Order Confirmed!</h3>
+                            <p class="mb-4">Your order number is: <strong>${res.data.data.order_number}</strong></p>
+                            ${totals.hasDiscount ? `<p class="text-green-600 font-medium">You saved €${totals.totalDiscount.toFixed(2)}!</p>` : ''}
+                            <p class="text-sm text-gray-600 mt-4">You will receive a confirmation email shortly.</p>
+                        </div>
+                    `,
+                    confirmButtonText: "Continue Shopping"
+                }).then(() => {
+                    localStorage.removeItem("checkout_item");
+                    localStorage.removeItem("checkout_items");
+                    localStorage.removeItem("cart_items");
                     window.location.href = "/";
                 });
             } else {
@@ -97,8 +204,30 @@ export default function CheckoutCartHome() {
                 );
                 window.location.href = paypal.data.approval_url;
             }
-        } catch {
-            Swal.fire("Order failed", "", "error");
+        } catch (error) {
+            console.error("Order error:", error);
+            
+            let errorMessage = "Order failed. Please try again.";
+            
+            if (error.response?.status === 400) {
+                const errorData = error.response.data;
+                if (errorData.items && Array.isArray(errorData.items)) {
+                    errorMessage = "Invalid product selection. Please check your items.";
+                } else if (errorData.non_field_errors) {
+                    errorMessage = Array.isArray(errorData.non_field_errors) 
+                        ? errorData.non_field_errors.join(', ')
+                        : errorData.non_field_errors;
+                }
+            } else if (error.response?.status === 401) {
+                errorMessage = "Your session has expired. Please login again.";
+            }
+            
+            Swal.fire({
+                icon: "error",
+                title: "Order Failed",
+                text: errorMessage,
+                confirmButtonText: "OK"
+            });
         } finally {
             setLoading(false);
         }
@@ -134,14 +263,41 @@ export default function CheckoutCartHome() {
                                     required
                                 />
 
-                                <input
-                                    type="tel"
-                                    placeholder="Phone Number"
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
-                                    required
-                                />
+                                {/* Phone Input */}
+                                <div className="w-full">
+                                    <PhoneInput
+                                        international
+                                        defaultCountry="US"
+                                        value={phoneNumber}
+                                        onChange={setPhoneNumber}
+                                        className="phone-input"
+                                        placeholder="Enter phone number"
+                                    />
+                                    <style jsx global>{`
+                                        .phone-input .PhoneInputInput {
+                                            width: 100%;
+                                            border: 1px solid #d1d5db;
+                                            border-radius: 0.5rem;
+                                            padding: 0.75rem 1rem;
+                                            outline: none;
+                                            font-size: 1rem;
+                                        }
+                                        .phone-input .PhoneInputInput:focus {
+                                            border-color: #000;
+                                            ring-width: 2px;
+                                            ring-color: #000;
+                                        }
+                                        .phone-input .PhoneInputCountry {
+                                            border: 1px solid #d1d5db;
+                                            border-radius: 0.5rem;
+                                            padding: 0.75rem;
+                                            margin-right: 0.5rem;
+                                        }
+                                        .phone-input .PhoneInputCountrySelectArrow {
+                                            border-top-color: #6b7280;
+                                        }
+                                    `}</style>
+                                </div>
 
                                 <input
                                     type="text"
@@ -171,7 +327,6 @@ export default function CheckoutCartHome() {
                                 />
                             </div>
                         </section>
-
 
                         {/* PAYMENT */}
                         <section className="bg-white rounded-2xl p-8 shadow-sm">
@@ -233,60 +388,112 @@ export default function CheckoutCartHome() {
                         </section>
                     </div>
 
-                    {/* RIGHT SIDE */}
+                    {/* RIGHT SIDE - Order Summary */}
                     <aside className="bg-white rounded-2xl p-8 shadow-sm h-fit sticky top-24">
                         <h2 className="text-xl font-semibold mb-6">
                             Order Summary
                         </h2>
 
                         <div className="space-y-6">
-                            {items.map((item, i) => (
-                                <div key={i} className="flex gap-4">
-                                    <div className="relative w-24 h-24 bg-gray-100 rounded-lg">
-                                        <Image
-                                            src={getImageUrl(item.image)}
-                                            alt={item.name}
-                                            fill
-                                            className="object-contain"
-                                        />
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <p className="font-semibold">
-                                            {item.name}
-                                        </p>
-                                        <div className="mt-2 text-sm text-gray-500">
-                                            <p>Size: {item.size}</p>
-                                            <p>Color: {item.color}</p>
-                                            <p>
-                                                Quantity: {item.quantity}
-                                            </p>
-                                        </div>
-                                        <p className="mt-2 font-semibold">
-                                            €
-                                            {(item.price * item.quantity).toFixed(
-                                                2
+                            {items.map((item, i) => {
+                                const quantity = Number(item.quantity) || 1;
+                                const displayPrice = item.display_price || Number(item.price);
+                                const originalPrice = item.original_price || displayPrice;
+                                const hasDiscount = item.has_discount || (originalPrice > displayPrice);
+                                const discountPercentage = hasDiscount 
+                                    ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100)
+                                    : 0;
+                                
+                                return (
+                                    <div key={i} className="flex gap-4">
+                                        <div className="relative w-24 h-24 bg-gray-100 rounded-lg">
+                                            <Image
+                                                src={getImageUrl(item.image)}
+                                                alt={item.name}
+                                                fill
+                                                className="object-contain"
+                                            />
+                                            {hasDiscount && discountPercentage > 0 && (
+                                                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                                    -{discountPercentage}%
+                                                </div>
                                             )}
-                                        </p>
+                                        </div>
+
+                                        <div className="flex-1">
+                                            <p className="font-semibold">
+                                                {item.name}
+                                            </p>
+                                            <div className="mt-2 text-sm text-gray-500">
+                                                <p>Size: {item.size}</p>
+                                                <p>Color: {item.color}</p>
+                                                <p>Quantity: {quantity}</p>
+                                            </div>
+                                            
+                                            {/* Price Display */}
+                                            <div className="mt-2">
+                                                {hasDiscount ? (
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-semibold text-red-600">
+                                                                €{(displayPrice * quantity).toFixed(2)}
+                                                            </span>
+                                                            <span className="text-sm text-gray-500 line-through">
+                                                                €{(originalPrice * quantity).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded inline-block">
+                                                            Save €{((originalPrice - displayPrice) * quantity).toFixed(2)}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="font-semibold">
+                                                        €{(displayPrice * quantity).toFixed(2)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         <div className="mt-6 border-t pt-4 space-y-3">
+                            {/* Subtotal */}
                             <div className="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
-                                <span>€{subtotal.toFixed(2)}</span>
+                                {totals.hasDiscount ? (
+                                    <div className="text-right">
+                                        <div className="text-gray-500 line-through text-sm">
+                                            €{totals.originalSubtotal.toFixed(2)}
+                                        </div>
+                                        <div className="text-red-600 font-semibold">
+                                            €{totals.subtotal.toFixed(2)}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span>€{totals.subtotal.toFixed(2)}</span>
+                                )}
                             </div>
+                            
+                            {/* Discount Line */}
+                            {totals.hasDiscount && (
+                                <div className="flex justify-between text-green-600">
+                                    <span>Discount Applied</span>
+                                    <span className="font-semibold">-€{totals.totalDiscount.toFixed(2)}</span>
+                                </div>
+                            )}
+                            
                             <div className="flex justify-between text-gray-600">
                                 <span>Shipping</span>
-                                <span className="text-green-600">Free</span>
+                                <span className="text-green-600 font-semibold">Free</span>
                             </div>
                             <div className="flex justify-between text-lg font-semibold border-t pt-3">
                                 <span>Total</span>
-                                <span>€{subtotal.toFixed(2)}</span>
+                                <span className="text-xl">€{totals.total.toFixed(2)}</span>
                             </div>
                         </div>
+
 
                         <div className="mt-6 flex items-center gap-3 text-sm text-gray-600">
                             <FaShieldAlt />
@@ -298,7 +505,7 @@ export default function CheckoutCartHome() {
                             disabled={loading || hasInvalidOptions}
                             className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition ${loading || hasInvalidOptions
                                     ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                                    : "bg-black text-white hover:bg-gray-900"
+                                    : "bg-black text-white "
                                 }`}
                         >
                             <FaLock />

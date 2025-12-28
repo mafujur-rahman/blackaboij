@@ -8,6 +8,24 @@ import Swal from "sweetalert2";
 
 const itemsPerPage = 10;
 
+// Helper function to format payment method display
+const formatPaymentMethod = (method) => {
+  if (!method) return "";
+  
+  if (method.toLowerCase() === "cod") {
+    return "Cash On Delivery";
+  } else if (method.toLowerCase() === "online") {
+    return "Online Payment";
+  }
+  
+  // Convert other methods to Title Case
+  return method
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 const OrderList = () => {
     const [orders, setOrders] = useState([]);
     const [filterText, setFilterText] = useState("");
@@ -189,7 +207,9 @@ const OrderList = () => {
                                             <td className="px-4 py-4 border-r border-black/10">{order.full_name}</td> {/* Updated */}
                                             <td className="px-4 py-4 border-r border-black/10 font-semibold">{order.total_amount}</td>
                                             <td className="px-4 py-4 border-r border-black/10">{order.status}</td>
-                                            <td className="px-4 py-4 border-r border-black/10">{order.payment_method}</td>
+                                            <td className="px-4 py-4 border-r border-black/10">
+                                              {formatPaymentMethod(order.payment_method)}
+                                            </td>
                                             <td className="px-4 py-4 border-r border-black/10">
                                                 <select
                                                     className={`border px-2 py-1 rounded text-sm ${order.status === "delivered" ? "bg-gray-100 cursor-not-allowed" : ""}`}
@@ -274,7 +294,7 @@ const OrderList = () => {
                                     </div>
                                     <div>
                                         <p><span className="font-medium">Status:</span> {modalOrder.status}</p>
-                                        <p><span className="font-medium">Payment Method:</span> {modalOrder.payment_method}</p>
+                                        <p><span className="font-medium">Payment Method:</span> {formatPaymentMethod(modalOrder.payment_method)}</p>
                                         <p><span className="font-medium">Total Amount:</span> {modalOrder.total_amount}</p>
                                         <p><span className="font-medium">Created At:</span> {new Date(modalOrder.created_at).toLocaleString()}</p>
                                     </div>

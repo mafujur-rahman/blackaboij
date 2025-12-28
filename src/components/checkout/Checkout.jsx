@@ -6,6 +6,8 @@ import Swal from "sweetalert2";
 import { FaMoneyBillWave, FaCcVisa, FaLock, FaShieldAlt } from "react-icons/fa";
 import { getImageUrl } from "@/components/utils/get-image-url";
 import api from "@/lib/axios";
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 export default function CheckoutPage() {
     const [item, setItem] = useState(null);
@@ -19,13 +21,64 @@ export default function CheckoutPage() {
     const [city, setCity] = useState("");
     const [zipCode, setZipCode] = useState("");
 
+    // Price state
+    const [originalPrice, setOriginalPrice] = useState(0);
+    const [discountedPrice, setDiscountedPrice] = useState(0);
+    const [hasDiscount, setHasDiscount] = useState(false);
+    const [discountPercentage, setDiscountPercentage] = useState(0);
+
     useEffect(() => {
         const data = localStorage.getItem("checkout_item");
         if (data) {
             try {
                 const parsedItem = JSON.parse(data);
                 setItem(parsedItem);
+                
+                // Try to get detailed product data from localStorage
+                const cartData = JSON.parse(localStorage.getItem("cart_items") || "[]");
+                const cartItem = cartData.find(cartItem => cartItem.id === parsedItem.id);
+                
+                if (cartItem) {
+                    // Check if cart item has discount data
+                    if (cartItem.original_price && cartItem.discounted_price) {
+                        const original = parseFloat(cartItem.original_price);
+                        const discounted = parseFloat(cartItem.discounted_price);
+                        setOriginalPrice(original);
+                        setDiscountedPrice(discounted);
+                        setHasDiscount(discounted < original);
+                        if (discounted < original) {
+                            const percentage = Math.round(((original - discounted) / original) * 100);
+                            setDiscountPercentage(percentage);
+                        }
+                    } else if (cartItem.original_price && cartItem.price) {
+                        // Some systems store original_price and price (which is discounted)
+                        const original = parseFloat(cartItem.original_price);
+                        const discounted = parseFloat(cartItem.price);
+                        setOriginalPrice(original);
+                        setDiscountedPrice(discounted);
+                        setHasDiscount(discounted < original);
+                        if (discounted < original) {
+                            const percentage = Math.round(((original - discounted) / original) * 100);
+                            setDiscountPercentage(percentage);
+                        }
+                    }
+                }
+                
+                // Also check the parsed item itself
+                if (parsedItem.original_price && parsedItem.discounted_price) {
+                    const original = parseFloat(parsedItem.original_price);
+                    const discounted = parseFloat(parsedItem.discounted_price);
+                    setOriginalPrice(original);
+                    setDiscountedPrice(discounted);
+                    setHasDiscount(discounted < original);
+                    if (discounted < original) {
+                        const percentage = Math.round(((original - discounted) / original) * 100);
+                        setDiscountPercentage(percentage);
+                    }
+                }
+                
             } catch (error) {
+                console.error("Error parsing checkout data:", error);
                 Swal.fire({
                     icon: "error",
                     title: "Invalid Checkout Data",
@@ -81,6 +134,16 @@ export default function CheckoutPage() {
             return;
         }
 
+        // Validate phone number
+        if (!phoneNumber || phoneNumber.length < 5) {
+            Swal.fire({
+                icon: "warning",
+                title: "Invalid Phone Number",
+                text: "Please enter a valid phone number.",
+            });
+            return;
+        }
+
         // Validate size and color IDs
         if (!item.size_id || !item.color_id) {
             Swal.fire({
@@ -101,12 +164,11 @@ export default function CheckoutPage() {
         setLoading(true);
         try {
             // Prepare items array EXACTLY as API expects
-            // According to API docs, size_id and color_id should be numbers
             const orderItems = [{
-                product_id: Number(item.id),  // Ensure it's a number
-                quantity: Number(item.quantity || 1),  // Ensure it's a number
-                size_id: Number(item.size_id),  // Ensure it's a number
-                color_id: Number(item.color_id)  // Ensure it's a number
+                product_id: Number(item.id),
+                quantity: Number(item.quantity || 1),
+                size_id: Number(item.size_id),
+                color_id: Number(item.color_id)
             }];
 
             // Prepare order data EXACTLY as API expects
@@ -132,10 +194,17 @@ export default function CheckoutPage() {
                 Swal.fire({
                     icon: "success",
                     title: "Order Placed!",
-                    text: `Your order number is ${orderNumber}`,
+                    html: `
+                        <div class="text-center">
+                            <h3 class="text-xl font-bold mb-2">Order Confirmed!</h3>
+                            <p class="mb-4">Your order number is: <strong>${orderNumber}</strong></p>
+                            <p class="text-sm text-gray-600">You will receive a confirmation email shortly.</p>
+                        </div>
+                    `,
                     confirmButtonText: "Continue Shopping"
                 }).then(() => {
                     localStorage.removeItem("checkout_item");
+                    localStorage.removeItem("cart_items");
                     window.location.href = "/";
                 });
             } else {
@@ -147,11 +216,9 @@ export default function CheckoutPage() {
             console.error("Order error:", error);
             
             if (error.response?.status === 400) {
-                // Check for specific validation errors
                 const errorData = error.response.data;
                 
                 if (errorData.items && Array.isArray(errorData.items)) {
-                    // Extract error messages from items array
                     const itemErrors = errorData.items.map(itemError => {
                         if (typeof itemError === 'object') {
                             return Object.values(itemError).join(', ');
@@ -202,6 +269,12 @@ export default function CheckoutPage() {
         }
     };
 
+    // Calculate prices
+    const displayPrice = hasDiscount ? discountedPrice : parseFloat(item.price);
+    const itemSubtotal = displayPrice * (item.quantity || 1);
+    const originalSubtotal = originalPrice * (item.quantity || 1);
+    const discountAmount = hasDiscount ? originalSubtotal - itemSubtotal : 0;
+
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 lg:px-16 py-14">
@@ -228,14 +301,43 @@ export default function CheckoutPage() {
                                     className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
                                     required
                                 />
-                                <input
-                                    type="tel"
-                                    placeholder="Phone Number"
-                                    value={phoneNumber}
-                                    onChange={(e) => setPhoneNumber(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
-                                    required
-                                />
+                                
+                                {/* Phone Input with react-phone-number-input */}
+                                <div className="w-full">
+                                    <PhoneInput
+                                        international
+                                        defaultCountry="US"
+                                        value={phoneNumber}
+                                        onChange={setPhoneNumber}
+                                        className="phone-input"
+                                        placeholder="Enter phone number"
+                                    />
+                                    <style jsx global>{`
+                                        .phone-input .PhoneInputInput {
+                                            width: 100%;
+                                            border: 1px solid #d1d5db;
+                                            border-radius: 0.5rem;
+                                            padding: 0.75rem 1rem;
+                                            outline: none;
+                                            font-size: 1rem;
+                                        }
+                                        .phone-input .PhoneInputInput:focus {
+                                            border-color: #000;
+                                            ring-width: 2px;
+                                            ring-color: #000;
+                                        }
+                                        .phone-input .PhoneInputCountry {
+                                            border: 1px solid #d1d5db;
+                                            border-radius: 0.5rem;
+                                            padding: 0.75rem;
+                                            margin-right: 0.5rem;
+                                        }
+                                        .phone-input .PhoneInputCountrySelectArrow {
+                                            border-top-color: #6b7280;
+                                        }
+                                    `}</style>
+                                </div>
+                                
                                 <input
                                     type="text"
                                     placeholder="Street Address"
@@ -303,6 +405,12 @@ export default function CheckoutPage() {
                                     fill
                                     className="object-contain"
                                 />
+                                {/* Discount Badge on Image */}
+                                {hasDiscount && (
+                                    <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                        -{discountPercentage}%
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex-1">
@@ -318,22 +426,63 @@ export default function CheckoutPage() {
                                     <p className="mt-1">Quantity: {item.quantity || 1}</p>
                                 </div>
                                 
-                                <p className="mt-3 font-semibold">€{item.price}</p>
+                                {/* Price Display - Fixed to show discount properly */}
+                                <div className="mt-3">
+                                    {hasDiscount ? (
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl font-bold text-red-600">
+                                                    €{displayPrice.toFixed(2)}
+                                                </span>
+                                                <span className="text-sm text-gray-500 line-through">
+                                                    €{originalPrice.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded inline-block">
+                                                Save €{(originalPrice - displayPrice).toFixed(2)} per item
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xl font-semibold">
+                                            €{displayPrice.toFixed(2)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
                         <div className="mt-6 border-t pt-4 space-y-3">
                             <div className="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
-                                <span>€{(item.price * (item.quantity || 1)).toFixed(2)}</span>
+                                {hasDiscount ? (
+                                    <div className="text-right">
+                                        <div className="text-gray-500 line-through text-sm">
+                                            €{originalSubtotal.toFixed(2)}
+                                        </div>
+                                        <div className="text-red-600 font-semibold">
+                                            €{itemSubtotal.toFixed(2)}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span>€{itemSubtotal.toFixed(2)}</span>
+                                )}
                             </div>
+                            
+                            {/* Discount line */}
+                            {hasDiscount && (
+                                <div className="flex justify-between text-green-600">
+                                    <span>Discount Applied</span>
+                                    <span className="font-semibold">-€{discountAmount.toFixed(2)}</span>
+                                </div>
+                            )}
+                            
                             <div className="flex justify-between text-gray-600">
                                 <span>Shipping</span>
-                                <span className="text-green-600">Free</span>
+                                <span className="text-green-600 font-semibold">Free</span>
                             </div>
                             <div className="flex justify-between text-lg font-semibold border-t pt-3">
                                 <span>Total</span>
-                                <span>€{(item.price * (item.quantity || 1)).toFixed(2)}</span>
+                                <span className="text-xl">€{itemSubtotal.toFixed(2)}</span>
                             </div>
                         </div>
 
@@ -347,7 +496,7 @@ export default function CheckoutPage() {
                             disabled={loading || !item.size_id || !item.color_id}
                             className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition ${!item.size_id || !item.color_id
                                 ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                                : 'bg-black text-white hover:bg-gray-900'}`}
+                                : 'bg-black text-white '}`}
                         >
                             <FaLock />
                             {loading ? "Processing..." : "Place Order"}

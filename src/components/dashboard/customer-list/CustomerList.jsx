@@ -16,6 +16,7 @@ const CustomerList = () => {
             try {
                 const res = await api.get('/api/users/get-all-customers/');
                 setCustomers(res.data.customers || []);
+                console.log(res.data.customers)
             } catch (err) {
                 console.error(err);
                 setError('Failed to fetch customers.');
@@ -63,8 +64,6 @@ const CustomerList = () => {
                                     <th className="px-4 py-3 w-16 text-center text-black border-r border-black/10">SL</th>
                                     <th className="px-4 py-3 border-r border-black/10">Name</th>
                                     <th className="px-4 py-3 border-r border-black/10">Email</th>
-                                    <th className="px-4 py-3 border-r border-black/10">Phone</th>
-                                    <th className="px-4 py-3 w-24 text-center">Orders</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -80,12 +79,10 @@ const CustomerList = () => {
                                                     height={40}
                                                     className="rounded-full border border-black/10 object-cover"
                                                 />
-                                                <span className="text-sm font-medium">{customer.name}</span>
+                                                <span className="text-sm font-medium">{customer.username}</span>
                                             </div>
                                         </td>
                                         <td className="px-4 py-4 border-r border-black/10 text-sm text-slate-700">{customer.email}</td>
-                                        <td className="px-4 py-4 border-r border-black/10 text-sm text-slate-700">{customer.phone}</td>
-                                        <td className="px-4 py-4 text-center font-medium">{customer.orders || 0}</td>
                                     </tr>
                                 ))}
                             </tbody>

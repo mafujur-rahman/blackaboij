@@ -23,7 +23,7 @@ const ProductCard = ({ product }) => {
     const hasDiscount = discountPrice < originalPrice;
 
     /* ===============================
-       WISHLIST INIT
+       INIT WISHLIST
     =============================== */
     useEffect(() => {
         const wishlist = JSON.parse(localStorage.getItem("wishlist")) || [];
@@ -31,7 +31,7 @@ const ProductCard = ({ product }) => {
     }, [product.id]);
 
     /* ===============================
-       WISHLIST EVENT
+       WISHLIST EVENTS
     =============================== */
     const triggerWishlistUpdate = () => {
         window.dispatchEvent(new CustomEvent("wishlistUpdated"));
@@ -40,12 +40,11 @@ const ProductCard = ({ product }) => {
 
     /* ===============================
        TOGGLE WISHLIST
+       (OUT OF STOCK ALLOWED)
     =============================== */
     const toggleWishlist = (e) => {
         e.preventDefault();
         e.stopPropagation();
-
-        if (isOutOfStock) return;
 
         const token =
             localStorage.getItem("auth_token") ||
@@ -61,7 +60,9 @@ const ProductCard = ({ product }) => {
             let updatedWishlist;
 
             if (isWishlisted) {
-                updatedWishlist = wishlist.filter((item) => item.id !== product.id);
+                updatedWishlist = wishlist.filter(
+                    (item) => item.id !== product.id
+                );
                 setIsWishlisted(false);
             } else {
                 updatedWishlist = [
@@ -72,6 +73,7 @@ const ProductCard = ({ product }) => {
                         unit_price: discountPrice,
                         thumbnail_image: product.thumbnail_image,
                         slug: product.slug,
+                        out_of_stock: isOutOfStock,
                         addedAt: new Date().toISOString(),
                     },
                 ];
@@ -85,15 +87,6 @@ const ProductCard = ({ product }) => {
         }
     };
 
-    /* ===============================
-       BADGES
-    =============================== */
-    const NewBadge = () => (
-        <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-bold rounded z-10">
-            New
-        </div>
-    );
-
     return (
         <div className="flex flex-col overflow-hidden bg-white relative mb-6 group">
             {/* IMAGE */}
@@ -101,17 +94,16 @@ const ProductCard = ({ product }) => {
                 {/* Wishlist */}
                 <button
                     onClick={toggleWishlist}
-                    className={`absolute top-2 left-2 z-20 p-2 rounded-full 
-            ${isWishlisted ? "text-red-500" : "text-gray-700 hover:text-red-500"}
-            ${isOutOfStock ? "opacity-40 cursor-not-allowed" : ""}
-          `}
+                    className={`absolute top-2 left-2 z-20 p-2 rounded-full
+                        ${isWishlisted ? "text-red-500" : "text-gray-700 hover:text-red-500"}
+                    `}
                 >
                     {isWishlisted ? <FaHeart size={20} /> : <FiHeart size={20} />}
                 </button>
 
-                {/* Image / Navigation */}
+                {/* Image */}
                 {isOutOfStock ? (
-                    <div className="relative w-full h-full cursor-not-allowed opacity-60">
+                    <div className="relative w-full h-full cursor-not-allowed">
                         <Image
                             src={getImageUrl(product.thumbnail_image)}
                             alt={product.name}
@@ -133,17 +125,12 @@ const ProductCard = ({ product }) => {
                     </Link>
                 )}
 
-                {/* Out of Stock Overlay */}
-                {isOutOfStock && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-                        <span className="text-white font-bold uppercase text-lg">
-                            Out of Stock
-                        </span>
+                {/* New Badge */}
+                {product.is_new && (
+                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 text-xs font-bold rounded z-10">
+                        New
                     </div>
                 )}
-
-                {/* New Badge */}
-                {product.is_new && <NewBadge />}
             </div>
 
             {/* PRODUCT INFO */}

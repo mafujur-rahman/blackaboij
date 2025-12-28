@@ -36,9 +36,8 @@ export default function ProductDetailsHome() {
                 }
 
                 setProduct(found);
-                setActiveImage(
-                    found.gallery_images?.[0] || found.thumbnail_image
-                );
+                // Set active image to thumbnail_image if no gallery images
+                setActiveImage(found.thumbnail_image);
             } catch {
                 Swal.fire("Error", "Failed to load product", "error");
             } finally {
@@ -86,63 +85,79 @@ export default function ProductDetailsHome() {
     /* =========================
         ADD TO CART
     ========================= */
-    const handleAddToCart = () => {
-        if (!validateOptions()) return;
+// In ProductDetailsHome.js, update the add to cart functions:
 
-        const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
+const handleAddToCart = () => {
+    if (!validateOptions()) return;
 
-        cart.push({
-            id: Number(product.id),
-            product_id: Number(product.id),
+    const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
 
-            name: product.name,
-            price: Number(product.unit_price),
-            image: product.thumbnail_image,
+    // Calculate prices
+    const originalPrice = Number(product.original_price);
+    const discountPrice = Number(product.discounted_price);
+    const hasDiscount = discountPrice < originalPrice;
+    const displayPrice = hasDiscount ? discountPrice : Number(product.unit_price);
 
-            quantity: Number(quantity),
+    cart.push({
+        id: Number(product.id),
+        product_id: Number(product.id),
 
-            size: selectedSize.name,
-            size_id: Number(selectedSize.id),
+        name: product.name,
+        price: displayPrice, // Use the discounted price if available
+        original_price: originalPrice, // Save original price
+        discounted_price: discountPrice, // Save discounted price
+        image: product.thumbnail_image,
 
-            color: selectedColor.name,
-            color_id: Number(selectedColor.id),
-        });
+        quantity: Number(quantity),
 
-        localStorage.setItem("cart_items", JSON.stringify(cart));
+        size: selectedSize.name,
+        size_id: Number(selectedSize.id),
 
-        Swal.fire({
-            icon: "success",
-            title: "Added to Cart",
-            text: "Product added successfully",
-        });
+        color: selectedColor.name,
+        color_id: Number(selectedColor.id),
+    });
+
+    localStorage.setItem("cart_items", JSON.stringify(cart));
+
+    Swal.fire({
+        icon: "success",
+        title: "Added to Cart",
+        text: "Product added successfully",
+    });
+};
+
+// Also update the handleOrderNow function:
+const handleOrderNow = () => {
+    if (!validateOptions()) return;
+
+    // Calculate prices
+    const originalPrice = Number(product.original_price);
+    const discountPrice = Number(product.discounted_price);
+    const hasDiscount = discountPrice < originalPrice;
+    const displayPrice = hasDiscount ? discountPrice : Number(product.unit_price);
+
+    const checkoutItem = {
+        id: Number(product.id),
+        product_id: Number(product.id),
+
+        name: product.name,
+        price: displayPrice, // Use discounted price
+        original_price: originalPrice, // Save original
+        discounted_price: discountPrice, // Save discounted
+        image: product.thumbnail_image,
+
+        quantity: Number(quantity),
+
+        size: selectedSize.name,
+        size_id: Number(selectedSize.id),
+
+        color: selectedColor.name,
+        color_id: Number(selectedColor.id),
     };
 
-    /* =========================
-        ORDER NOW
-    ========================= */
-    const handleOrderNow = () => {
-        if (!validateOptions()) return;
-
-        const checkoutItem = {
-            id: Number(product.id),
-            product_id: Number(product.id),
-
-            name: product.name,
-            price: Number(product.unit_price),
-            image: product.thumbnail_image,
-
-            quantity: Number(quantity),
-
-            size: selectedSize.name,
-            size_id: Number(selectedSize.id),
-
-            color: selectedColor.name,
-            color_id: Number(selectedColor.id),
-        };
-
-        localStorage.setItem("checkout_item", JSON.stringify(checkoutItem));
-        router.push("/checkout");
-    };
+    localStorage.setItem("checkout_item", JSON.stringify(checkoutItem));
+    router.push("/checkout");
+};
 
     if (loading) {
         return (
@@ -154,50 +169,105 @@ export default function ProductDetailsHome() {
 
     if (!product) return null;
 
+    // Calculate discount based on your requested logic
+    const originalPrice = Number(product.original_price);
+    const discountPrice = Number(product.discounted_price);
+    const hasDiscount = discountPrice < originalPrice;
+    
+    // If no discount, use unit_price as the display price
+    const displayPrice = hasDiscount ? discountPrice : Number(product.unit_price);
+    
+    // Calculate discount percentage
+    const discountPercentage = hasDiscount 
+        ? Math.round(((originalPrice - discountPrice) / originalPrice) * 100)
+        : 0;
+
+    // Get all available images (thumbnail + gallery images if they exist)
+    const allImages = product.thumbnail_image ? [product.thumbnail_image] : [];
+    if (product.gallery_images && Array.isArray(product.gallery_images) && product.gallery_images.length > 0) {
+        // Filter out any null/undefined gallery images
+        const validGalleryImages = product.gallery_images.filter(img => img != null);
+        // Add to array (avoid duplicates)
+        validGalleryImages.forEach(img => {
+            if (img !== product.thumbnail_image && !allImages.includes(img)) {
+                allImages.push(img);
+            }
+        });
+    }
+
     return (
         <div className="px-4 lg:px-16 py-12">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* IMAGE */}
+                {/* IMAGE - Made square size */}
                 <div>
-                    <div className="relative h-[420px] bg-gray-100 rounded-xl">
+                    <div className="relative aspect-square  overflow-hidden">
                         <Image
                             src={getImageUrl(activeImage)}
                             alt={product.name}
                             fill
-                            className="object-contain"
+                            className="object-contain "
+                            priority
                         />
+                        
+                        {/* Discount badge */}
+                        {hasDiscount && (
+                            <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                -{discountPercentage}%
+                            </div>
+                        )}
                     </div>
 
-                    <div className="mt-4 flex gap-4">
-                        {[product.thumbnail_image, ...(product.gallery_images || [])]
-                            .slice(0, 4)
-                            .map((img, i) => (
+                    {/* Gallery Images - Only show if we have more than 1 image */}
+                    {allImages.length > 1 && (
+                        <div className="mt-4 flex gap-4">
+                            {allImages.map((img, i) => (
                                 <button
                                     key={i}
                                     onClick={() => setActiveImage(img)}
-                                    className={`relative w-24 h-24 border rounded-lg ${activeImage === img
-                                        ? "border-black"
+                                    className={`relative aspect-square w-24 border rounded-lg overflow-hidden ${activeImage === img
+                                        ? "border-black border-2"
                                         : "border-gray-200"
                                         }`}
                                 >
                                     <Image
                                         src={getImageUrl(img)}
-                                        alt="gallery"
+                                        alt={`${product.name} view ${i + 1}`}
                                         fill
-                                        className="object-contain"
+                                        className="object-contain p-2"
                                     />
                                 </button>
                             ))}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* DETAILS */}
                 <div>
                     <h1 className="text-3xl font-bold">{product.name}</h1>
                     <p className="mt-4 text-gray-600">{product.description}</p>
-                    <p className="mt-6 text-2xl font-semibold">
-                        €{product.unit_price}
-                    </p>
+                    
+                    {/* PRICE DISPLAY - Shows discount properly */}
+                    <div className="mt-6 flex items-center gap-3">
+                        {hasDiscount ? (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl font-bold text-red-600">
+                                        €{displayPrice.toFixed(2)}
+                                    </span>
+                                    <span className="text-xl text-gray-500 line-through">
+                                        €{originalPrice.toFixed(2)}
+                                    </span>
+                                </div>
+                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-sm font-semibold">
+                                    Save €{(originalPrice - discountPrice).toFixed(2)}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-2xl font-semibold">
+                                €{displayPrice.toFixed(2)}
+                            </span>
+                        )}
+                    </div>
 
                     {/* SIZE */}
                     {product.sizes?.length > 0 && (
@@ -253,14 +323,14 @@ export default function ProductDetailsHome() {
                                 onClick={() =>
                                     setQuantity((q) => Math.max(1, q - 1))
                                 }
-                                className="px-4 py-2 border rounded"
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
                             >
                                 −
                             </button>
-                            <span className="font-semibold">{quantity}</span>
+                            <span className="font-semibold w-8 text-center">{quantity}</span>
                             <button
                                 onClick={() => setQuantity((q) => q + 1)}
-                                className="px-4 py-2 border rounded"
+                                className="px-4 py-2 border rounded hover:bg-gray-100"
                             >
                                 +
                             </button>
@@ -272,7 +342,10 @@ export default function ProductDetailsHome() {
                         <button
                             onClick={handleOrderNow}
                             disabled={!selectedSize || !selectedColor}
-                            className="w-full py-3 bg-black text-white rounded-lg hover:bg-gray-900"
+                            className={`w-full py-3 rounded-lg transition ${!selectedSize || !selectedColor
+                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                    : "bg-black text-white hover:bg-gray-900"
+                                }`}
                         >
                             Order Now
                         </button>
@@ -304,11 +377,14 @@ export default function ProductDetailsHome() {
                                     });
                                 }
                             }}
-                            className="w-full py-3 border border-black rounded-lg hover:bg-black hover:text-white"
+                            className={`w-full py-3 border rounded-lg transition ${!selectedSize || !selectedColor
+                                    ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                                    : "border-black hover:bg-black hover:text-white"
+                                }`}
+                            disabled={!selectedSize || !selectedColor}
                         >
                             Add to Cart
                         </button>
-
                     </div>
                 </div>
             </div>
