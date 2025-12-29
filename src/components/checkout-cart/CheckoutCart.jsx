@@ -13,6 +13,7 @@ export default function CheckoutCartHome() {
     const [items, setItems] = useState([]);
     const [payment, setPayment] = useState("cod");
     const [loading, setLoading] = useState(false);
+    const [userProfile, setUserProfile] = useState(null);
 
     const [fullName, setFullName] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
@@ -20,6 +21,12 @@ export default function CheckoutCartHome() {
     const [city, setCity] = useState("");
     const [zipCode, setZipCode] = useState("");
 
+    // Fetch user profile on component mount
+    useEffect(() => {
+        fetchUserProfile();
+    }, []);
+
+    // Load cart items
     useEffect(() => {
         const cartData = localStorage.getItem("checkout_items");
         const singleData = localStorage.getItem("checkout_item");
@@ -27,7 +34,6 @@ export default function CheckoutCartHome() {
         if (cartData) {
             try {
                 const parsedItems = JSON.parse(cartData);
-                // Calculate discount for each item
                 const itemsWithDiscount = parsedItems.map(item => {
                     const originalPrice = Number(item.original_price) || Number(item.price);
                     const discountPrice = Number(item.discounted_price) || Number(item.price);
@@ -69,6 +75,45 @@ export default function CheckoutCartHome() {
             window.location.href = "/";
         }
     }, []);
+
+    // Fetch user profile from API
+    const fetchUserProfile = async () => {
+        try {
+            const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+            if (!token) return;
+
+            const res = await api.get("/api/user/get-my-profile/", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setUserProfile(res.data);
+            
+            // Pre-fill form with user data if available
+            if (res.data.first_name && res.data.last_name) {
+                setFullName(`${res.data.first_name} ${res.data.last_name}`);
+            }
+            
+            if (res.data.phone_number) {
+                setPhoneNumber(res.data.phone_number);
+            }
+            
+            // Fill address fields if available
+            if (res.data.street_address) {
+                setStreetAddress(res.data.street_address);
+            }
+            
+            if (res.data.city) {
+                setCity(res.data.city);
+            }
+            
+            if (res.data.zip_code) {
+                setZipCode(res.data.zip_code);
+            }
+
+        } catch (error) {
+            console.error("Failed to fetch user profile:", error);
+        }
+    };
 
     if (!items.length) {
         return (
@@ -249,9 +294,21 @@ export default function CheckoutCartHome() {
                     <div className="lg:col-span-2 space-y-10">
                         {/* SHIPPING */}
                         <section className="bg-white rounded-2xl p-8 shadow-sm">
-                            <h2 className="text-xl font-semibold mb-6">
-                                Shipping Information
-                            </h2>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-semibold">
+                                    Shipping Information
+                                </h2>
+                                {userProfile && (userProfile.street_address || userProfile.city || userProfile.zip_code) && (
+                                    <div className="text-sm text-green-600">
+                                        <span className="flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            Using your saved address
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <input
@@ -263,40 +320,16 @@ export default function CheckoutCartHome() {
                                     required
                                 />
 
-                                {/* Phone Input */}
-                                <div className="w-full">
+                                {/* Phone Input with Tailwind styling */}
+                                <div className="w-full [&_.PhoneInput]:flex [&_.PhoneInput]:items-center [&_.PhoneInputInput]:w-full [&_.PhoneInputInput]:border [&_.PhoneInputInput]:border-gray-300 [&_.PhoneInputInput]:rounded-lg [&_.PhoneInputInput]:px-4 [&_.PhoneInputInput]:py-3 [&_.PhoneInputInput]:focus:outline-none [&_.PhoneInputInput]:focus:border-black [&_.PhoneInputInput]:focus:ring-2 [&_.PhoneInputInput]:focus:ring-black [&_.PhoneInputCountry]:border [&_.PhoneInputCountry]:border-gray-300 [&_.PhoneInputCountry]:border-r-0 [&_.PhoneInputCountry]:rounded-l-lg [&_.PhoneInputCountry]:px-3 [&_.PhoneInputCountry]:py-3 [&_.PhoneInputCountry]:bg-white">
                                     <PhoneInput
                                         international
-                                        defaultCountry="US"
+                                        defaultCountry="BD"
                                         value={phoneNumber}
                                         onChange={setPhoneNumber}
-                                        className="phone-input"
                                         placeholder="Enter phone number"
+                                        required
                                     />
-                                    <style jsx global>{`
-                                        .phone-input .PhoneInputInput {
-                                            width: 100%;
-                                            border: 1px solid #d1d5db;
-                                            border-radius: 0.5rem;
-                                            padding: 0.75rem 1rem;
-                                            outline: none;
-                                            font-size: 1rem;
-                                        }
-                                        .phone-input .PhoneInputInput:focus {
-                                            border-color: #000;
-                                            ring-width: 2px;
-                                            ring-color: #000;
-                                        }
-                                        .phone-input .PhoneInputCountry {
-                                            border: 1px solid #d1d5db;
-                                            border-radius: 0.5rem;
-                                            padding: 0.75rem;
-                                            margin-right: 0.5rem;
-                                        }
-                                        .phone-input .PhoneInputCountrySelectArrow {
-                                            border-top-color: #6b7280;
-                                        }
-                                    `}</style>
                                 </div>
 
                                 <input
@@ -313,7 +346,7 @@ export default function CheckoutCartHome() {
                                     placeholder="City / Town"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-border-black focus:ring-2 focus:ring-black focus:outline-none"
                                     required
                                 />
 
@@ -493,7 +526,6 @@ export default function CheckoutCartHome() {
                                 <span className="text-xl">€{totals.total.toFixed(2)}</span>
                             </div>
                         </div>
-
 
                         <div className="mt-6 flex items-center gap-3 text-sm text-gray-600">
                             <FaShieldAlt />

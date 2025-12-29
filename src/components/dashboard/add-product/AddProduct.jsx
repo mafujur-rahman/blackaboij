@@ -41,6 +41,7 @@ const AddProduct = () => {
     metaDescription: "",
     thumbnail: null,
     galleryImages: [null, null, null],
+    hotSale: false, // Added hotSale field
   });
 
   const [loading, setLoading] = useState(false);
@@ -110,6 +111,11 @@ const AddProduct = () => {
     setForm((prev) => ({ ...prev, thumbnail: file }));
   };
 
+  // Handle hot sale toggle
+  const handleHotSaleToggle = () => {
+    setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
+  };
+
   // Submit
   const handleSubmit = async () => {
     if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
@@ -123,7 +129,7 @@ const AddProduct = () => {
 
     setLoading(true);
     try {
-      // Build JSON payload
+      // Build JSON payload with hot_sale field
       const payload = {
         name: form.name,
         category_id: Number(form.subCategoryId),
@@ -132,6 +138,8 @@ const AddProduct = () => {
         quantity: form.qty,
         size_ids: form.sizes,
         color_ids: form.colors,
+        // Include hot_sale only if it's true (as per API requirement)
+        ...(form.hotSale && { hot_sale: true }),
         thumbnail_image: form.thumbnail
           ? URL.createObjectURL(form.thumbnail)
           : CLOUDINARY_URL,
@@ -154,6 +162,7 @@ const AddProduct = () => {
 
       Swal.fire("Success", "Product created successfully", "success");
 
+      // Reset form
       setForm({
         name: "",
         description: "",
@@ -169,7 +178,9 @@ const AddProduct = () => {
         metaDescription: "",
         thumbnail: null,
         galleryImages: [null, null, null],
+        hotSale: false,
       });
+      setParentCategoryId("");
     } catch (err) {
       console.error(err.response?.data);
       Swal.fire(
@@ -285,6 +296,23 @@ const AddProduct = () => {
                 onChange={(e) => setForm({ ...form, qty: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
               />
+            </div>
+
+            {/* HOT SALE CHECKBOX - Added this section */}
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="hotSale"
+                checked={form.hotSale}
+                onChange={handleHotSaleToggle}
+                className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+              />
+              <label htmlFor="hotSale" className="text-[16px] font-medium">
+                Hot Sale
+              </label>
+              {/* <span className="text-sm text-gray-500">
+                (Check if this product is on hot sale)
+              </span> */}
             </div>
 
             <div className="col-span-2">
@@ -438,4 +466,4 @@ const AddProduct = () => {
   );
 };
 
-export default AddProduct; 
+export default AddProduct;

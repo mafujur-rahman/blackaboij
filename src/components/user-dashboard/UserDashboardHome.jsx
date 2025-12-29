@@ -46,9 +46,6 @@ export default function UserDashboardHome() {
     (order) => order.status === "cancelled"
   ).length;
 
-  if (loading)
-    return <p className="text-center mt-6">Loading dashboard stats...</p>;
-
   return (
     <UserDashboardShell>
       {/* TITLE */}
@@ -56,36 +53,41 @@ export default function UserDashboardHome() {
         <h2 className="font-semibold text-lg">My Dashboard</h2>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
-          icon={<FiShoppingBag />}
-          iconBg="bg-blue-100 text-blue-600"
-          title="Total Orders"
-          value={totalOrders}
-        />
+      {/* LOADING */}
+      {loading ? (
+        <p className="text-center mt-6">Loading dashboard stats...</p>
+      ) : (
+        /* STATS */
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard
+            icon={<FiShoppingBag />}
+            iconBg="bg-blue-100 text-blue-600"
+            title="Total Orders"
+            value={totalOrders}
+          />
 
-        <StatCard
-          icon={<FiClock />}
-          iconBg="bg-yellow-100 text-yellow-600"
-          title="Pending Orders"
-          value={pendingOrders}
-        />
+          <StatCard
+            icon={<FiClock />}
+            iconBg="bg-yellow-100 text-yellow-600"
+            title="Pending Orders"
+            value={pendingOrders}
+          />
 
-        <StatCard
-          icon={<FiCheckCircle />}
-          iconBg="bg-green-100 text-green-600"
-          title="Completed Orders"
-          value={completedOrders}
-        />
+          <StatCard
+            icon={<FiCheckCircle />}
+            iconBg="bg-green-100 text-green-600"
+            title="Completed Orders"
+            value={completedOrders}
+          />
 
-        <StatCard
-          icon={<FiXCircle />}
-          iconBg="bg-red-100 text-red-600"
-          title="Cancelled Orders"
-          value={cancelledOrders}
-        />
-      </div>
+          <StatCard
+            icon={<FiXCircle />}
+            iconBg="bg-red-100 text-red-600"
+            title="Cancelled Orders"
+            value={cancelledOrders}
+          />
+        </div>
+      )}
     </UserDashboardShell>
   );
 }

@@ -1,14 +1,30 @@
 "use client";
 import api from "@/lib/axios";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
-
+import { useRouter, useSearchParams } from "next/navigation";
 
 const SignInForm = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        // Check if user is already logged in
+        const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+        if (token) {
+            // Redirect based on role
+            const role = localStorage.getItem("user_role");
+            if (role === "ADMIN") {
+                router.push("/dashboard");
+            } else if (role === "CUSTOMER") {
+                router.push("/user/dashboard");
+            }
+        }
+    }, [router]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -34,7 +50,9 @@ const SignInForm = () => {
                 sessionStorage.setItem("auth_token", data.token);
             }
 
+            // Save user role and additional info
             localStorage.setItem("user_role", data.role);
+            localStorage.setItem("user_email", email);
 
             Swal.fire({
                 icon: "success",
@@ -43,8 +61,23 @@ const SignInForm = () => {
                 confirmButtonColor: "#000",
             });
 
-            // redirect to dashboard after login
-            window.location.href = "/";
+            // Get redirect URL from query params or default based on role
+            const redirectTo = searchParams.get('redirect');
+
+            if (redirectTo) {
+                // Redirect to the originally requested page
+                router.push(redirectTo);
+            } else {
+                // Redirect based on role
+                if (data.role === "ADMIN") {
+                    router.push("/dashboard");
+                } else if (data.role === "CUSTOMER") {
+                    router.push("/user/dashboard");
+                } else {
+                    // Default fallback
+                    router.push("/");
+                }
+            }
 
         } catch (error) {
             Swal.fire({
@@ -128,7 +161,7 @@ const SignInForm = () => {
                         href="/signUp"
                         className="text-lg text-black"
                     >
-                        You don’t have an account? <span className="text-blue-600 hover:text-blue-800">Sign Up</span>
+                        You dont have an account? <span className="text-blue-600 hover:text-blue-800">Sign Up</span>
                     </a>
                 </div>
             </div>
