@@ -1,10 +1,11 @@
 "use client";
 import api from "@/lib/axios";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Swal from "sweetalert2";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const SignInForm = () => {
+// Create a separate component that uses useSearchParams
+const SignInFormContent = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [rememberMe, setRememberMe] = useState(false);
@@ -166,6 +167,29 @@ const SignInForm = () => {
                 </div>
             </div>
         </div>
+    );
+};
+
+// Main component with Suspense boundary
+const SignInForm = () => {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center h-[80vh] bg-white">
+                <div className="w-full max-w-md p-8">
+                    <div className="animate-pulse">
+                        <div className="h-8 bg-gray-200 rounded mb-10"></div>
+                        <div className="space-y-6">
+                            <div className="h-12 bg-gray-200 rounded"></div>
+                            <div className="h-12 bg-gray-200 rounded"></div>
+                            <div className="h-8 bg-gray-200 rounded"></div>
+                            <div className="h-12 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }>
+            <SignInFormContent />
+        </Suspense>
     );
 };
 
