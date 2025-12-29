@@ -1,13 +1,11 @@
-// Cloudinary base
-const CLOUDINARY_BASE_URL = "https://res.cloudinary.com/dwsp8rft8/";
+const BASE_URL = "https://api.blackaboij.com";
 
-// Normalize image URL for next/image
 export const getImageUrl = (path) => {
-  if (!path) return "/images/new.webp";
+  if (!path) return "/images/placeholder.png";
 
-  // already full url
+  // Already absolute
   if (path.startsWith("http")) return path;
 
-  // relative cloudinary path
-  return `${CLOUDINARY_BASE_URL}${path}`;
+  // Ensure single slash
+  return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 };

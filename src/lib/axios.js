@@ -1,12 +1,9 @@
 import { BASE_URL } from "@/config/api";
 import axios from "axios";
 
-
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  // ✅ DO NOT set Content-Type globally
 });
 
 // Attach token automatically

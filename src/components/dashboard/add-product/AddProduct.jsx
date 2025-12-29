@@ -97,7 +97,7 @@ const AddProduct = () => {
     const newArray = form[field].includes(id)
       ? form[field].filter((v) => v !== id)
       : [...form[field], id];
-    
+
     setForm((prev) => ({
       ...prev,
       [field]: newArray,
@@ -124,7 +124,7 @@ const AddProduct = () => {
       return { ...prev, galleryImages: gallery };
     });
   };
-  
+
   const handleThumbnailUpload = (file) => {
     if (file && file.size > 10 * 1024 * 1024) {
       Swal.fire("Error", "Image size must be less than 10MB", "error");
@@ -138,69 +138,69 @@ const AddProduct = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Create FormData for backend upload
-  const createFormData = () => {
+  const uploadImages = async () => {
     const formData = new FormData();
-    
-    // Add text fields
-    formData.append("name", form.name);
-    formData.append("category_id", form.subCategoryId);
-    formData.append("description", form.description || "");
-    formData.append("unit_price", form.price);
-    formData.append("quantity", form.qty);
-    
-    // Add meta fields
-    formData.append("meta_title", form.metaTitle || form.name);
-    formData.append("meta_description", form.metaDescription || form.name);
-    
-    // Add hot sale
-    if (form.hotSale) {
-      formData.append("hot_sale", "true");
-    }
-    
-    // Add sizes
-    form.sizes.forEach((sizeId) => {
-      formData.append("size_ids", sizeId);
-    });
-    
-    // Add colors
-    form.colors.forEach((colorId) => {
-      formData.append("color_ids", colorId);
-    });
-    
-    // Add thumbnail
+
     if (form.thumbnail) {
       formData.append("thumbnail_image", form.thumbnail);
     }
-    
-    // Add gallery images
-    if (form.galleryImages[0]) {
-      formData.append("gallery1", form.galleryImages[0]);
-    }
-    if (form.galleryImages[1]) {
-      formData.append("gallery2", form.galleryImages[1]);
-    }
-    if (form.galleryImages[2]) {
-      formData.append("gallery3", form.galleryImages[2]);
-    }
-    
-    return formData;
+
+    form.galleryImages.forEach((img, i) => {
+      if (img) {
+        formData.append(`gallery${i + 1}`, img);
+      }
+    });
+
+    const res = await api.post("/api/media/upload/", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return res.data;
   };
 
-  // Helper function to remove Cloudinary prefix from image URL
-  const getCleanImageUrl = (url) => {
-    if (!url) return "";
-    
-    // uploading pattern
-    const cloudinaryPattern = /image\/upload\/[^\/]+\/(.+)/;
-    const match = url.match(cloudinaryPattern);
-    
-    if (match && match[1]) {
-      return match[1];
+
+  const createFormData = () => {
+    const formData = new FormData();
+
+    // Required fields
+    formData.append("name", form.name);
+    formData.append("category_id", Number(form.subCategoryId));
+    formData.append("unit_price", Number(form.price));
+    formData.append("quantity", Number(form.qty));
+
+    // Optional fields
+    formData.append("description", form.description || "");
+    formData.append("meta_title", form.metaTitle || form.name);
+    formData.append(
+      "meta_description",
+      form.metaDescription || form.description || form.name
+    );
+
+    if (form.hotSale) {
+      formData.append("hot_sale", "true");
     }
-    
-    // If it's already a clean URL or a placeholder, return as is
-    return url === "placeholder" ? "" : url;
+
+    // Arrays (IMPORTANT: [] required)
+    form.sizes.forEach((id) => {
+      formData.append("size_ids", Number(id));
+    });
+
+    form.colors.forEach((id) => {
+      formData.append("color_ids", Number(id));
+    });
+
+    // Images (FILES — not URLs)
+    if (form.thumbnail) {
+      formData.append("thumbnail_image", form.thumbnail);
+    }
+
+    form.galleryImages.forEach((img, i) => {
+      if (img) {
+        formData.append(`gallery${i + 1}`, img);
+      }
+    });
+
+    return formData;
   };
 
   // Validate form
@@ -209,21 +209,21 @@ const AddProduct = () => {
       sizes: form.sizes.length === 0,
       colors: form.colors.length === 0,
     };
-    
+
     setErrors(newErrors);
-    
+
     // Check for basic required fields
     if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
-    
+
     // Check for thumbnail
     if (!form.thumbnail) {
       Swal.fire("Warning", "Please upload a thumbnail image", "warning");
       return false;
     }
-    
+
     // Check for size and color selections
     if (newErrors.sizes || newErrors.colors) {
       if (newErrors.sizes && newErrors.colors) {
@@ -235,53 +235,34 @@ const AddProduct = () => {
       }
       return false;
     }
-    
+
     return true;
   };
 
   // Submit product
   const handleSubmit = async () => {
-    // Validate form
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      // Create FormData
       const formData = createFormData();
 
-      // Show loading alert
       Swal.fire({
-        title: 'Adding Product...',
-        text: 'Please wait while we save your product',
+        title: "Adding Product...",
         allowOutsideClick: false,
         showConfirmButton: false,
-        didOpen: () => {
-          Swal.showLoading();
-        }
+        didOpen: Swal.showLoading,
       });
 
-      // Send to backend API
-      const response = await api.post("/api/product/create-product/", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await api.post(
+        "/api/product/create-product/",
+        formData
+      );
 
-      // Close loading alert and show success
-      Swal.close();
-      Swal.fire({
-        icon: "success",
-        title: "Product Added Successfully!",
-        text: `${form.name} has been added to your store`,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#000",
-        timer: 3000
-      });
+      Swal.fire("Success", "Product added successfully!", "success");
 
-      // Reset form
+      // Reset
       setForm({
         name: "",
         description: "",
@@ -299,66 +280,18 @@ const AddProduct = () => {
         galleryImages: [null, null, null],
         hotSale: false,
       });
+
       setParentCategoryId("");
-      setErrors({
-        sizes: false,
-        colors: false,
-      });
+      setErrors({ sizes: false, colors: false });
 
     } catch (err) {
-      // Close loading alert
-      Swal.close();
-      
-      // Show error with more details
-      let errorMessage = "Product creation failed. Please try again.";
-      let errorDetails = "";
-      
-      if (err.response?.data) {
-        console.error("Backend error response:", err.response.data);
-        
-        if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        }
-        if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        }
-        if (err.response.data.errors) {
-          errorDetails = JSON.stringify(err.response.data.errors);
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        html: errorDetails ? 
-          `<div>${errorMessage}</div><div class="text-sm mt-2">${errorDetails}</div>` : 
-          errorMessage,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#000"
-      });
+      console.error(err);
+      Swal.fire("Error", "Product creation failed", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to get image source for preview
-  const getImageSrc = (image) => {
-    if (!image) return "";
-    
-    // If it's a File object (new upload), create object URL
-    if (image instanceof File) {
-      return URL.createObjectURL(image);
-    }
-    
-    // If it's a string URL from backend, remove Cloudinary prefix if present
-    if (typeof image === 'string') {
-      return getCleanImageUrl(image);
-    }
-    
-    return "";
-  };
 
   return (
     <DashboardShell>
@@ -520,10 +453,10 @@ const AddProduct = () => {
                 type="button"
                 onClick={() => toggleArray("sizes", size.id)}
                 className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
-                    ? "bg-black text-white border-black"
-                    : errors.sizes 
-                      ? "border-red-500 hover:border-red-600"
-                      : "border-black/20 hover:border-black"
+                  ? "bg-black text-white border-black"
+                  : errors.sizes
+                    ? "border-red-500 hover:border-red-600"
+                    : "border-black/20 hover:border-black"
                   }`}
               >
                 {size.name}
@@ -557,12 +490,12 @@ const AddProduct = () => {
                 className="cursor-pointer text-center group"
               >
                 <div
-                  className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id) 
-                    ? "border-black scale-110 shadow" 
+                  className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id)
+                    ? "border-black scale-110 shadow"
                     : errors.colors
                       ? "border-red-500 group-hover:border-red-600"
                       : "border-black/20 group-hover:border-black/60"
-                  }`}
+                    }`}
                   style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
                 />
                 <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
@@ -598,6 +531,7 @@ const AddProduct = () => {
                 accept="image/*"
                 onChange={(e) => handleThumbnailUpload(e.target.files[0])}
                 className="hidden"
+                key={form.thumbnail ? form.thumbnail.name : 'thumbnail'}
               />
             </label>
             {form.thumbnail && (
@@ -605,21 +539,14 @@ const AddProduct = () => {
                 <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
                 <div className="w-32 h-32 relative border border-black/10 rounded overflow-hidden">
                   <Image
-                    src={getImageSrc(form.thumbnail)}
+                    src={URL.createObjectURL(form.thumbnail)}
                     alt="Thumbnail preview"
                     fill
                     className="object-cover"
-                    onLoad={(e) => {
-                      // Revoke object URL to avoid memory leaks
-                      if (form.thumbnail instanceof File) {
-                        URL.revokeObjectURL(e.target.src);
-                      }
-                    }}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {form.thumbnail.name || "Thumbnail image"} 
-                  {form.thumbnail.size && ` (${Math.round(form.thumbnail.size / 1024)}KB)`}
+                  {form.thumbnail.name} ({Math.round(form.thumbnail.size / 1024)}KB)
                 </p>
               </div>
             )}
@@ -640,6 +567,7 @@ const AddProduct = () => {
                   accept="image/*"
                   onChange={(e) => handleFileChange(i, e.target.files[0])}
                   className="hidden"
+                  key={form.galleryImages[i] ? form.galleryImages[i].name : `gallery-${i}`}
                 />
               </label>
               {form.galleryImages[i] && (
@@ -647,21 +575,14 @@ const AddProduct = () => {
                   <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
                   <div className="w-24 h-24 relative border border-black/10 rounded overflow-hidden">
                     <Image
-                      src={getImageSrc(form.galleryImages[i])}
+                      src={URL.createObjectURL(form.galleryImages[i])}
                       alt={`Gallery ${i + 1} preview`}
                       fill
                       className="object-cover"
-                      onLoad={(e) => {
-                        // Revoke object URL to avoid memory leaks
-                        if (form.galleryImages[i] instanceof File) {
-                          URL.revokeObjectURL(e.target.src);
-                        }
-                      }}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {form.galleryImages[i].name || `Gallery ${i + 1} image`}
-                    {form.galleryImages[i].size && ` (${Math.round(form.galleryImages[i].size / 1024)}KB)`}
+                    {form.galleryImages[i].name} ({Math.round(form.galleryImages[i].size / 1024)}KB)
                   </p>
                 </div>
               )}
@@ -673,24 +594,24 @@ const AddProduct = () => {
         <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
           <div>
             <label className="block text-[16px] font-medium mb-1">Meta Title</label>
-              <input
-                value={form.metaTitle}
-                onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
-                className="w-full border border-black/20 rounded px-3 py-2"
-                placeholder="SEO title for search engines"
-              />
-            </div>
-            <div>
-              <label className="block text-[16px] font-medium mb-1">Meta Description</label>
-              <textarea
-                value={form.metaDescription}
-                onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
-                rows={3}
-                className="w-full border border-black/20 rounded px-3 py-2"
-                placeholder="SEO description for search engines"
-              />
-            </div>
+            <input
+              value={form.metaTitle}
+              onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+              className="w-full border border-black/20 rounded px-3 py-2"
+              placeholder="SEO title for search engines"
+            />
           </div>
+          <div>
+            <label className="block text-[16px] font-medium mb-1">Meta Description</label>
+            <textarea
+              value={form.metaDescription}
+              onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+              rows={3}
+              className="w-full border border-black/20 rounded px-3 py-2"
+              placeholder="SEO description for search engines"
+            />
+          </div>
+        </div>
 
         {/* SUBMIT BUTTON */}
         <div className="flex justify-end">
@@ -698,8 +619,8 @@ const AddProduct = () => {
             onClick={handleSubmit}
             disabled={loading}
             className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-black text-white hover:bg-gray-800"
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-black text-white hover:bg-gray-800"
               }`}
           >
             {loading ? (
