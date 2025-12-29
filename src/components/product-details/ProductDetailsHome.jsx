@@ -349,7 +349,7 @@ export default function ProductDetailsHome() {
                     {/* Gallery Thumbnails - Only show if we have images */}
                     {allImages.length > 0 && (
                         <div className="space-y-3">
-                            <h3 className="font-medium text-gray-700">Gallery Images</h3>
+                            <h3 className="font-medium text-gray-700">Product Images</h3>
                             <div className="grid grid-cols-4 gap-3">
                                 {allImages.map((img, index) => (
                                     <button

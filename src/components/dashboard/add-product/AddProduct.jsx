@@ -138,11 +138,11 @@ const AddProduct = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Create FormData for backend upload - FIXED VERSION
+  // Create FormData for backend upload
   const createFormData = () => {
     const formData = new FormData();
     
-    // Add text fields - convert to appropriate types
+    // Add text fields
     formData.append("name", form.name);
     formData.append("category_id", form.subCategoryId);
     formData.append("description", form.description || "");
@@ -153,19 +153,19 @@ const AddProduct = () => {
     formData.append("meta_title", form.metaTitle || form.name);
     formData.append("meta_description", form.metaDescription || form.name);
     
-    // Add hot sale - only send if true
+    // Add hot sale
     if (form.hotSale) {
       formData.append("hot_sale", "true");
     }
     
-    // FIX: Add each size individually - this creates an array in FormData
+    // Add sizes
     form.sizes.forEach((sizeId) => {
-      formData.append("size_ids", sizeId); // Just append, not as array
+      formData.append("size_ids", sizeId);
     });
     
-    // FIX: Add each color individually - this creates an array in FormData
+    // Add colors
     form.colors.forEach((colorId) => {
-      formData.append("color_ids", colorId); // Just append, not as array
+      formData.append("color_ids", colorId);
     });
     
     // Add thumbnail
@@ -185,6 +185,22 @@ const AddProduct = () => {
     }
     
     return formData;
+  };
+
+  // Helper function to remove Cloudinary prefix from image URL
+  const getCleanImageUrl = (url) => {
+    if (!url) return "";
+    
+    // uploading pattern
+    const cloudinaryPattern = /image\/upload\/[^\/]+\/(.+)/;
+    const match = url.match(cloudinaryPattern);
+    
+    if (match && match[1]) {
+      return match[1];
+    }
+    
+    // If it's already a clean URL or a placeholder, return as is
+    return url === "placeholder" ? "" : url;
   };
 
   // Validate form
@@ -235,29 +251,6 @@ const AddProduct = () => {
     try {
       // Create FormData
       const formData = createFormData();
-
-      // Log what we're sending for debugging
-      console.log("Submitting form data:");
-      console.log("Sizes:", form.sizes);
-      console.log("Colors:", form.colors);
-      
-      // Convert FormData to object for logging
-      const formDataObj = {};
-      for (let pair of formData.entries()) {
-        const key = pair[0];
-        const value = pair[1];
-        
-        // Group array values
-        if (key === "size_ids" || key === "color_ids") {
-          if (!formDataObj[key]) {
-            formDataObj[key] = [];
-          }
-          formDataObj[key].push(value);
-        } else {
-          formDataObj[key] = value;
-        }
-      }
-      console.log("FormData being sent:", formDataObj);
 
       // Show loading alert
       Swal.fire({
@@ -348,6 +341,23 @@ const AddProduct = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to get image source for preview
+  const getImageSrc = (image) => {
+    if (!image) return "";
+    
+    // If it's a File object (new upload), create object URL
+    if (image instanceof File) {
+      return URL.createObjectURL(image);
+    }
+    
+    // If it's a string URL from backend, remove Cloudinary prefix if present
+    if (typeof image === 'string') {
+      return getCleanImageUrl(image);
+    }
+    
+    return "";
   };
 
   return (
@@ -595,14 +605,21 @@ const AddProduct = () => {
                 <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
                 <div className="w-32 h-32 relative border border-black/10 rounded overflow-hidden">
                   <Image
-                    src={URL.createObjectURL(form.thumbnail)}
+                    src={getImageSrc(form.thumbnail)}
                     alt="Thumbnail preview"
                     fill
                     className="object-cover"
+                    onLoad={(e) => {
+                      // Revoke object URL to avoid memory leaks
+                      if (form.thumbnail instanceof File) {
+                        URL.revokeObjectURL(e.target.src);
+                      }
+                    }}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {form.thumbnail.name} ({Math.round(form.thumbnail.size / 1024)}KB)
+                  {form.thumbnail.name || "Thumbnail image"} 
+                  {form.thumbnail.size && ` (${Math.round(form.thumbnail.size / 1024)}KB)`}
                 </p>
               </div>
             )}
@@ -630,14 +647,21 @@ const AddProduct = () => {
                   <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
                   <div className="w-24 h-24 relative border border-black/10 rounded overflow-hidden">
                     <Image
-                      src={URL.createObjectURL(form.galleryImages[i])}
+                      src={getImageSrc(form.galleryImages[i])}
                       alt={`Gallery ${i + 1} preview`}
                       fill
                       className="object-cover"
+                      onLoad={(e) => {
+                        // Revoke object URL to avoid memory leaks
+                        if (form.galleryImages[i] instanceof File) {
+                          URL.revokeObjectURL(e.target.src);
+                        }
+                      }}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {form.galleryImages[i].name} ({Math.round(form.galleryImages[i].size / 1024)}KB)
+                    {form.galleryImages[i].name || `Gallery ${i + 1} image`}
+                    {form.galleryImages[i].size && ` (${Math.round(form.galleryImages[i].size / 1024)}KB)`}
                   </p>
                 </div>
               )}
