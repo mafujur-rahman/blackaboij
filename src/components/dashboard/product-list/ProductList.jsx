@@ -30,16 +30,20 @@ const ProductList = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    // Fetch products from API with pagination
+    // Fetch products from API with pagination and sorting
     useEffect(() => {
         const fetchProducts = async () => {
             try {
                 const token = localStorage.getItem("auth_token");
-                const res = await api.get(`/api/products/get-all-products/?page=${currentPage}&limit=${itemsPerPage}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
+                // Add sorting parameter to show latest products first
+                const res = await api.get(
+                    `/api/products/get-all-products/?page=${currentPage}&limit=${itemsPerPage}&sort_by=created_at&sort_order=desc`, 
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
 
                 if (res.data.success) {
                     setProducts(res.data.data);
@@ -49,6 +53,7 @@ const ProductList = () => {
                     Swal.fire("Error", res.data.message, "error");
                 }
             } catch (error) {
+                console.error("Error fetching products:", error);
                 Swal.fire("Error", "Failed to fetch products", "error");
             } finally {
                 setLoading(false);
@@ -57,6 +62,16 @@ const ProductList = () => {
 
         fetchProducts();
     }, [currentPage]);
+
+    // Alternative: If your backend doesn't support sorting parameters, 
+    // you can sort on the frontend (though less efficient for large datasets):
+    const sortProductsByDate = (productsArray) => {
+        return [...productsArray].sort((a, b) => {
+            const dateA = new Date(a.created_at || a.createdAt || a.date_added);
+            const dateB = new Date(b.created_at || b.createdAt || b.date_added);
+            return dateB - dateA; // Descending order (newest first)
+        });
+    };
 
     // Pagination controls
     const goToPage = (page) => {
@@ -251,6 +266,9 @@ const ProductList = () => {
         });
     };
 
+    // If you need to sort on frontend (if backend doesn't support sorting)
+    const displayedProducts = sortProductsByDate(products);
+
     return (
         <>
             <DashboardShell>
@@ -283,7 +301,7 @@ const ProductList = () => {
                         {/* TABLE */}
                         {loading ? (
                             <div className="text-center py-20">Loading products...</div>
-                        ) : products.length === 0 ? (
+                        ) : displayedProducts.length === 0 ? (
                             <div className="text-center py-20 text-gray-500">
                                 No products found
                             </div>
@@ -314,7 +332,7 @@ const ProductList = () => {
                                         </thead>
 
                                         <tbody>
-                                            {products.map((product, index) => {
+                                            {displayedProducts.map((product, index) => {
                                                 const discountedPrice = product.discount_percent > 0
                                                     ? product.unit_price * (1 - product.discount_percent / 100)
                                                     : null;

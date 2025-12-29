@@ -12,16 +12,23 @@ const WomenTeesArea = () => {
 
   /* ------------------ FETCH PRODUCTS ------------------ */
   const fetchProducts = async () => {
-    // ✅ Check sessionStorage cache first
-    const cached = sessionStorage.getItem("women_tees_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
     try {
+      setLoading(true);
+
+      // Detect hard reload
+      const isHardReload =
+        performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+      // Use cache only for client-side navigation
+      if (!isHardReload) {
+        const cached = sessionStorage.getItem("women_tees_products");
+        if (cached) {
+          setProducts(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await api.get("/api/products/get-all-products/");
       const womenTees = res.data.data.filter(
         (p) =>
@@ -30,6 +37,8 @@ const WomenTeesArea = () => {
       );
 
       setProducts(womenTees);
+
+      // Cache for client-side navigation
       sessionStorage.setItem("women_tees_products", JSON.stringify(womenTees));
     } catch (error) {
       console.error("API fetch error:", error);
@@ -38,6 +47,7 @@ const WomenTeesArea = () => {
       setLoading(false);
     }
   };
+
 
   React.useEffect(() => {
     fetchProducts();

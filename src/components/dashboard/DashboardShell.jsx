@@ -17,8 +17,8 @@ export default function DashboardShell({ children }) {
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
-        setRightFullScreen(sidebarOpen);
     };
+
 
     const toggleFullscreen = () => {
         setRightFullScreen(!rightFullScreen);
@@ -71,7 +71,8 @@ export default function DashboardShell({ children }) {
         <div className="flex min-h-screen bg-gray-100">
             {/* SIDEBAR */}
             {sidebarOpen && (
-                <aside className="w-[260px] bg-black text-white flex flex-col transition-all duration-300">
+                <aside className="w-[260px] bg-black text-white flex flex-col transition-all duration-300 fixed top-0 left-0 h-screen shadow-md z-30">
+                    {/* LOGO / HEADER */}
                     <div className="h-16 flex items-center justify-center border-b border-white/10">
                         <Link href={'/'}>
                             <Image
@@ -84,7 +85,8 @@ export default function DashboardShell({ children }) {
                         </Link>
                     </div>
 
-                    <nav className="flex-1 px-4 py-4 text-lg">
+                    {/* NAVIGATION */}
+                    <nav className="flex-1 px-4 py-4 text-lg overflow-y-auto">
                         <Link href="/dashboard" className={`${linkClass} ${isActive("/dashboard")}`}>
                             <FiGrid className="text-xl" />
                             <span>Dashboard</span>
@@ -116,10 +118,8 @@ export default function DashboardShell({ children }) {
                             <FiDroplet className="text-xl" />
                             <span>Color</span>
                         </Link>
-                        <Link
-                            href="/dashboard/discount"
-                            className={`${linkClass} ${isActive("/dashboard/discount")}`}
-                        >
+
+                        <Link href="/dashboard/discount" className={`${linkClass} ${isActive("/dashboard/discount")}`}>
                             <FiPercent className="text-xl" />
                             <span>Discount</span>
                         </Link>
@@ -137,6 +137,7 @@ export default function DashboardShell({ children }) {
                             <FiUsers className="text-xl" />
                             <span>Customer List</span>
                         </Link>
+
                         <Link href="/dashboard/subscriber-list" className={`${linkClass} ${isActive("/dashboard/subscriber-list")}`}>
                             <FiUsers className="text-xl" />
                             <span>Subscriber List</span>
@@ -154,8 +155,12 @@ export default function DashboardShell({ children }) {
                 </aside>
             )}
 
+
             {/* RIGHT SIDE */}
-            <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300`}>
+            <div
+                className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[260px]' : 'ml-0'
+                    }`}
+            >
                 <header className="h-16 bg-white border-b border-black/10 flex items-center justify-between px-6">
                     <div className="flex items-center gap-4">
                         <FiMenu className="cursor-pointer" onClick={toggleSidebar} />
@@ -171,9 +176,11 @@ export default function DashboardShell({ children }) {
                 <main className="flex-1 p-6">{children}</main>
 
                 <footer className="h-12 bg-white border-t border-black/10 flex items-center justify-center text-gray-500">
-                    © {new Date().getFullYear()} Blackaboj All rights reserved | Made By Jewel
+                    © {new Date().getFullYear()} Blackaboj All rights reserved
                 </footer>
             </div>
+
+
         </div>
     );
 }

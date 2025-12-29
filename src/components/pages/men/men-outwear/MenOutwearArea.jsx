@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Swal from "sweetalert2";
 import ProductCard from "@/components/card/ProductCard";
+import api from "@/lib/axios";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const MenOutwearArea = () => {
@@ -14,29 +15,41 @@ const MenOutwearArea = () => {
 
   /* ------------------ FETCH PRODUCTS ------------------ */
   const fetchProducts = async () => {
-    // ✅ Check session cache first
-    const cached = sessionStorage.getItem("men_outwear_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
     try {
-      const res = await axios.get(
-        "https://blackaboji.vercel.app/api/products/get-all-products/"
+      setLoading(true);
+
+      // Detect hard reload
+      const isHardReload =
+        performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+      // Use cache only for client-side navigation
+      if (!isHardReload) {
+        const cached = sessionStorage.getItem("men_outwear_products");
+        if (cached) {
+          setProducts(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
+      }
+
+      const res = await api.get(
+        "/api/products/get-all-products/"
       );
 
       if (res.data?.success) {
         const menOutwears = res.data.data.filter(
           (p) =>
             p.category?.parent_name?.toLowerCase() === "men" &&
-            p.category?.name?.toLowerCase() === "outwear"
+            p.category?.name?.toLowerCase() === "outwears"
         );
 
         setProducts(menOutwears);
-        sessionStorage.setItem("men_outwear_products", JSON.stringify(menOutwears));
+
+        // Cache for client-side navigation
+        sessionStorage.setItem(
+          "men_outwear_products",
+          JSON.stringify(menOutwears)
+        );
       } else {
         console.warn("API did not return success:", res.data);
       }
@@ -47,6 +60,7 @@ const MenOutwearArea = () => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchProducts();

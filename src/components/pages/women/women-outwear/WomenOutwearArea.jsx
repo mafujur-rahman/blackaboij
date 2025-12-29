@@ -11,36 +11,46 @@ const WomenOutwearArea = () => {
   const [loading, setLoading] = useState(true);
 
   /* ------------------ FETCH PRODUCTS ------------------ */
-  const fetchProducts = async () => {
-    // ✅ Check session cache first
-    const cached = sessionStorage.getItem("women_outwear_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
+const fetchProducts = async () => {
+  try {
     setLoading(true);
-    try {
-      const res = await api.get("/api/products/get-all-products/");
-      const womenOutwears = res.data.data.filter(
-        (p) =>
-          p.category?.parent_name?.toLowerCase() === "women" &&
-          p.category?.name?.toLowerCase() === "outwear"
-      );
 
-      setProducts(womenOutwears);
-      sessionStorage.setItem(
-        "women_outwear_products",
-        JSON.stringify(womenOutwears)
-      );
-    } catch (error) {
-      console.error("API fetch error:", error);
-      Swal.fire("Error", "Failed to load products", "error");
-    } finally {
-      setLoading(false);
+    // Detect hard reload
+    const isHardReload =
+      performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+    // Use cache only for client-side navigation
+    if (!isHardReload) {
+      const cached = sessionStorage.getItem("women_outwear_products");
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
     }
-  };
+
+    const res = await api.get("/api/products/get-all-products/");
+    const womenOutwears = res.data.data.filter(
+      (p) =>
+        p.category?.parent_name?.toLowerCase() === "women" &&
+        p.category?.name?.toLowerCase() === "outwears"
+    );
+
+    setProducts(womenOutwears);
+
+    // Cache for client-side navigation
+    sessionStorage.setItem(
+      "women_outwear_products",
+      JSON.stringify(womenOutwears)
+    );
+  } catch (error) {
+    console.error("API fetch error:", error);
+    Swal.fire("Error", "Failed to load products", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   React.useEffect(() => {
     fetchProducts();

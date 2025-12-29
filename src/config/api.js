@@ -1,1 +1,1 @@
-export const BASE_URL = "https://blackaboji.vercel.app";
+export const BASE_URL = "https://api.blackaboij.com";

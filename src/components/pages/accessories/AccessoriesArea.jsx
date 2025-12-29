@@ -18,11 +18,10 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${
-        isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-      }`}
+        }`}
     >
       {formattedName}
     </button>
@@ -43,20 +42,27 @@ const AccessoriesArea = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // Check cache
-      const cached = sessionStorage.getItem("accessories_products");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setAllProducts(parsed.allProducts || []);
-        setCategories(parsed.categories || []);
-        setActiveCategory(parsed.activeCategory || null);
-        setFilteredProducts(parsed.filteredProducts || []);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
       try {
+        setLoading(true);
+
+        // Detect hard reload
+        const isHardReload =
+          performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+        // Use cache only for client-side navigation
+        if (!isHardReload) {
+          const cached = sessionStorage.getItem("accessories_products");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setAllProducts(parsed.allProducts || []);
+            setCategories(parsed.categories || []);
+            setActiveCategory(parsed.activeCategory || null);
+            setFilteredProducts(parsed.filteredProducts || []);
+            setLoading(false);
+            return;
+          }
+        }
+
         const res = await api.get("/api/products/get-all-products/");
         const products = res.data.data || [];
 
@@ -88,7 +94,7 @@ const AccessoriesArea = () => {
         setActiveCategory(initialCategory);
         setFilteredProducts(initialFiltered);
 
-        // Cache
+        // Cache for client-side navigation
         sessionStorage.setItem(
           "accessories_products",
           JSON.stringify({
@@ -107,6 +113,7 @@ const AccessoriesArea = () => {
 
     fetchProducts();
   }, []);
+
 
   // Filter products by active category
   useEffect(() => {
@@ -165,11 +172,10 @@ const AccessoriesArea = () => {
                   <button
                     key={i + 1}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded ${
-                      currentPage === i + 1
+                    className={`px-3 py-1 border rounded ${currentPage === i + 1
                         ? "bg-black text-white border-black"
                         : "bg-white text-black border-gray-300"
-                    }`}
+                      }`}
                   >
                     {i + 1}
                   </button>

@@ -17,8 +17,6 @@ import Swal from "sweetalert2";
 import Image from "next/image";
 import api from "@/lib/axios";
 
-const CLOUDINARY_URL = "https://res.cloudinary.com/dwsp8rft8/";
-
 const AddProduct = () => {
   const [parentCategories, setParentCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -41,7 +39,12 @@ const AddProduct = () => {
     metaDescription: "",
     thumbnail: null,
     galleryImages: [null, null, null],
-    hotSale: false, // Added hotSale field
+    hotSale: false,
+  });
+
+  const [errors, setErrors] = useState({
+    sizes: false,
+    colors: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -89,25 +92,44 @@ const AddProduct = () => {
     fetchSubCategories();
   }, [parentCategoryId]);
 
-  // Toggle sizes/colors
+  // Toggle sizes/colors with validation
   const toggleArray = (field, id) => {
+    const newArray = form[field].includes(id)
+      ? form[field].filter((v) => v !== id)
+      : [...form[field], id];
+    
     setForm((prev) => ({
       ...prev,
-      [field]: prev[field].includes(id)
-        ? prev[field].filter((v) => v !== id)
-        : [...prev[field], id],
+      [field]: newArray,
     }));
+
+    // Clear error when selection is made
+    if (newArray.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: false,
+      }));
+    }
   };
 
-  // File upload
+  // File upload handlers
   const handleFileChange = (index, file) => {
+    if (file && file.size > 10 * 1024 * 1024) {
+      Swal.fire("Error", "Image size must be less than 10MB", "error");
+      return;
+    }
     setForm((prev) => {
       const gallery = [...prev.galleryImages];
       gallery[index] = file;
       return { ...prev, galleryImages: gallery };
     });
   };
+  
   const handleThumbnailUpload = (file) => {
+    if (file && file.size > 10 * 1024 * 1024) {
+      Swal.fire("Error", "Image size must be less than 10MB", "error");
+      return;
+    }
     setForm((prev) => ({ ...prev, thumbnail: file }));
   };
 
@@ -116,51 +138,155 @@ const AddProduct = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Submit
-  const handleSubmit = async () => {
-    if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
-      Swal.fire("Warning", "Please fill required fields", "warning");
-      return;
+  // Create FormData for backend upload - FIXED VERSION
+  const createFormData = () => {
+    const formData = new FormData();
+    
+    // Add text fields - convert to appropriate types
+    formData.append("name", form.name);
+    formData.append("category_id", form.subCategoryId);
+    formData.append("description", form.description || "");
+    formData.append("unit_price", form.price);
+    formData.append("quantity", form.qty);
+    
+    // Add meta fields
+    formData.append("meta_title", form.metaTitle || form.name);
+    formData.append("meta_description", form.metaDescription || form.name);
+    
+    // Add hot sale - only send if true
+    if (form.hotSale) {
+      formData.append("hot_sale", "true");
     }
-    if (!form.colors.length) {
-      Swal.fire("Warning", "Please select at least one color", "warning");
+    
+    // FIX: Add each size individually - this creates an array in FormData
+    form.sizes.forEach((sizeId) => {
+      formData.append("size_ids", sizeId); // Just append, not as array
+    });
+    
+    // FIX: Add each color individually - this creates an array in FormData
+    form.colors.forEach((colorId) => {
+      formData.append("color_ids", colorId); // Just append, not as array
+    });
+    
+    // Add thumbnail
+    if (form.thumbnail) {
+      formData.append("thumbnail_image", form.thumbnail);
+    }
+    
+    // Add gallery images
+    if (form.galleryImages[0]) {
+      formData.append("gallery1", form.galleryImages[0]);
+    }
+    if (form.galleryImages[1]) {
+      formData.append("gallery2", form.galleryImages[1]);
+    }
+    if (form.galleryImages[2]) {
+      formData.append("gallery3", form.galleryImages[2]);
+    }
+    
+    return formData;
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors = {
+      sizes: form.sizes.length === 0,
+      colors: form.colors.length === 0,
+    };
+    
+    setErrors(newErrors);
+    
+    // Check for basic required fields
+    if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
+      Swal.fire("Warning", "Please fill all required fields", "warning");
+      return false;
+    }
+    
+    // Check for thumbnail
+    if (!form.thumbnail) {
+      Swal.fire("Warning", "Please upload a thumbnail image", "warning");
+      return false;
+    }
+    
+    // Check for size and color selections
+    if (newErrors.sizes || newErrors.colors) {
+      if (newErrors.sizes && newErrors.colors) {
+        Swal.fire("Warning", "Please select at least one size and one color", "warning");
+      } else if (newErrors.sizes) {
+        Swal.fire("Warning", "Please select at least one size", "warning");
+      } else if (newErrors.colors) {
+        Swal.fire("Warning", "Please select at least one color", "warning");
+      }
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Submit product
+  const handleSubmit = async () => {
+    // Validate form
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
-    try {
-      // Build JSON payload with hot_sale field
-      const payload = {
-        name: form.name,
-        category_id: Number(form.subCategoryId),
-        description: form.description || "",
-        unit_price: form.price,
-        quantity: form.qty,
-        size_ids: form.sizes,
-        color_ids: form.colors,
-        // Include hot_sale only if it's true (as per API requirement)
-        ...(form.hotSale && { hot_sale: true }),
-        thumbnail_image: form.thumbnail
-          ? URL.createObjectURL(form.thumbnail)
-          : CLOUDINARY_URL,
-        gallery1: form.galleryImages[0]
-          ? URL.createObjectURL(form.galleryImages[0])
-          : CLOUDINARY_URL,
-        gallery2: form.galleryImages[1]
-          ? URL.createObjectURL(form.galleryImages[1])
-          : CLOUDINARY_URL,
-        gallery3: form.galleryImages[2]
-          ? URL.createObjectURL(form.galleryImages[2])
-          : CLOUDINARY_URL,
-        meta_title: form.metaTitle || form.name,
-        meta_description: form.metaDescription || form.name,
-      };
 
-      await api.post("/api/product/create-product/", payload, {
-        headers: { "Content-Type": "application/json" },
+    try {
+      // Create FormData
+      const formData = createFormData();
+
+      // Log what we're sending for debugging
+      console.log("Submitting form data:");
+      console.log("Sizes:", form.sizes);
+      console.log("Colors:", form.colors);
+      
+      // Convert FormData to object for logging
+      const formDataObj = {};
+      for (let pair of formData.entries()) {
+        const key = pair[0];
+        const value = pair[1];
+        
+        // Group array values
+        if (key === "size_ids" || key === "color_ids") {
+          if (!formDataObj[key]) {
+            formDataObj[key] = [];
+          }
+          formDataObj[key].push(value);
+        } else {
+          formDataObj[key] = value;
+        }
+      }
+      console.log("FormData being sent:", formDataObj);
+
+      // Show loading alert
+      Swal.fire({
+        title: 'Adding Product...',
+        text: 'Please wait while we save your product',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
       });
 
-      Swal.fire("Success", "Product created successfully", "success");
+      // Send to backend API
+      const response = await api.post("/api/product/create-product/", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Close loading alert and show success
+      Swal.close();
+      Swal.fire({
+        icon: "success",
+        title: "Product Added Successfully!",
+        text: `${form.name} has been added to your store`,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#000",
+        timer: 3000
+      });
 
       // Reset form
       setForm({
@@ -181,13 +307,44 @@ const AddProduct = () => {
         hotSale: false,
       });
       setParentCategoryId("");
+      setErrors({
+        sizes: false,
+        colors: false,
+      });
+
     } catch (err) {
-      console.error(err.response?.data);
-      Swal.fire(
-        "Error",
-        err.response?.data?.message || "Product creation failed",
-        "error"
-      );
+      // Close loading alert
+      Swal.close();
+      
+      // Show error with more details
+      let errorMessage = "Product creation failed. Please try again.";
+      let errorDetails = "";
+      
+      if (err.response?.data) {
+        console.error("Backend error response:", err.response.data);
+        
+        if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        }
+        if (err.response.data.errors) {
+          errorDetails = JSON.stringify(err.response.data.errors);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        html: errorDetails ? 
+          `<div>${errorMessage}</div><div class="text-sm mt-2">${errorDetails}</div>` : 
+          errorMessage,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#000"
+      });
     } finally {
       setLoading(false);
     }
@@ -214,18 +371,19 @@ const AddProduct = () => {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[16px] font-medium mb-1">
-                Product Name
+                Product Name *
               </label>
               <input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
+                placeholder="Enter product name"
               />
             </div>
 
             <div>
               <label className="block text-[16px] font-medium mb-1">
-                Main Category
+                Main Category *
               </label>
               <select
                 value={parentCategoryId}
@@ -253,7 +411,7 @@ const AddProduct = () => {
 
             <div>
               <label className="block text-[16px] font-medium mb-1">
-                Sub Category
+                Sub Category *
               </label>
               <select
                 value={form.subCategoryId}
@@ -268,6 +426,7 @@ const AddProduct = () => {
                   }));
                 }}
                 className="w-full border border-black/20 rounded px-3 py-2"
+                disabled={!parentCategoryId}
               >
                 <option value="">Select Sub Category</option>
                 {subCategories.map((sub) => (
@@ -279,26 +438,30 @@ const AddProduct = () => {
             </div>
 
             <div>
-              <label className="block text-[16px] font-medium mb-1">Unit Price</label>
+              <label className="block text-[16px] font-medium mb-1">Unit Price *</label>
               <input
                 type="number"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
+                placeholder="0.00"
+                step="0.01"
+                min="0"
               />
             </div>
 
             <div>
-              <label className="block text-[16px] font-medium mb-1">Quantity</label>
+              <label className="block text-[16px] font-medium mb-1">Quantity *</label>
               <input
                 type="number"
                 value={form.qty}
                 onChange={(e) => setForm({ ...form, qty: e.target.value })}
                 className="w-full border border-black/20 rounded px-3 py-2"
+                placeholder="0"
+                min="0"
               />
             </div>
 
-            {/* HOT SALE CHECKBOX - Added this section */}
             <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
@@ -310,9 +473,6 @@ const AddProduct = () => {
               <label htmlFor="hotSale" className="text-[16px] font-medium">
                 Hot Sale
               </label>
-              {/* <span className="text-sm text-gray-500">
-                (Check if this product is on hot sale)
-              </span> */}
             </div>
 
             <div className="col-span-2">
@@ -330,6 +490,7 @@ const AddProduct = () => {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={6}
                   className="w-full p-4 outline-none resize-none"
+                  placeholder="Enter product description..."
                 />
               </div>
             </div>
@@ -338,50 +499,89 @@ const AddProduct = () => {
 
         {/* SIZES */}
         <div className="bg-white p-6 rounded-md shadow-sm">
-          <label className="block text-[16px] font-medium mb-2">Sizes</label>
+          <label className="block text-[16px] font-medium mb-2">
+            Sizes *
+            {errors.sizes && <span className="text-red-500 ml-2">(Please select at least one size)</span>}
+          </label>
           <div className="flex gap-3 flex-wrap">
             {sizesList.map((size) => (
               <button
                 key={size.id}
                 type="button"
                 onClick={() => toggleArray("sizes", size.id)}
-                className={`px-4 py-2 rounded border ${form.sizes.includes(size.id)
-                    ? "bg-black text-white"
-                    : "border-black/20"
+                className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
+                    ? "bg-black text-white border-black"
+                    : errors.sizes 
+                      ? "border-red-500 hover:border-red-600"
+                      : "border-black/20 hover:border-black"
                   }`}
               >
                 {size.name}
               </button>
             ))}
           </div>
+          {errors.sizes && (
+            <p className="text-sm text-red-500 mt-2">
+              * Please select at least one size
+            </p>
+          )}
+          <p className="text-sm text-gray-500 mt-2">
+            Selected sizes: {form.sizes.length > 0 ? form.sizes.map(id => {
+              const size = sizesList.find(s => s.id === id);
+              return size ? size.name : id;
+            }).join(", ") : "None"}
+          </p>
         </div>
 
         {/* COLORS */}
         <div className="bg-white p-6 rounded-md shadow-sm">
-          <label className="block text-[16px] font-medium mb-2">Colors</label>
+          <label className="block text-[16px] font-medium mb-2">
+            Colors *
+            {errors.colors && <span className="text-red-500 ml-2">(Please select at least one color)</span>}
+          </label>
           <div className="flex gap-6 flex-wrap">
             {colorsList.map((c) => (
               <div
                 key={c.id}
                 onClick={() => toggleArray("colors", c.id)}
-                className="cursor-pointer text-center"
+                className="cursor-pointer text-center group"
               >
                 <div
-                  className={`w-10 h-10 rounded-full border-2 mx-auto ${form.colors.includes(c.id) ? "border-black" : "border-black/20"
-                    }`}
-                  style={{ backgroundColor: c.hex_code }}
+                  className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id) 
+                    ? "border-black scale-110 shadow" 
+                    : errors.colors
+                      ? "border-red-500 group-hover:border-red-600"
+                      : "border-black/20 group-hover:border-black/60"
+                  }`}
+                  style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
                 />
-                <span className="text-[16px] mt-1 block">{c.name}</span>
+                <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
+                {c.hex_code && (
+                  <span className="text-[12px] text-gray-500 block">{c.hex_code}</span>
+                )}
               </div>
             ))}
           </div>
+          {errors.colors && (
+            <p className="text-sm text-red-500 mt-2">
+              * Please select at least one color
+            </p>
+          )}
+          <p className="text-sm text-gray-500 mt-2">
+            Selected colors: {form.colors.length > 0 ? form.colors.map(id => {
+              const color = colorsList.find(c => c.id === id);
+              return color ? color.name : id;
+            }).join(", ") : "None"}
+          </p>
         </div>
 
         {/* MEDIA UPLOAD */}
         <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
           <div>
-            <label className="block text-[16px] font-medium mb-2">Thumbnail Image</label>
-            <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit">
+            <label className="block text-[16px] font-medium mb-2">
+              Thumbnail Image *
+            </label>
+            <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit hover:bg-gray-800 transition">
               <Upload size={16} /> Choose Image
               <input
                 type="file"
@@ -391,22 +591,32 @@ const AddProduct = () => {
               />
             </label>
             {form.thumbnail && (
-              <div className="mt-4 w-24 h-24 relative">
-                <Image
-                  src={URL.createObjectURL(form.thumbnail)}
-                  alt="Thumbnail"
-                  width={96}
-                  height={96}
-                  className="object-cover rounded border"
-                />
+              <div className="mt-4">
+                <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
+                <div className="w-32 h-32 relative border border-black/10 rounded overflow-hidden">
+                  <Image
+                    src={URL.createObjectURL(form.thumbnail)}
+                    alt="Thumbnail preview"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {form.thumbnail.name} ({Math.round(form.thumbnail.size / 1024)}KB)
+                </p>
               </div>
             )}
+            <p className="text-sm text-gray-500 mt-2">
+              * Required - This will be the main product image
+            </p>
           </div>
 
           {[0, 1, 2].map((i) => (
             <div key={i}>
-              <label className="block text-[16px] font-medium mb-2">{`Gallery ${i + 1}`}</label>
-              <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit">
+              <label className="block text-[16px] font-medium mb-2">
+                {`Gallery ${i + 1}`}
+              </label>
+              <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-800 text-white px-4 py-2 rounded w-fit hover:bg-gray-700 transition">
                 <Upload size={16} /> Choose Image
                 <input
                   type="file"
@@ -416,14 +626,19 @@ const AddProduct = () => {
                 />
               </label>
               {form.galleryImages[i] && (
-                <div className="mt-4 w-20 h-20 relative">
-                  <Image
-                    src={URL.createObjectURL(form.galleryImages[i])}
-                    alt={`Gallery ${i + 1}`}
-                    width={80}
-                    height={80}
-                    className="object-cover rounded border"
-                  />
+                <div className="mt-4">
+                  <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
+                  <div className="w-24 h-24 relative border border-black/10 rounded overflow-hidden">
+                    <Image
+                      src={URL.createObjectURL(form.galleryImages[i])}
+                      alt={`Gallery ${i + 1} preview`}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {form.galleryImages[i].name} ({Math.round(form.galleryImages[i].size / 1024)}KB)
+                  </p>
                 </div>
               )}
             </div>
@@ -434,31 +649,43 @@ const AddProduct = () => {
         <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
           <div>
             <label className="block text-[16px] font-medium mb-1">Meta Title</label>
-            <input
-              value={form.metaTitle}
-              onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
-              className="w-full border border-black/20 rounded px-3 py-2"
-            />
+              <input
+                value={form.metaTitle}
+                onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+                className="w-full border border-black/20 rounded px-3 py-2"
+                placeholder="SEO title for search engines"
+              />
+            </div>
+            <div>
+              <label className="block text-[16px] font-medium mb-1">Meta Description</label>
+              <textarea
+                value={form.metaDescription}
+                onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+                rows={3}
+                className="w-full border border-black/20 rounded px-3 py-2"
+                placeholder="SEO description for search engines"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[16px] font-medium mb-1">Meta Description</label>
-            <textarea
-              value={form.metaDescription}
-              onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
-              rows={3}
-              className="w-full border border-black/20 rounded px-3 py-2"
-            />
-          </div>
-        </div>
 
         {/* SUBMIT BUTTON */}
         <div className="flex justify-end">
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2 bg-black text-white rounded"
+            className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-black text-white hover:bg-gray-800"
+              }`}
           >
-            {loading ? "Adding..." : "Add Product"}
+            {loading ? (
+              <>
+                <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Adding...
+              </>
+            ) : (
+              "Add Product"
+            )}
           </button>
         </div>
       </div>

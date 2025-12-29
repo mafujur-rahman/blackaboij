@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Swal from "sweetalert2";
 import ProductCard from "@/components/card/ProductCard";
+import api from "@/lib/axios";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const MenHatArea = () => {
@@ -15,18 +16,25 @@ const MenHatArea = () => {
 
   /* ------------------ FETCH PRODUCTS ------------------ */
   const fetchProducts = async () => {
-    // ✅ Check session cache first
-    const cached = sessionStorage.getItem("men_hat_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
     try {
-      const res = await axios.get(
-        "https://blackaboji.vercel.app/api/products/get-all-products/"
+      setLoading(true);
+
+      // Detect hard reload
+      const isHardReload =
+        performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+      // Use cache only for client-side navigation
+      if (!isHardReload) {
+        const cached = sessionStorage.getItem("men_hat_products");
+        if (cached) {
+          setProducts(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
+      }
+
+      const res = await api.get(
+        "/api/products/get-all-products/"
       );
 
       if (res.data?.success) {
@@ -37,7 +45,12 @@ const MenHatArea = () => {
         );
 
         setProducts(menHat);
-        sessionStorage.setItem("men_hat_products", JSON.stringify(menHat));
+
+        // Cache for client-side navigation
+        sessionStorage.setItem(
+          "men_hat_products",
+          JSON.stringify(menHat)
+        );
       } else {
         console.warn("API did not return success:", res.data);
       }
@@ -48,6 +61,7 @@ const MenHatArea = () => {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchProducts();

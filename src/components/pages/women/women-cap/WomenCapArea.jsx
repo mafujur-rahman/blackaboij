@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Swal from "sweetalert2";
 import ProductCard from "@/components/card/ProductCard";
+import api from "@/lib/axios";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const WomenCapArea = () => {
@@ -14,38 +15,52 @@ const WomenCapArea = () => {
 
   /* ------------------ FETCH PRODUCTS ------------------ */
   const fetchProducts = async () => {
-    const cached = sessionStorage.getItem("women_cap_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
+  try {
+    setLoading(true);
+
+    // Detect hard reload
+    const isHardReload =
+      performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+    // Use cache only for client-side navigation
+    if (!isHardReload) {
+      const cached = sessionStorage.getItem("women_cap_products");
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
     }
 
-    setLoading(true);
-    try {
-      const res = await axios.get(
-        "https://blackaboji.vercel.app/api/products/get-all-products/"
+    const res = await api.get(
+      "/api/products/get-all-products/"
+    );
+
+    if (res.data?.success) {
+      const womenCap = res.data.data.filter(
+        (p) =>
+          p.category?.parent_name?.toLowerCase() === "women" &&
+          p.category?.name?.toLowerCase() === "cap"
       );
 
-      if (res.data?.success) {
-        const womenCap = res.data.data.filter(
-          (p) =>
-            p.category?.parent_name?.toLowerCase() === "women" &&
-            p.category?.name?.toLowerCase() === "cap"
-        );
+      setProducts(womenCap);
 
-        setProducts(womenCap);
-        sessionStorage.setItem("women_cap_products", JSON.stringify(womenCap));
-      } else {
-        console.warn("API did not return success:", res.data);
-      }
-    } catch (error) {
-      console.error("API fetch error:", error);
-      Swal.fire("Error", "Failed to load products", "error");
-    } finally {
-      setLoading(false);
+      // Cache for client-side navigation
+      sessionStorage.setItem(
+        "women_cap_products",
+        JSON.stringify(womenCap)
+      );
+    } else {
+      console.warn("API did not return success:", res.data);
     }
-  };
+  } catch (error) {
+    console.error("API fetch error:", error);
+    Swal.fire("Error", "Failed to load products", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchProducts();

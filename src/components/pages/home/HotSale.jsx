@@ -20,11 +20,10 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${
-        isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-      }`}
+        }`}
     >
       {formattedName}
     </button>
@@ -42,23 +41,29 @@ const HotSale = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  /* -------- FETCH HOT SALE PRODUCTS WITH CACHE -------- */
   useEffect(() => {
     const fetchProducts = async () => {
-      // Check cache first
-      const cached = sessionStorage.getItem("hot_sale_products");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setAllProducts(parsed.allProducts);
-        setCategories(parsed.categories);
-        setActiveCategory(parsed.activeCategory);
-        setFilteredProducts(parsed.filteredProducts);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
+
+        // Check sessionStorage only for client-side navigation
+        const isHardReload =
+          performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+        if (!isHardReload) {
+          const cached = sessionStorage.getItem("hot_sale_products");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setAllProducts(parsed.allProducts);
+            setCategories(parsed.categories);
+            setActiveCategory(parsed.activeCategory);
+            setFilteredProducts(parsed.filteredProducts);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Always fetch fresh data on full reload
         const res = await api.get("/api/products/get-hot-sale-products/");
         const products = res.data.data || [];
 
@@ -87,7 +92,6 @@ const HotSale = () => {
         });
 
         const initialCategory = parentCategories[0]?.id || null;
-
         const initialFiltered = initialCategory
           ? products.filter((p) => p.category?.parent === initialCategory)
           : products;
@@ -97,7 +101,7 @@ const HotSale = () => {
         setActiveCategory(initialCategory);
         setFilteredProducts(initialFiltered);
 
-        // Cache
+        // Cache for client-side navigation
         sessionStorage.setItem(
           "hot_sale_products",
           JSON.stringify({
@@ -116,6 +120,7 @@ const HotSale = () => {
 
     fetchProducts();
   }, []);
+
 
   /* -------- FILTER PRODUCTS BY CATEGORY -------- */
   useEffect(() => {
@@ -182,9 +187,8 @@ const HotSale = () => {
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 border ${
-                      currentPage === i + 1 ? "bg-black text-white" : ""
-                    }`}
+                    className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
+                      }`}
                   >
                     {i + 1}
                   </button>

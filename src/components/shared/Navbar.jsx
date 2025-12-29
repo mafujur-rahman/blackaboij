@@ -334,29 +334,29 @@ export default function Navbar() {
               </div>
 
               {/* LOGO */}
-              <div className="absolute left-1/2 -translate-x-1/2">
+              <div className="absolute left-1/2 -translate-x-2/3 md:-translate-x-1/2 w-35 md:w-40 h-16 ">
                 <Link href="/">
                   <Image
                     src="/images/new-logo.png"
                     alt="Logo"
-                    width={160}
-                    height={60}
+                    fill
+                    style={{ objectFit: "contain" }}
                     priority
                   />
                 </Link>
               </div>
 
               {/* RIGHT */}
-              <div className="flex items-center ml-auto gap-4">
+              <div className="flex items-center ml-auto md:gap-4">
                 {/* Profile */}
-                <button onClick={handleProfileClick} className="relative p-1">
+                <button onClick={handleProfileClick} className="relative md:p-1">
                   <FiUser className="w-6 h-6" />
                 </button>
 
                 {/* Cart with Counter */}
                 <button
                   onClick={() => setIsCartOpen(true)}
-                  className="relative p-1"
+                  className="relative md:p-1"
                 >
                   <FiShoppingBag className="w-6 h-6" />
                   <CounterBadge count={cartCount} />
@@ -365,7 +365,7 @@ export default function Navbar() {
                 {/* Mobile Search Toggle */}
                 <button
                   onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                  className="md:hidden p-1"
+                  className="md:hidden md:p-1"
                 >
                   {mobileSearchOpen ? (
                     <FiX className="w-5 h-5" />
@@ -377,7 +377,7 @@ export default function Navbar() {
                 {/* Wishlist with Counter (Desktop) */}
                 <button
                   onClick={handleWishlistClick}
-                  className="hidden md:block relative p-1"
+                  className="hidden md:block relative md:p-1"
                 >
                   <FiHeart className="w-6 h-6 text-white" />
                   <CounterBadge count={wishlistCount} />
@@ -386,7 +386,7 @@ export default function Navbar() {
                 {/* Wishlist with Counter (Mobile - inside menu) */}
                 <button
                   onClick={handleWishlistClick}
-                  className="md:hidden relative p-1"
+                  className="md:hidden relative md:p-1"
                 >
                   <FiHeart className="w-6 h-6 text-white" />
                   <CounterBadge count={wishlistCount} />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import axios from "axios";
 import ProductCard from "@/components/card/ProductCard";
+import api from "@/lib/axios";
 
 
 const MenCapArea = () => {
@@ -14,39 +15,52 @@ const MenCapArea = () => {
 
     /* ------------------ FETCH PRODUCTS ------------------ */
     const fetchProducts = async () => {
-        // Check cache first
-        const cached = sessionStorage.getItem("men_cap_products");
-        if (cached) {
-            setProducts(JSON.parse(cached));
-            setLoading(false);
-            return;
-        }
+  try {
+    setLoading(true);
 
-        setLoading(true);
-        try {
-            const res = await axios.get(
-                "https://blackaboji.vercel.app/api/products/get-all-products/"
-            );
+    // Detect full page reload
+    const isHardReload =
+      performance.getEntriesByType("navigation")[0]?.type === "reload";
 
-            if (res.data?.success) {
-                const menCap = res.data.data.filter(
-                    (p) =>
-                        p.category?.parent_name?.toLowerCase() === "men" &&
-                        p.category?.name?.toLowerCase() === "cap"
-                );
+    // Use cache only for client-side navigation
+    if (!isHardReload) {
+      const cached = sessionStorage.getItem("men_cap_products");
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
+    }
 
-                setProducts(menCap);
-                sessionStorage.setItem("men_cap_products", JSON.stringify(menCap));
-            } else {
-                console.warn("API did not return success:", res.data);
-            }
-        } catch (error) {
-            console.error("API fetch error:", error);
-            Swal.fire("Error", "Failed to load products", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const res = await api.get(
+      "/api/products/get-all-products/"
+    );
+
+    if (res.data?.success) {
+      const menCap = res.data.data.filter(
+        (p) =>
+          p.category?.parent_name?.toLowerCase() === "men" &&
+          p.category?.name?.toLowerCase() === "cap"
+      );
+
+      setProducts(menCap);
+
+      // Cache for client-side navigation
+      sessionStorage.setItem(
+        "men_cap_products",
+        JSON.stringify(menCap)
+      );
+    } else {
+      console.warn("API did not return success:", res.data);
+    }
+  } catch (error) {
+    console.error("API fetch error:", error);
+    Swal.fire("Error", "Failed to load products", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     useEffect(() => {
         fetchProducts();

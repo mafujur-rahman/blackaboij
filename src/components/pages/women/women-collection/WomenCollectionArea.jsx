@@ -15,34 +15,47 @@ const WomenCollectionArea = () => {
   const itemsPerPage = 8;
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      //  Check session cache
-      const cached = sessionStorage.getItem("women_products");
-      if (cached) {
-        setProducts(JSON.parse(cached));
-        setLoading(false);
-        return;
-      }
-
+  const fetchProducts = async () => {
+    try {
       setLoading(true);
-      try {
-        const res = await api.get("/api/products/get-all-products/");
-        const womenProducts = res.data.data
-          .filter((p) => p.category?.parent_name?.toLowerCase() === "women")
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 20);
 
-        setProducts(womenProducts);
-        sessionStorage.setItem("women_products", JSON.stringify(womenProducts));
-      } catch (error) {
-        console.error("Failed to fetch products", error);
-      } finally {
-        setLoading(false);
+      // Detect hard reload
+      const isHardReload =
+        performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+      // Use cache only for client-side navigation
+      if (!isHardReload) {
+        const cached = sessionStorage.getItem("women_products");
+        if (cached) {
+          setProducts(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
       }
-    };
 
-    fetchProducts();
-  }, []);
+      const res = await api.get("/api/products/get-all-products/");
+      const womenProducts = res.data.data
+        .filter((p) => p.category?.parent_name?.toLowerCase() === "women")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 20);
+
+      setProducts(womenProducts);
+
+      // Cache for client-side navigation
+      sessionStorage.setItem(
+        "women_products",
+        JSON.stringify(womenProducts)
+      );
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProducts();
+}, []);
+
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const displayedProducts = products.slice(

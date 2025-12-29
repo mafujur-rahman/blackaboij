@@ -14,35 +14,45 @@ const WomenHoodiesSweatersArea = () => {
 
   /* ------------------ FETCH PRODUCTS ------------------ */
   const fetchProducts = async () => {
-    // ✅ Check session cache first
-    const cached = sessionStorage.getItem("women_hoodies_products");
-    if (cached) {
-      setProducts(JSON.parse(cached));
-      setLoading(false);
-      return;
-    }
-
+  try {
     setLoading(true);
-    try {
-      const res = await api.get("/api/products/get-all-products/");
-      const womenHoodies = res.data.data.filter(
-        (p) =>
-          p.category?.parent_name?.toLowerCase() === "women" &&
-          p.category?.name?.toLowerCase() === "hoodies & sweaters"
-      );
 
-      setProducts(womenHoodies);
-      sessionStorage.setItem(
-        "women_hoodies_products",
-        JSON.stringify(womenHoodies)
-      );
-    } catch (error) {
-      console.error("API fetch error:", error);
-      Swal.fire("Error", "Failed to load products", "error");
-    } finally {
-      setLoading(false);
+    // Detect hard reload
+    const isHardReload =
+      performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+    // Use cache only for client-side navigation
+    if (!isHardReload) {
+      const cached = sessionStorage.getItem("women_hoodies_products");
+      if (cached) {
+        setProducts(JSON.parse(cached));
+        setLoading(false);
+        return;
+      }
     }
-  };
+
+    const res = await api.get("/api/products/get-all-products/");
+    const womenHoodies = res.data.data.filter(
+      (p) =>
+        p.category?.parent_name?.toLowerCase() === "women" &&
+        p.category?.name?.toLowerCase() === "hoodies & sweaters"
+    );
+
+    setProducts(womenHoodies);
+
+    // Cache for client-side navigation
+    sessionStorage.setItem(
+      "women_hoodies_products",
+      JSON.stringify(womenHoodies)
+    );
+  } catch (error) {
+    console.error("API fetch error:", error);
+    Swal.fire("Error", "Failed to load products", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   React.useEffect(() => {
     fetchProducts();

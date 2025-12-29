@@ -20,11 +20,10 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${
-        isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-      }`}
+        }`}
     >
       {formattedName}
     </button>
@@ -45,27 +44,32 @@ const NewArrivals = () => {
   /* -------- FETCH PRODUCTS WITH CACHING -------- */
   useEffect(() => {
     const fetchProducts = async () => {
-      // Check sessionStorage cache
-      const cached = sessionStorage.getItem("new_arrivals_products");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setAllProducts(parsed.allProducts);
-        setCategories(parsed.categories);
-        setActiveCategory(parsed.activeCategory);
-        setFilteredProducts(parsed.filteredProducts);
-        setLoading(false);
-        return; // stop, use cached data
-      }
-
       try {
         setLoading(true);
+
+        // Detect full page reload
+        const isHardReload =
+          performance.getEntriesByType("navigation")[0]?.type === "reload";
+
+        if (!isHardReload) {
+          // Use cached data for client-side navigation
+          const cached = sessionStorage.getItem("new_arrivals_products");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setAllProducts(parsed.allProducts);
+            setCategories(parsed.categories);
+            setActiveCategory(parsed.activeCategory);
+            setFilteredProducts(parsed.filteredProducts);
+            setLoading(false);
+            return;
+          }
+        }
+
         const res = await api.get("/api/products/get-all-products/");
         let products = res.data.data || [];
 
         // Sort products by created_at descending (latest first)
-        products.sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        );
+        products.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         // Extract unique parent categories
         const categoryMap = new Map();
@@ -95,8 +99,8 @@ const NewArrivals = () => {
 
         const initialFiltered = initialCategory
           ? products
-              .filter((p) => p.category?.parent === initialCategory)
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .filter((p) => p.category?.parent === initialCategory)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           : products;
 
         setAllProducts(products);
@@ -104,7 +108,7 @@ const NewArrivals = () => {
         setActiveCategory(initialCategory);
         setFilteredProducts(initialFiltered);
 
-        // Save to sessionStorage for future navigation
+        // Save to sessionStorage for client-side navigation
         sessionStorage.setItem(
           "new_arrivals_products",
           JSON.stringify({
@@ -123,6 +127,7 @@ const NewArrivals = () => {
 
     fetchProducts();
   }, []);
+
 
   /* -------- FILTER PRODUCTS BY CATEGORY -------- */
   useEffect(() => {
@@ -194,9 +199,8 @@ const NewArrivals = () => {
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 border ${
-                      currentPage === i + 1 ? "bg-black text-white" : ""
-                    }`}
+                    className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
+                      }`}
                   >
                     {i + 1}
                   </button>
