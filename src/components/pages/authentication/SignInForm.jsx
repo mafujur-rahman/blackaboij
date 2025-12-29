@@ -162,7 +162,7 @@ const SignInFormContent = () => {
                         href="/signUp"
                         className="text-lg text-black"
                     >
-                        You dont have an account? <span className="text-blue-600 hover:text-blue-800">Sign Up</span>
+                        You don&apos;t have an account? <span className="text-blue-600 hover:text-blue-800">Sign Up</span>
                     </a>
                 </div>
             </div>
