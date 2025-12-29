@@ -135,8 +135,8 @@ const ProductList = () => {
         setUpdatingQuantity(true);
         try {
             const token = localStorage.getItem("auth_token");
-            const res = await api.post(
-                `/product/update-quantity/${selectedProduct.id}/`,
+            const res = await api.patch(
+                `/api/product/update-quantity/${selectedProduct.id}/`,
                 {
                     quantity: parseInt(quantityValue)
                 },
