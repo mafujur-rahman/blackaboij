@@ -387,7 +387,14 @@ export default function ProductDetailsHome() {
                     {/* Product Title & Description */}
                     <div>
                         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{product.name}</h1>
-                        <p className="mt-3 text-gray-600 leading-relaxed">{product.description}</p>
+                        <div 
+                            className="mt-3 text-gray-600 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: product.description }}
+                            style={{ 
+                                lineHeight: '1.6',
+                                whiteSpace: 'pre-wrap'
+                            }}
+                        />
                     </div>
 
                     {/* Price Display */}
@@ -497,7 +504,7 @@ export default function ProductDetailsHome() {
                                 const isSelected = selectedColors.some(c => c.id === color.id);
                                 const selectionIndex = selectedColors.findIndex(c => c.id === color.id);
                                 const isDisabled = selectedColors.length >= quantity && !isSelected;
-                                const colorValue = color.code || color.hex || color.name.toLowerCase();
+                                const colorValue = color.code || color.hex_code ;
 
                                 return (
                                     <button

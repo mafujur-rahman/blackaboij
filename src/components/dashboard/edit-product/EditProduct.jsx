@@ -1,24 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Home,
   ChevronRight,
+  Upload,
   Bold,
   Italic,
   Underline,
-  Link2,
   List,
-  Upload,
+  Link,
+  Heading,
+  Quote,
+  Undo,
+  Redo,
   Loader2,
 } from "lucide-react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import Image from "next/image";
 import api from "@/lib/axios";
 import DashboardShell from "../DashboardShell";
 import { getImageUrl } from "@/components/utils/get-image-url";
+
+// Import TipTap
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import UnderlineExtension from '@tiptap/extension-underline';
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -27,6 +35,10 @@ const EditProduct = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [parentCategoryId, setParentCategoryId] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [descriptionContent, setDescriptionContent] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -54,10 +66,63 @@ const EditProduct = () => {
     colors: false,
   });
 
+  // Initialize mounted state
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // TipTap Editor - Initialize only on client side
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      UnderlineExtension,
+    ],
+    content: descriptionContent,
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setForm(prev => ({ ...prev, description: html }));
+      setDescriptionContent(html);
+    },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] p-4',
+      },
+    },
+    immediatelyRender: false,
+  }, [mounted]);
+
+  // Update editor when descriptionContent changes
+  useEffect(() => {
+    if (editor && descriptionContent && editor.isEmpty) {
+      editor.commands.setContent(descriptionContent);
+    }
+  }, [descriptionContent, editor]);
+
+  // Handle link insertion
+  const handleAddLink = useCallback(() => {
+    if (showLinkInput) {
+      if (linkUrl && editor) {
+        editor.chain().focus().setLink({ href: linkUrl }).run();
+      }
+      setLinkUrl("");
+      setShowLinkInput(false);
+    } else {
+      setShowLinkInput(true);
+    }
+  }, [editor, linkUrl, showLinkInput]);
+
+  // Remove link
+  const handleRemoveLink = useCallback(() => {
+    if (editor) {
+      editor.chain().focus().unsetLink().run();
+      setShowLinkInput(false);
+      setLinkUrl("");
+    }
+  }, [editor]);
+
   /* ---------------- SHOW LOADING STATE ---------------- */
   useEffect(() => {
     if (loading) {
-      // Show a subtle loading indicator in the UI
       document.body.style.cursor = "wait";
     } else {
       document.body.style.cursor = "default";
@@ -104,7 +169,7 @@ const EditProduct = () => {
           product.gallery3 ? { url: product.gallery3, file: null } : null,
         ];
 
-        setForm({
+        const productForm = {
           name: product.name,
           description: product.description || "",
           mainCategoryId: product.category.parent,
@@ -120,7 +185,10 @@ const EditProduct = () => {
             : null,
           galleryImages: galleryImages,
           hotSale: product.hot_sale || false,
-        });
+        };
+
+        setForm(productForm);
+        setDescriptionContent(product.description || "");
 
       } catch (err) {
         console.error(err);
@@ -377,6 +445,36 @@ const EditProduct = () => {
     }
   };
 
+  // Don't render editor until mounted (client-side)
+  if (!mounted || (!editor && !loading)) {
+    return (
+      <DashboardShell isLoading={loading}>
+        {loading ? (
+          <div className="flex justify-center items-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>
+          </div>
+        ) : (
+          <div className="min-h-screen space-y-6">
+            {/* HEADER */}
+            <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
+              <h1 className="text-xl font-bold">Edit Product</h1>
+              <div className="flex items-center space-x-2 text-[16px]">
+                <Link href="/" className="hover:text-purple-600 flex items-center">
+                  <Home size={16} />
+                </Link>
+                <ChevronRight size={14} />
+                <span>Edit Product</span>
+              </div>
+            </div>
+            <div className="flex justify-center items-center h-64">
+              <div className="h-8 w-8 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+        )}
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell isLoading={loading}>
       {loading ? (
@@ -510,21 +608,175 @@ const EditProduct = () => {
               <div className="col-span-2">
                 <label className="block text-[16px] font-medium mb-1">Description</label>
                 <div className="border border-black/20 rounded">
-                  <div className="flex gap-2 border-b bg-gray-50 px-3 py-2 text-gray-600">
-                    <Bold size={16} />
-                    <Italic size={16} />
-                    <Underline size={16} />
-                    <Link2 size={16} />
-                    <List size={16} />
+                  {/* Toolbar */}
+                  <div className="flex flex-wrap gap-2 border-b bg-gray-50 px-4 py-3">
+                    {/* Headings */}
+                    <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+                      <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                        className={`p-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Heading 1"
+                      >
+                        <Heading size={16} />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                        className={`p-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Heading 2"
+                      >
+                        H2
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                        className={`p-1 rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Heading 3"
+                      >
+                        H3
+                      </button>
+                    </div>
+
+                    {/* Text formatting */}
+                    <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+                      <button
+                        onClick={() => editor.chain().focus().toggleBold().run()}
+                        className={`p-1 rounded ${editor.isActive('bold') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Bold"
+                      >
+                        <Bold size={16} />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleItalic().run()}
+                        className={`p-1 rounded ${editor.isActive('italic') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Italic"
+                      >
+                        <Italic size={16} />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleUnderline().run()}
+                        className={`p-1 rounded ${editor.isActive('underline') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Underline"
+                      >
+                        <Underline size={16} />
+                      </button>
+                    </div>
+
+                    {/* Lists */}
+                    <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+                      <button
+                        onClick={() => editor.chain().focus().toggleBulletList().run()}
+                        className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Bullet List"
+                      >
+                        <List size={16} />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                        className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Numbered List"
+                      >
+                        1.
+                      </button>
+                    </div>
+
+                    {/* Blockquote */}
+                    <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+                      <button
+                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                        className={`p-1 rounded ${editor.isActive('blockquote') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Blockquote"
+                      >
+                        <Quote size={16} />
+                      </button>
+                    </div>
+
+                    {/* Links */}
+                    <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+                      <button
+                        onClick={handleAddLink}
+                        className={`p-1 rounded ${editor.isActive('link') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        title="Add Link"
+                      >
+                        <Link size={16} />
+                      </button>
+                      {editor.isActive('link') && (
+                        <button
+                          onClick={handleRemoveLink}
+                          className="p-1 rounded text-red-600 hover:text-red-800"
+                          title="Remove Link"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* History */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => editor.chain().focus().undo().run()}
+                        disabled={!editor.can().undo()}
+                        className={`p-1 rounded ${!editor.can().undo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                        title="Undo"
+                      >
+                        <Undo size={16} />
+                      </button>
+                      <button
+                        onClick={() => editor.chain().focus().redo().run()}
+                        disabled={!editor.can().redo()}
+                        className={`p-1 rounded ${!editor.can().redo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                        title="Redo"
+                      >
+                        <Redo size={16} />
+                      </button>
+                    </div>
                   </div>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    rows={6}
-                    className="w-full p-4 outline-none resize-none"
-                    placeholder="Enter product description..."
-                  />
+
+                  {/* Link Input */}
+                  {showLinkInput && (
+                    <div className="border-b bg-gray-50 px-4 py-3">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={linkUrl}
+                          onChange={(e) => setLinkUrl(e.target.value)}
+                          placeholder="Enter URL"
+                          className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddLink();
+                            }
+                            if (e.key === 'Escape') {
+                              setShowLinkInput(false);
+                              setLinkUrl("");
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={handleAddLink}
+                          className="px-3 py-1 bg-black text-white text-sm rounded hover:bg-gray-800"
+                        >
+                          Apply
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowLinkInput(false);
+                            setLinkUrl("");
+                          }}
+                          className="px-3 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editor Content */}
+                  <div className="min-h-[200px] max-h-[400px] overflow-y-auto">
+                    <EditorContent editor={editor} />
+                  </div>
                 </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Use the toolbar to format text. All formatting will be preserved when displayed.
+                </p>
               </div>
             </div>
           </div>

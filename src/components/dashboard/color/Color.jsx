@@ -56,7 +56,7 @@ const Color = () => {
     } catch (error) {
       Swal.fire(
         "Error",
-        error?.response?.data?.message || "Failed to create color",
+         "Color exits, choose another color",
         "error"
       );
     } finally {
@@ -216,7 +216,7 @@ const Color = () => {
           </div>
 
           {/* Color List */}
-          <div className="bg-white shadow-sm p-6 rounded-md flex-1 max-h-[500px] overflow-auto">
+          <div className="bg-white shadow-sm p-6 rounded-md flex-1 overflow-auto">
             <h2 className="text-2xl font-bold mb-4">Color List</h2>
 
             <table className="w-full border border-black/10 border-collapse">

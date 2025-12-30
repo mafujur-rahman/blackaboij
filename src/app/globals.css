@@ -35,3 +35,64 @@ body {
 .animate-pulse-subtle {
   animation: pulse-subtle 2s infinite;
 }
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  min-height: 200px;
+  padding: 16px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror p {
+  margin-bottom: 1em;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #ddd;
+  padding-left: 1em;
+  margin: 1em 0;
+  font-style: italic;
+}
+
+.ProseMirror a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.ProseMirror a:hover {
+  color: #1d4ed8;
+}
+
+/* Editor toolbar button styles */
+button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

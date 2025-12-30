@@ -176,7 +176,7 @@ const Size = () => {
                     </div>
 
                     {/* Size List */}
-                    <div className="bg-white shadow-sm p-6 rounded-md flex-1 max-h-[500px] overflow-auto">
+                    <div className="bg-white shadow-sm p-6 rounded-md flex-1  overflow-auto">
                         <h2 className="text-2xl font-bold mb-4">Size List</h2>
 
                         <table className="w-full border border-black/10 border-collapse">
