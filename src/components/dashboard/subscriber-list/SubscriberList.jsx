@@ -69,28 +69,24 @@ const SubscriberList = () => {
 
                 {/* MAIN CARD */}
                 <div className="bg-white shadow-sm p-6">
-
                     {loading ? (
                         <div className="text-center py-20 text-gray-500">
                             Loading subscribers...
+                        </div>
+                    ) : subscribers.length === 0 ? (
+                        <div className="text-center py-20 text-gray-500">
+                            No subscribers available.
                         </div>
                     ) : (
                         <div className="overflow-x-auto border border-black/10 rounded-sm">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 text-black uppercase text-[16px] font-bold border-b border-black/10">
-                                        <th className="px-4 py-3 border-r border-black/10 w-20 text-center">
-                                            SL
-                                        </th>
-                                        <th className="px-4 py-3 border-r border-black/10">
-                                            Email
-                                        </th>
-                                        <th className="px-4 py-3">
-                                            Subscribed At
-                                        </th>
+                                        <th className="px-4 py-3 border-r border-black/10 w-20 text-center">SL</th>
+                                        <th className="px-4 py-3 border-r border-black/10">Email</th>
+                                        <th className="px-4 py-3">Subscribed At</th>
                                     </tr>
                                 </thead>
-
                                 <tbody>
                                     {currentSubscribers.map((subscriber, index) => (
                                         <tr
@@ -100,11 +96,9 @@ const SubscriberList = () => {
                                             <td className="px-4 py-4 border-r border-black/10 text-center font-bold">
                                                 {(currentPage - 1) * itemsPerPage + index + 1}
                                             </td>
-
                                             <td className="px-4 py-4 border-r border-black/10 text-sm font-medium">
                                                 {subscriber.email}
                                             </td>
-
                                             <td className="px-4 py-4 text-sm text-gray-600">
                                                 {new Date(subscriber.subscribed_at).toLocaleString()}
                                             </td>
@@ -121,11 +115,10 @@ const SubscriberList = () => {
                             <button
                                 onClick={() => setCurrentPage((p) => p - 1)}
                                 disabled={currentPage === 1}
-                                className={`px-4 py-2 text-sm rounded ${
-                                    currentPage === 1
+                                className={`px-4 py-2 text-sm rounded ${currentPage === 1
                                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                         : "bg-black text-white"
-                                }`}
+                                    }`}
                             >
                                 Previous
                             </button>
@@ -137,17 +130,17 @@ const SubscriberList = () => {
                             <button
                                 onClick={() => setCurrentPage((p) => p + 1)}
                                 disabled={currentPage === totalPages}
-                                className={`px-4 py-2 text-sm rounded ${
-                                    currentPage === totalPages
+                                className={`px-4 py-2 text-sm rounded ${currentPage === totalPages
                                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                         : "bg-black text-white"
-                                }`}
+                                    }`}
                             >
                                 Next
                             </button>
                         </div>
                     )}
                 </div>
+
             </div>
         </DashboardShell>
     );

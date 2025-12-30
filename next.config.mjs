@@ -12,17 +12,17 @@ const nextConfig = {
       },
     ],
   },
-  
+
   // Add rewrites to proxy API requests
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://api.blackaboij.com/api/:path*',
+        destination: 'https://api.blackaboij.com/api/:path*', 
       },
     ];
   },
-  
+
   // Increase body size limit for image uploads
   api: {
     bodyParser: {

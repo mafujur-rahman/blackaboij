@@ -142,11 +142,11 @@ const ProductCard = ({ product }) => {
                         {product.name}
                     </h3>
                 ) : (
-                    <Link href={`/product/${product.slug || product.id}`}>
-                        <h3 className="text-xl font-medium text-white mb-2 hover:opacity-80">
+
+                        <h3 className="text-xl font-medium text-white mb-2">
                             {product.name}
                         </h3>
-                    </Link>
+
                 )}
 
                 <div className="mt-auto flex items-center justify-between">

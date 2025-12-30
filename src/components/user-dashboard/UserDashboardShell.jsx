@@ -152,7 +152,7 @@ export default function UserDashboardShell({ children }) {
                 </main>
 
                 <footer className="h-12 bg-white border-t border-gray-200 flex items-center justify-center text-[14px] text-gray-500">
-                    © {new Date().getFullYear()} Blackaboj — User Dashboard
+                    © {new Date().getFullYear()} Blackaboj — User Dashboard | Designed & Developed by Graphitricks
                 </footer>
             </div>
         </div>

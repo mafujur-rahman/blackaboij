@@ -441,37 +441,67 @@ export default function Navbar() {
           <div className="md:hidden bg-black px-4">
             {navLinks.map((link) => (
               <div key={link.name}>
-                <button
-                  onClick={() =>
-                    link.dropdown &&
-                    setOpenDropdown(
-                      openDropdown === link.name ? null : link.name
-                    )
-                  }
-                  className="w-full py-4 flex justify-between items-center border-b border-white/50"
-                >
-                  <span>{link.name}</span>
-                  {link.dropdown && <FiChevronDown />}
-                </button>
+                {/* ===== NO DROPDOWN ===== */}
+                {!link.dropdown ? (
+                  <Link
+                    href={link.href}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="
+              block w-full py-4 border-b border-white/50
+              active:bg-white/10 transition
+            "
+                  >
+                    {link.name}
+                  </Link>
+                ) : (
+                  <>
+                    {/* ===== DROPDOWN BUTTON ===== */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenDropdown(
+                          openDropdown === link.name ? null : link.name
+                        )
+                      }
+                      className="
+                w-full py-4 flex justify-between items-center
+                border-b border-white/50
+                active:bg-white/10 transition
+              "
+                    >
+                      <span>{link.name}</span>
+                      <FiChevronDown
+                        className={`transition-transform ${openDropdown === link.name ? "rotate-180" : ""
+                          }`}
+                      />
+                    </button>
 
-                {link.dropdown && openDropdown === link.name && (
-                  <div>
-                    {link.dropdown.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="block px-8 py-3 text-sm hover:bg-white/10"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
-                  </div>
+                    {/* ===== DROPDOWN ITEMS ===== */}
+                    {openDropdown === link.name && (
+                      <div>
+                        {link.dropdown.map((item) => (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={() => setIsMenuOpen(false)}
+                            className="
+                      block px-8 py-3 text-sm
+                      hover:bg-white/10
+                      active:bg-white/20 transition
+                    "
+                          >
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ))}
           </div>
         )}
+
       </nav>
 
       {/* CART DRAWER - Pass update triggers */}

@@ -176,7 +176,7 @@ export default function DashboardShell({ children }) {
                 <main className="flex-1 p-6">{children}</main>
 
                 <footer className="h-12 bg-white border-t border-black/10 flex items-center justify-center text-gray-500">
-                    © {new Date().getFullYear()} Blackaboj All rights reserved
+                    © {new Date().getFullYear()} Blackaboj Designed & Developed by Graphitricks
                 </footer>
             </div>
 

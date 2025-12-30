@@ -319,13 +319,13 @@ export default function ProductDetailsHome() {
                 {/* IMAGE SECTION */}
                 <div className="space-y-4">
                     {/* Main Image */}
-                    <div className="relative aspect-square bg-white rounded-lg border border-black/10 overflow-hidden">
+                    <div className="relative aspect-square bg-white  overflow-hidden">
                         {activeImage ? (
                             <Image
                                 src={getImageUrl(activeImage)}
                                 alt={product.name}
                                 fill
-                                className="object-contain p-4"
+                                className="object-cover"
                                 priority
                                 sizes="(max-width: 768px) 100vw, 50vw"
                             />
@@ -504,7 +504,7 @@ export default function ProductDetailsHome() {
                                         key={color.id}
                                         onClick={() => handleColorToggle(color)}
                                         disabled={isDisabled}
-                                        className="group relative"
+                                        className="group relative flex flex-col items-center"
                                         title={color.name}
                                     >
                                         <div
@@ -528,6 +528,7 @@ export default function ProductDetailsHome() {
                                             {color.name}
                                         </div>
                                     </button>
+
                                 );
                             })}
                         </div>
