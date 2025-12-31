@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
 
-
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
   <div className="flex justify-center min-h-[60vh]">
@@ -20,26 +19,44 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${
+        isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-        }`}
+      }`}
     >
       {formattedName}
     </button>
   );
 };
 
+const SeeMoreButton = ({ onClick, isLoading }) => {
+  return (
+    <div className="flex justify-center md:mt-5">
+      <button
+        onClick={onClick}
+        disabled={isLoading}
+        className="px-8 py-3 bg-black text-white font-semibold  "
+      >
+        {isLoading ? "Loading..." : "See More"}
+      </button>
+    </div>
+  );
+};
+
 /* ------------------ MAIN COMPONENT ------------------ */
 const HotSale = () => {
-  const PRODUCTS_PER_PAGE = 8;
+  const PRODUCTS_PER_LOAD = 8;
+  const INITIAL_DISPLAY_COUNT = 8;
 
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedProducts, setDisplayedProducts] = useState([]);
+  const [currentDisplayCount, setCurrentDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -54,10 +71,12 @@ const HotSale = () => {
           const cached = sessionStorage.getItem("hot_sale_products");
           if (cached) {
             const parsed = JSON.parse(cached);
-            setAllProducts(parsed.allProducts);
-            setCategories(parsed.categories);
-            setActiveCategory(parsed.activeCategory);
-            setFilteredProducts(parsed.filteredProducts);
+            setAllProducts(parsed.allProducts || []);
+            setCategories(parsed.categories || []);
+            setActiveCategory(parsed.activeCategory || null);
+            setFilteredProducts(parsed.filteredProducts || []);
+            setDisplayedProducts(parsed.displayedProducts || []);
+            setCurrentDisplayCount(parsed.currentDisplayCount || INITIAL_DISPLAY_COUNT);
             setLoading(false);
             return;
           }
@@ -96,10 +115,14 @@ const HotSale = () => {
           ? products.filter((p) => p.category?.parent === initialCategory)
           : products;
 
+        const initialDisplayed = initialFiltered.slice(0, INITIAL_DISPLAY_COUNT);
+
         setAllProducts(products);
         setCategories(parentCategories);
         setActiveCategory(initialCategory);
         setFilteredProducts(initialFiltered);
+        setDisplayedProducts(initialDisplayed);
+        setCurrentDisplayCount(INITIAL_DISPLAY_COUNT);
 
         // Cache for client-side navigation
         sessionStorage.setItem(
@@ -109,6 +132,8 @@ const HotSale = () => {
             categories: parentCategories,
             activeCategory: initialCategory,
             filteredProducts: initialFiltered,
+            displayedProducts: initialDisplayed,
+            currentDisplayCount: INITIAL_DISPLAY_COUNT,
           })
         );
       } catch (error) {
@@ -121,7 +146,6 @@ const HotSale = () => {
     fetchProducts();
   }, []);
 
-
   /* -------- FILTER PRODUCTS BY CATEGORY -------- */
   useEffect(() => {
     if (!activeCategory) return;
@@ -129,15 +153,70 @@ const HotSale = () => {
     const filtered = allProducts.filter(
       (product) => product.category?.parent === activeCategory
     );
+    
     setFilteredProducts(filtered);
-    setCurrentPage(1);
+    setCurrentDisplayCount(INITIAL_DISPLAY_COUNT);
+    
+    // Update displayed products
+    const newDisplayed = filtered.slice(0, INITIAL_DISPLAY_COUNT);
+    setDisplayedProducts(newDisplayed);
+    
+    // Update cache
+    const cached = sessionStorage.getItem("hot_sale_products");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      sessionStorage.setItem(
+        "hot_sale_products",
+        JSON.stringify({
+          ...parsed,
+          activeCategory,
+          filteredProducts: filtered,
+          displayedProducts: newDisplayed,
+          currentDisplayCount: INITIAL_DISPLAY_COUNT,
+        })
+      );
+    }
   }, [activeCategory, allProducts]);
 
-  /* -------- PAGINATION -------- */
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * PRODUCTS_PER_PAGE,
-    currentPage * PRODUCTS_PER_PAGE
+  /* -------- HANDLE SEE MORE CLICK -------- */
+  const handleSeeMoreClick = () => {
+    setLoadingMore(true);
+    
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+      const newDisplayCount = currentDisplayCount + PRODUCTS_PER_LOAD;
+      const newDisplayedProducts = filteredProducts.slice(0, newDisplayCount);
+      
+      setCurrentDisplayCount(newDisplayCount);
+      setDisplayedProducts(newDisplayedProducts);
+      setLoadingMore(false);
+      
+      // Update cache
+      const cached = sessionStorage.getItem("hot_sale_products");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        sessionStorage.setItem(
+          "hot_sale_products",
+          JSON.stringify({
+            ...parsed,
+            displayedProducts: newDisplayedProducts,
+            currentDisplayCount: newDisplayCount,
+          })
+        );
+      }
+    }, 500); // 500ms delay for loading effect
+  };
+
+  /* -------- CHECK IF MORE PRODUCTS ARE AVAILABLE -------- */
+  const hasMoreProducts = displayedProducts.length < filteredProducts.length;
+  
+  // Check if we can show exactly 8 more products
+  const canShowNext8 = filteredProducts.length - displayedProducts.length >= PRODUCTS_PER_LOAD;
+  
+  // Determine how many products would be loaded next
+  const nextLoadCount = Math.min(
+    PRODUCTS_PER_LOAD,
+    filteredProducts.length - displayedProducts.length
   );
 
   return (
@@ -162,47 +241,25 @@ const HotSale = () => {
         {/* PRODUCTS */}
         {loading ? (
           <Loader />
-        ) : paginatedProducts.length === 0 ? (
+        ) : displayedProducts.length === 0 ? (
           <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedProducts.map((product) => (
+              {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
 
-            {/* PAGINATION */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-12 space-x-2">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="px-4 py-2 border disabled:opacity-50"
-                >
-                  Prev
-                </button>
-
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
-                      }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="px-4 py-2 border disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
+            {/* SEE MORE BUTTON - Only show if there are more products */}
+            {hasMoreProducts && (
+              <SeeMoreButton
+                onClick={handleSeeMoreClick}
+                isLoading={loadingMore}
+              />
             )}
+
+           
           </>
         )}
       </div>

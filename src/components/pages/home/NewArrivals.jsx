@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
-
+import { useRouter } from "next/navigation";
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
@@ -20,25 +20,41 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${
+        isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-        }`}
+      }`}
     >
       {formattedName}
     </button>
   );
 };
 
+const SeeMoreButton = ({ categoryName, onClick }) => {
+  return (
+    <div className="flex justify-center items-center md:mt-5 mb-12.5 ">
+      <button
+        onClick={onClick}
+        className="px-8 py-3 bg-black text-white font-semibold  cursor-pointer"
+      >
+        See More {categoryName}
+      </button>
+    </div>
+  );
+};
+
 /* ------------------ MAIN COMPONENT ------------------ */
 const NewArrivals = () => {
-  const PRODUCTS_PER_PAGE = 8;
+  const MAX_PRODUCTS = 8;
+  const router = useRouter();
 
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [activeCategoryName, setActiveCategoryName] = useState("");
   const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedProducts, setDisplayedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   /* -------- FETCH PRODUCTS WITH CACHING -------- */
@@ -56,10 +72,12 @@ const NewArrivals = () => {
           const cached = sessionStorage.getItem("new_arrivals_products");
           if (cached) {
             const parsed = JSON.parse(cached);
-            setAllProducts(parsed.allProducts);
-            setCategories(parsed.categories);
-            setActiveCategory(parsed.activeCategory);
-            setFilteredProducts(parsed.filteredProducts);
+            setAllProducts(parsed.allProducts || []);
+            setCategories(parsed.categories || []);
+            setActiveCategory(parsed.activeCategory || null);
+            setActiveCategoryName(parsed.activeCategoryName || "");
+            setFilteredProducts(parsed.filteredProducts || []);
+            setDisplayedProducts(parsed.displayedProducts || []);
             setLoading(false);
             return;
           }
@@ -69,7 +87,9 @@ const NewArrivals = () => {
         let products = res.data.data || [];
 
         // Sort products by created_at descending (latest first)
-        products.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        products.sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
 
         // Extract unique parent categories
         const categoryMap = new Map();
@@ -96,17 +116,22 @@ const NewArrivals = () => {
         });
 
         const initialCategory = parentCategories[0]?.id || null;
+        const initialCategoryName = parentCategories[0]?.name || "";
 
         const initialFiltered = initialCategory
           ? products
-            .filter((p) => p.category?.parent === initialCategory)
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .filter((p) => p.category?.parent === initialCategory)
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           : products;
+
+        const initialDisplayed = initialFiltered.slice(0, MAX_PRODUCTS);
 
         setAllProducts(products);
         setCategories(parentCategories);
         setActiveCategory(initialCategory);
+        setActiveCategoryName(initialCategoryName);
         setFilteredProducts(initialFiltered);
+        setDisplayedProducts(initialDisplayed);
 
         // Save to sessionStorage for client-side navigation
         sessionStorage.setItem(
@@ -115,11 +140,14 @@ const NewArrivals = () => {
             allProducts: products,
             categories: parentCategories,
             activeCategory: initialCategory,
+            activeCategoryName: initialCategoryName,
             filteredProducts: initialFiltered,
+            displayedProducts: initialDisplayed,
           })
         );
       } catch (error) {
         console.error("Failed to fetch products", error);
+        setDisplayedProducts([]);
       } finally {
         setLoading(false);
       }
@@ -128,25 +156,51 @@ const NewArrivals = () => {
     fetchProducts();
   }, []);
 
-
   /* -------- FILTER PRODUCTS BY CATEGORY -------- */
   useEffect(() => {
-    if (!activeCategory) return;
+    if (!activeCategory) {
+      // If no active category, show empty arrays
+      setFilteredProducts([]);
+      setDisplayedProducts([]);
+      return;
+    }
 
     const filtered = allProducts
       .filter((product) => product.category?.parent === activeCategory)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     setFilteredProducts(filtered);
-    setCurrentPage(1);
-  }, [activeCategory, allProducts]);
+    setDisplayedProducts(filtered.slice(0, MAX_PRODUCTS));
 
-  /* -------- PAGINATION -------- */
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * PRODUCTS_PER_PAGE,
-    currentPage * PRODUCTS_PER_PAGE
-  );
+    // Update active category name
+    const currentCategory = categories.find((cat) => cat.id === activeCategory);
+    if (currentCategory) {
+      setActiveCategoryName(currentCategory.name);
+    }
+  }, [activeCategory, allProducts, categories]);
+
+  /* -------- HANDLE SEE MORE NAVIGATION -------- */
+  const handleSeeMoreClick = () => {
+    // Generate navigation path based on active category
+    let categoryPath = "";
+    
+    switch (activeCategoryName.toLowerCase()) {
+      case "men":
+        categoryPath = "/men/men-collection";
+        break;
+      case "women":
+        categoryPath = "/women/women-collection";
+        break;
+      case "accessories":
+        categoryPath = "/accessories";
+        break;
+      default:
+        // For other categories, create a slug from the category name
+        categoryPath = `/products/${activeCategoryName.toLowerCase().replace(/\s+/g, "-")}`;
+    }
+    
+    router.push(categoryPath);
+  };
 
   return (
     <div className="mt-12 mb-12">
@@ -172,49 +226,22 @@ const NewArrivals = () => {
         {/* PRODUCTS */}
         {loading ? (
           <Loader />
-        ) : paginatedProducts.length === 0 ? (
-          <p className="text-center mt-12 text-gray-500">
-            No products found
-          </p>
+        ) : displayedProducts.length === 0 ? (
+          <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedProducts.map((product) => (
+            {/* All 8 products in one grid */}
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
 
-            {/* PAGINATION */}
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-12 space-x-2">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  className="px-4 py-2 border disabled:opacity-50"
-                >
-                  Prev
-                </button>
-
-                {[...Array(totalPages)].map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
-                      }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  className="px-4 py-2 border disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            {/* See More Button below all products */}
+            <SeeMoreButton
+              categoryName={activeCategoryName}
+              onClick={handleSeeMoreClick}
+            />
           </>
         )}
       </div>
