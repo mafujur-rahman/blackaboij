@@ -499,7 +499,7 @@ export default function ProductDetailsHome() {
                                 {selectedColors.length}/{quantity}
                             </span>
                         </div>
-                        <div className="grid grid-cols-6 sm:grid-cols-8 gap-3">
+                        <div className="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-5 xl:grid-cols-8 gap-3">
                             {product.colors?.map((color) => {
                                 const isSelected = selectedColors.some(c => c.id === color.id);
                                 const selectionIndex = selectedColors.findIndex(c => c.id === color.id);

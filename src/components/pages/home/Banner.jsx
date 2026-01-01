@@ -17,9 +17,7 @@ const SOCIAL_LINKS = [
 
 const BG_IMAGES = [
     "/images/banner7.jpeg",
-    "/images/banner1.JPG",
     "/images/banner8.jpeg",
-    "/images/banner3.JPG",
 ];
 
 const SocialLink = ({ icon: Icon, href, label }) => (

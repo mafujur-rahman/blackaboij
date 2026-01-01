@@ -6,7 +6,7 @@ import Link from "next/link";
 
 const Available = () => {
   return (
-    <div className="relative w-full h-96 md:h-125 overflow-hidden bg-black flex items-center justify-center">
+    <div className="relative w-full h-96 md:h-[800px] overflow-hidden bg-black flex items-center justify-center">
 
       {/* Background Image */}
       <Image
