@@ -350,7 +350,7 @@ const ProductList = () => {
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-full border border-black/10">
                                                                     <Image
-                                                                        src={getImageUrl(product.thumbnail_image)}
+                                                                        src={getImageUrl(product.images?.find(img => img.is_thumbnail)?.image)}
                                                                         alt={product.name}
                                                                         width={40}
                                                                         height={40}

@@ -111,7 +111,7 @@ const OrderHome = () => {
                 {/* PRODUCT IMAGE */}
                 <div className="relative w-full aspect-square bg-gray-100 rounded-xl overflow-hidden">
                     <Image
-                        src={getImageUrl(product.thumbnail_image)}
+                        src={getImageUrl(product.images?.find(img => img.is_thumbnail)?.image)}
                         alt={product.name}
                         fill
                         className="object-contain"

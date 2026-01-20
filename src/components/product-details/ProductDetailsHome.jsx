@@ -93,36 +93,18 @@ export default function ProductDetailsHome() {
     }, [id]);
 
     /* =========================
-        GET ALL NON-NULL IMAGES
+       GET ALL IMAGES INCLUDING THUMBNAIL
     ========================= */
     const getAllImages = (productData = product) => {
-        if (!productData) return [];
+        if (!productData || !productData.images) return [];
 
-        const images = [];
-
-        // Add thumbnail if exists and not null
-        if (productData.thumbnail_image) {
-            images.push({
-                url: productData.thumbnail_image,
-                type: 'thumbnail'
-            });
-        }
-
-        // Add only non-null gallery images
-        for (let i = 1; i <= 3; i++) {
-            const galleryKey = `gallery${i}`;
-            const galleryImage = productData[galleryKey];
-            if (galleryImage && galleryImage !== null && galleryImage !== "null") {
-                images.push({
-                    url: galleryImage,
-                    type: 'gallery',
-                    index: i
-                });
-            }
-        }
-
-        return images;
+        // Map images and mark thumbnail
+        return productData.images.map(img => ({
+            url: img.image,
+            type: img.is_thumbnail ? 'thumbnail' : 'gallery'
+        }));
     };
+
 
     /* =========================
         SELECTION HANDLERS
@@ -346,7 +328,7 @@ export default function ProductDetailsHome() {
                         )}
                     </div>
 
-                    {/* Gallery Thumbnails - Only show if we have images */}
+                    {/* Gallery Thumbnails */}
                     {allImages.length > 0 && (
                         <div className="space-y-3">
                             <h3 className="font-medium text-gray-700">Product Images</h3>
@@ -367,9 +349,7 @@ export default function ProductDetailsHome() {
                                             className="object-cover"
                                             sizes="(max-width: 768px) 25vw, 10vw"
                                         />
-                                        {activeImage === img.url && (
-                                            <div className="absolute inset-0 bg-black/5"></div>
-                                        )}
+                                        {activeImage === img.url && <div className="absolute inset-0 bg-black/5"></div>}
                                         {img.type === 'thumbnail' && (
                                             <div className="absolute top-1 left-1 bg-black text-white text-xs px-1.5 py-0.5 rounded">
                                                 Main
@@ -380,6 +360,7 @@ export default function ProductDetailsHome() {
                             </div>
                         </div>
                     )}
+
                 </div>
 
                 {/* DETAILS SECTION */}
@@ -387,10 +368,10 @@ export default function ProductDetailsHome() {
                     {/* Product Title & Description */}
                     <div>
                         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">{product.name}</h1>
-                        <div 
+                        <div
                             className="mt-3 text-gray-600 leading-relaxed"
                             dangerouslySetInnerHTML={{ __html: product.description }}
-                            style={{ 
+                            style={{
                                 lineHeight: '1.6',
                                 whiteSpace: 'pre-wrap'
                             }}
@@ -504,7 +485,7 @@ export default function ProductDetailsHome() {
                                 const isSelected = selectedColors.some(c => c.id === color.id);
                                 const selectionIndex = selectedColors.findIndex(c => c.id === color.id);
                                 const isDisabled = selectedColors.length >= quantity && !isSelected;
-                                const colorValue = color.code || color.hex_code ;
+                                const colorValue = color.code || color.hex_code;
 
                                 return (
                                     <button

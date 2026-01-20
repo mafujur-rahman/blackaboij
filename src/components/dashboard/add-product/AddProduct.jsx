@@ -45,10 +45,11 @@ const AddProduct = () => {
     colors: [],
     metaTitle: "",
     metaDescription: "",
-    thumbnail: null,
-    galleryImages: [null, null, null],
+    images: [],
+    thumbnailIndex: 0,
     hotSale: false,
   });
+
 
   const [errors, setErrors] = useState({
     sizes: false,
@@ -174,26 +175,51 @@ const AddProduct = () => {
     }
   };
 
-  // File upload handlers
-  const handleFileChange = (index, file) => {
-    if (file && file.size > 10 * 1024 * 1024) {
-      Swal.fire("Error", "Image size must be less than 10MB", "error");
-      return;
-    }
+
+
+  const handleImagesUpload = (files) => {
+    const fileArray = Array.from(files);
+
+    const validFiles = fileArray.filter((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        Swal.fire("Error", `${file.name} exceeds 10MB`, "error");
+        return false;
+      }
+      return true;
+    });
+
+    const normalizedFiles = validFiles.map((file) => ({
+      file,
+      url: null,
+    }));
+
+    setForm((prev) => ({
+      ...prev,
+      images: [...prev.images, ...normalizedFiles],
+      thumbnailIndex:
+        prev.images.length === 0 ? 0 : prev.thumbnailIndex,
+    }));
+  };
+
+
+  const removeImage = (index) => {
     setForm((prev) => {
-      const gallery = [...prev.galleryImages];
-      gallery[index] = file;
-      return { ...prev, galleryImages: gallery };
+      const updated = prev.images.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        images: updated,
+        thumbnailIndex: index === prev.thumbnailIndex ? 0 : prev.thumbnailIndex,
+      };
     });
   };
 
-  const handleThumbnailUpload = (file) => {
-    if (file && file.size > 10 * 1024 * 1024) {
-      Swal.fire("Error", "Image size must be less than 10MB", "error");
-      return;
-    }
-    setForm((prev) => ({ ...prev, thumbnail: file }));
+  const setThumbnail = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      thumbnailIndex: index,
+    }));
   };
+
 
   // Handle hot sale toggle
   const handleHotSaleToggle = () => {
@@ -223,46 +249,35 @@ const AddProduct = () => {
   const createFormData = () => {
     const formData = new FormData();
 
-    // Required fields
     formData.append("name", form.name);
     formData.append("category_id", Number(form.subCategoryId));
     formData.append("unit_price", Number(form.price));
     formData.append("quantity", Number(form.qty));
-
-    // Optional fields - Send HTML as is
     formData.append("description", form.description || "");
     formData.append("meta_title", form.metaTitle || form.name);
-    formData.append(
-      "meta_description",
-      form.metaDescription || form.description || form.name
-    );
+    formData.append("meta_description", form.metaDescription || form.description);
 
     if (form.hotSale) {
       formData.append("hot_sale", "true");
     }
 
-    // Arrays (IMPORTANT: [] required)
-    form.sizes.forEach((id) => {
-      formData.append("size_ids", Number(id));
-    });
+    form.sizes.forEach((id) => formData.append("size_ids", id));
+    form.colors.forEach((id) => formData.append("color_ids", id));
 
-    form.colors.forEach((id) => {
-      formData.append("color_ids", Number(id));
-    });
-
-    // Images (FILES — not URLs)
-    if (form.thumbnail) {
-      formData.append("thumbnail_image", form.thumbnail);
-    }
-
-    form.galleryImages.forEach((img, i) => {
-      if (img) {
-        formData.append(`gallery${i + 1}`, img);
+    form.images.forEach((img, index) => {
+      if (img.file) {
+        formData.append("images", img.file);
+        formData.append(
+          "is_thumbnail",
+          index === form.thumbnailIndex ? "true" : "false"
+        );
       }
     });
 
+
     return formData;
   };
+
 
   // Validate form
   const validateForm = () => {
@@ -273,32 +288,33 @@ const AddProduct = () => {
 
     setErrors(newErrors);
 
-    // Check for basic required fields
     if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
 
-    // Check for thumbnail
-    if (!form.thumbnail) {
-      Swal.fire("Warning", "Please upload a thumbnail image", "warning");
+    if (form.images.length === 0) {
+      Swal.fire("Warning", "Please upload at least one image", "warning");
       return false;
     }
 
-    // Check for size and color selections
+    if (!form.images[form.thumbnailIndex]) {
+      Swal.fire("Warning", "Please select a thumbnail image", "warning");
+      return false;
+    }
+
     if (newErrors.sizes || newErrors.colors) {
-      if (newErrors.sizes && newErrors.colors) {
-        Swal.fire("Warning", "Please select at least one size and one color", "warning");
-      } else if (newErrors.sizes) {
-        Swal.fire("Warning", "Please select at least one size", "warning");
-      } else if (newErrors.colors) {
-        Swal.fire("Warning", "Please select at least one color", "warning");
-      }
+      Swal.fire(
+        "Warning",
+        "Please select at least one size and one color",
+        "warning"
+      );
       return false;
     }
 
     return true;
   };
+
 
   // Submit product
   const handleSubmit = async () => {
@@ -337,10 +353,11 @@ const AddProduct = () => {
         colors: [],
         metaTitle: "",
         metaDescription: "",
-        thumbnail: null,
-        galleryImages: [null, null, null],
+        images: [],
+        thumbnailIndex: 0,
         hotSale: false,
       });
+
 
       // Clear editor
       if (editor) {
@@ -762,76 +779,79 @@ const AddProduct = () => {
         </div>
 
         {/* MEDIA UPLOAD */}
-        <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-[16px] font-medium mb-2">
-              Thumbnail Image *
-            </label>
-            <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit hover:bg-gray-800 transition">
-              <Upload size={16} /> Choose Image
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleThumbnailUpload(e.target.files[0])}
-                className="hidden"
-                key={form.thumbnail ? form.thumbnail.name : 'thumbnail'}
-              />
-            </label>
-            {form.thumbnail && (
-              <div className="mt-4">
-                <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
-                <div className="w-32 h-32 relative border border-black/10 rounded overflow-hidden">
-                  <Image
-                    src={URL.createObjectURL(form.thumbnail)}
-                    alt="Thumbnail preview"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {form.thumbnail.name} ({Math.round(form.thumbnail.size / 1024)}KB)
-                </p>
-              </div>
-            )}
-            <p className="text-sm text-gray-500 mt-2">
-              * Required - This will be the main product image
-            </p>
-          </div>
+        <div className="bg-white p-6 rounded-md shadow-sm">
+          <label className="block text-[16px] font-medium mb-3">
+            Product Images *
+          </label>
 
-          {[0, 1, 2].map((i) => (
-            <div key={i}>
-              <label className="block text-[16px] font-medium mb-2">
-                {`Gallery ${i + 1}`}
-              </label>
-              <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-800 text-white px-4 py-2 rounded w-fit hover:bg-gray-700 transition">
-                <Upload size={16} /> Choose Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(i, e.target.files[0])}
-                  className="hidden"
-                  key={form.galleryImages[i] ? form.galleryImages[i].name : `gallery-${i}`}
-                />
-              </label>
-              {form.galleryImages[i] && (
-                <div className="mt-4">
-                  <p className="text-sm text-green-600 mb-2">✓ Image selected</p>
-                  <div className="w-24 h-24 relative border border-black/10 rounded overflow-hidden">
+          <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition">
+            <Upload size={16} />
+            Upload Images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => handleImagesUpload(e.target.files)}
+              className="hidden"
+            />
+          </label>
+
+          <p className="text-sm text-gray-500 mt-2">
+            Upload multiple images. Select one as thumbnail.
+          </p>
+
+          {/* Preview Grid */}
+          {form.images.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+              {form.images.map((img, index) => (
+                <div
+                  key={index}
+                  className={`relative border rounded overflow-hidden ${index === form.thumbnailIndex
+                    ? "border-black ring-2 ring-black"
+                    : "border-black/20"
+                    }`}
+                >
+                  <div className="w-full h-32 relative">
                     <Image
-                      src={URL.createObjectURL(form.galleryImages[i])}
-                      alt={`Gallery ${i + 1} preview`}
+                      src={
+                        img.file
+                          ? URL.createObjectURL(img.file)
+                          : img.url
+                            ? getImageUrl(img.url)
+                            : ""
+                      }
+                      alt="Preview"
                       fill
                       className="object-cover"
                     />
+
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {form.galleryImages[i].name} ({Math.round(form.galleryImages[i].size / 1024)}KB)
-                  </p>
+
+                  {/* Controls */}
+                  <div className="flex justify-between items-center p-2 text-xs">
+                    {index === form.thumbnailIndex && (
+                      <button
+                        disabled
+                        className="px-2 py-1 rounded bg-black text-white cursor-default"
+                      >
+                        Thumbnail
+                      </button>
+                    )}
+
+
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
+
 
         {/* SEO */}
         <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">

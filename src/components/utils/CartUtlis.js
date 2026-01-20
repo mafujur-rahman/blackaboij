@@ -28,7 +28,7 @@ export const addToCart = (product, quantity = 1, selectedSize = null, selectedCo
       original_price: originalPrice, // Save original price for display
       discounted_price: discountPrice, // Save discounted price
       has_discount: hasDiscount, // Flag for easy checking
-      image: product.thumbnail_image,
+      image: product.images?.find(img => img.is_thumbnail)?.image,
       quantity: Number(quantity),
       size: selectedSize.name,
       size_id: Number(selectedSize.id),
@@ -126,7 +126,7 @@ export const addToWishlist = (product, selectedSize = null, selectedColor = null
       original_price: originalPrice, // Save original price
       discounted_price: discountPrice, // Save discounted price
       has_discount: hasDiscount, // Flag for easy checking
-      image: product.thumbnail_image,
+      image: product.images?.find(img => img.is_thumbnail)?.image,
       size: selectedSize?.name || null,
       size_id: selectedSize?.id ? Number(selectedSize.id) : null,
       color: selectedColor?.name || null,

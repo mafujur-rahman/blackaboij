@@ -51,10 +51,11 @@ const EditProduct = () => {
     colors: [],
     metaTitle: "",
     metaDescription: "",
-    thumbnail: null,
-    galleryImages: [null, null, null],
+    images: [],
+    thumbnailIndex: 0,
     hotSale: false,
   });
+
 
   const [parentCategories, setParentCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -162,32 +163,32 @@ const EditProduct = () => {
         // Set parent category ID for subcategory fetching
         setParentCategoryId(product.category.parent);
 
-        // Process gallery images from product data
-        const galleryImages = [
-          product.gallery1 ? { url: product.gallery1, file: null } : null,
-          product.gallery2 ? { url: product.gallery2, file: null } : null,
-          product.gallery3 ? { url: product.gallery3, file: null } : null,
-        ];
 
-        const productForm = {
+
+        const images = product.images.map((img) => ({
+          url: img.image,
+          file: null,
+        }));
+
+        const thumbnailIndex =
+          product.images.findIndex((img) => img.is_thumbnail) || 0;
+
+        setForm({
           name: product.name,
           description: product.description || "",
           mainCategoryId: product.category.parent,
           subCategoryId: product.category.id,
           price: product.unit_price,
           qty: product.quantity,
-          sizes: product.sizes?.map((s) => s.id) || [],
-          colors: product.colors?.map((c) => c.id) || [],
+          sizes: product.sizes?.map(s => s.id) || [],
+          colors: product.colors?.map(c => c.id) || [],
           metaTitle: product.meta_title || "",
           metaDescription: product.meta_description || "",
-          thumbnail: product.thumbnail_image
-            ? { url: product.thumbnail_image, file: null }
-            : null,
-          galleryImages: galleryImages,
+          images,
+          thumbnailIndex,
           hotSale: product.hot_sale || false,
-        };
+        });
 
-        setForm(productForm);
         setDescriptionContent(product.description || "");
 
       } catch (err) {
@@ -242,39 +243,63 @@ const EditProduct = () => {
     }
   };
 
-  const handleThumbnailUpload = (file) => {
-    if (file && file.size > 10 * 1024 * 1024) {
-      Swal.fire("Error", "Image size must be less than 10MB", "error");
-      return;
-    }
+  const handleImagesUpload = (files) => {
+    const fileArray = Array.from(files);
+
+    const normalizedFiles = fileArray.map((file) => ({
+      file,
+      url: null,
+    }));
+
     setForm((prev) => ({
       ...prev,
-      thumbnail: file ? { file: file, url: URL.createObjectURL(file) } : null
+      images: [...prev.images, ...normalizedFiles],
+      thumbnailIndex:
+        prev.images.length === 0 ? 0 : prev.thumbnailIndex,
     }));
   };
 
-  const handleGalleryChange = (index, file) => {
-    if (file && file.size > 10 * 1024 * 1024) {
-      Swal.fire("Error", "Image size must be less than 10MB", "error");
-      return;
-    }
-    const updated = [...form.galleryImages];
-    updated[index] = file ? { file: file, url: URL.createObjectURL(file) } : null;
-    setForm((prev) => ({ ...prev, galleryImages: updated }));
+
+  const setThumbnail = (index) => {
+    setForm((prev) => {
+      if (!prev.images[index]) return prev;
+      return { ...prev, thumbnailIndex: index };
+    });
   };
 
-  const removeGalleryImage = (index) => {
-    const updated = [...form.galleryImages];
-    updated[index] = null;
-    setForm((prev) => ({ ...prev, galleryImages: updated }));
+  const removeImage = (index) => {
+    setForm((prev) => {
+      const updatedImages = prev.images.filter((_, i) => i !== index);
+
+      let newThumbnailIndex = prev.thumbnailIndex;
+
+      // If removed image IS thumbnail → reset to 0
+      if (index === prev.thumbnailIndex) {
+        newThumbnailIndex = 0;
+      }
+
+      // If removed image is BEFORE thumbnail → shift index
+      if (index < prev.thumbnailIndex) {
+        newThumbnailIndex = prev.thumbnailIndex - 1;
+      }
+
+      // Safety check
+      if (newThumbnailIndex >= updatedImages.length) {
+        newThumbnailIndex = 0;
+      }
+
+      return {
+        ...prev,
+        images: updatedImages,
+        thumbnailIndex: newThumbnailIndex,
+      };
+    });
   };
 
-  const getImagePreview = (img) => {
-    if (!img) return null;
-    if (img.url && img.url.startsWith('blob:')) return img.url;
-    if (img.url) return getImageUrl(img.url);
-    return null;
-  };
+
+
+
+
 
   // Handle hot sale toggle
   const handleHotSaleToggle = () => {
@@ -295,6 +320,16 @@ const EditProduct = () => {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
+    if (form.images.length === 0) {
+      Swal.fire("Warning", "Please upload at least one image", "warning");
+      return false;
+    }
+
+    if (!form.images[form.thumbnailIndex]) {
+      Swal.fire("Warning", "Please select a thumbnail image", "warning");
+      return false;
+    }
+
 
     // Check for size and color selections
     if (newErrors.sizes || newErrors.colors) {
@@ -360,21 +395,16 @@ const EditProduct = () => {
         formData.append("color_ids", colorId);
       });
 
-      // Add thumbnail if new file selected
-      if (form.thumbnail?.file) {
-        formData.append("thumbnail_image", form.thumbnail.file);
-      }
+      form.images.forEach((img, index) => {
+        if (img.file) {
+          formData.append("images", img.file);
+          formData.append(
+            "is_thumbnail",
+            index === form.thumbnailIndex ? "true" : "false"
+          );
+        }
+      });
 
-      // Add gallery images if new files selected
-      if (form.galleryImages[0]?.file) {
-        formData.append("gallery1", form.galleryImages[0].file);
-      }
-      if (form.galleryImages[1]?.file) {
-        formData.append("gallery2", form.galleryImages[1].file);
-      }
-      if (form.galleryImages[2]?.file) {
-        formData.append("gallery3", form.galleryImages[2].file);
-      }
 
       // Show loading alert
       Swal.fire({
@@ -860,85 +890,64 @@ const EditProduct = () => {
           </div>
 
           {/* MEDIA UPLOAD */}
-          <div className="bg-white p-6 rounded-md shadow-sm space-y-6">
-            <h2 className="text-xl font-bold">Product Images</h2>
+          <div className="bg-white p-6 rounded-md shadow-sm">
+            <h2 className="text-xl font-bold mb-4">Product Images</h2>
 
-            <div className="grid grid-cols-2 gap-6">
-              {/* THUMBNAIL */}
-              <div>
-                <label className="block text-[16px] font-medium mb-2">
-                  Thumbnail Image
-                </label>
-                <label className="flex items-center justify-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded w-fit hover:bg-gray-800 transition">
-                  <Upload size={16} /> Change Image
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleThumbnailUpload(e.target.files[0])}
-                    className="hidden"
-                  />
-                </label>
-                {form.thumbnail && (
-                  <div className="mt-4">
-                    <div className="w-32 h-32 relative border border-black/10 rounded overflow-hidden">
+            <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
+              <Upload size={16} />
+              Upload Images
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleImagesUpload(e.target.files)}
+                className="hidden"
+              />
+            </label>
+
+            {Array.isArray(form.images) && form.images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                {form.images.map((img, index) => (
+                  <div
+                    key={index}
+                    className={`relative border rounded ${index === form.thumbnailIndex
+                      ? "border-black ring-2 ring-black"
+                      : "border-black/20"
+                      }`}
+                  >
+                    <div className="w-full h-32 relative">
                       <Image
-                        src={getImagePreview(form.thumbnail)}
-                        alt="Thumbnail preview"
+                        src={img.file ? URL.createObjectURL(img.file) : getImageUrl(img.url)}
+                        alt="Preview"
                         fill
                         className="object-cover"
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {form.thumbnail.file ? "New image selected" : "Current image"}
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              {/* GALLERY IMAGES */}
-              <div>
-                <label className="block text-[16px] font-medium mb-2">
-                  Gallery Images
-                </label>
-                <div className="grid grid-cols-3 gap-4">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="space-y-2">
-                      <label className="flex items-center justify-center gap-2 cursor-pointer bg-gray-800 text-white px-3 py-2 rounded text-sm hover:bg-gray-700 transition">
-                        <Upload size={14} /> Gallery {i + 1}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleGalleryChange(i, e.target.files[0])}
-                          className="hidden"
-                        />
-                      </label>
-                      {form.galleryImages[i] && (
-                        <div className="relative">
-                          <div className="w-20 h-20 relative border border-black/10 rounded overflow-hidden">
-                            <Image
-                              src={getImagePreview(form.galleryImages[i])}
-                              alt={`Gallery ${i + 1} preview`}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeGalleryImage(i)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                          <p className="text-xs text-gray-500 mt-1 truncate">
-                            {form.galleryImages[i].file ? "New" : "Current"}
-                          </p>
-                        </div>
+                    <div className="flex justify-between items-center p-2 text-xs">
+                      {index === form.thumbnailIndex && (
+                        <button
+                          disabled
+                          className="px-2 py-1 rounded bg-black text-white cursor-default"
+                        >
+                          Thumbnail
+                        </button>
                       )}
+
+
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="text-red-600"
+                      >
+                        Remove
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
+
 
           {/* SEO */}
           <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">

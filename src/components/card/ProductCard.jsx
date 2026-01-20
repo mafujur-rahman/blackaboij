@@ -71,7 +71,7 @@ const ProductCard = ({ product }) => {
                         id: product.id,
                         name: product.name,
                         unit_price: discountPrice,
-                        thumbnail_image: product.thumbnail_image,
+                        thumbnail_image: product.images?.find(img => img.is_thumbnail)?.image,
                         slug: product.slug,
                         out_of_stock: isOutOfStock,
                         addedAt: new Date().toISOString(),
@@ -105,7 +105,7 @@ const ProductCard = ({ product }) => {
                 {isOutOfStock ? (
                     <div className="relative w-full h-full cursor-not-allowed">
                         <Image
-                            src={getImageUrl(product.thumbnail_image)}
+                            src={getImageUrl(product.images?.find(img => img.is_thumbnail)?.image)}
                             alt={product.name}
                             fill
                             className="object-contain"
@@ -115,7 +115,7 @@ const ProductCard = ({ product }) => {
                     <Link href={`/product/${product.slug || product.id}`}>
                         <div className="relative w-full h-full cursor-pointer">
                             <Image
-                                src={getImageUrl(product.thumbnail_image)}
+                                src={getImageUrl(product.images?.find(img => img.is_thumbnail)?.image)}
                                 alt={product.name}
                                 fill
                                 className="object-contain"
