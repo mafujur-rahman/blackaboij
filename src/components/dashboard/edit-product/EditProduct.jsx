@@ -324,7 +324,7 @@ const EditProduct = () => {
           ...img,
           is_thumbnail: i === index
         }));
-        
+
         return {
           ...prev,
           images: updatedImages,
@@ -367,7 +367,7 @@ const EditProduct = () => {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
-    
+
     if (form.images.length === 0) {
       Swal.fire("Warning", "Please upload at least one image", "warning");
       return false;
@@ -867,64 +867,81 @@ const EditProduct = () => {
 
             {form.images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-                {form.images.map((img, index) => (
-                  <div
-                    key={index}
-                    className={`relative border rounded ${index === form.thumbnailIndex
-                      ? "border-black ring-2 ring-black"
-                      : "border-black/20"
-                      }`}
-                  >
-                    <div className="w-full h-32 relative">
-                      <Image
-                        src={img.file ? URL.createObjectURL(img.file) : getImageUrl(img.url)}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
+                {form.images.map((img, index) => {
+                  // Generate a unique key for each image
+                  const imageKey = img.id || img.file?.name || `img-${index}`;
+                  const isSettingThumbnail = settingThumbnail === imageKey;
+                  const isDeleting = deletingImage === imageKey;
 
-                    <div className="flex justify-between items-center p-2 text-xs">
-                      {index === form.thumbnailIndex ? (
-                        <button
-                          disabled
-                          className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
-                        >
-                          <Check size={12} />
-                          Thumbnail
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSetThumbnail(img.id, index)}
-                          disabled={settingThumbnail === img.id}
-                          className={`px-2 py-1 rounded ${settingThumbnail === img.id
-                            ? "bg-gray-400 text-white cursor-not-allowed"
-                            : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                            } flex items-center gap-1`}
-                        >
-                          {settingThumbnail === img.id && (
-                            <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-                          )}
-                          Set Thumbnail
-                        </button>
-                      )}
+                  // Check if this is a new uploaded image (has file but no ID)
+                  const isNewImage = img.file && !img.id;
 
-                      <button
-                        onClick={() => handleDeleteImage(img.id, index)}
-                        disabled={deletingImage === img.id}
-                        className={`text-red-600 hover:text-red-800 flex items-center gap-1 ${deletingImage === img.id ? "opacity-50 cursor-not-allowed" : ""
-                          }`}
-                      >
-                        {deletingImage === img.id ? (
-                          <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                  return (
+                    <div
+                      key={imageKey}
+                      className={`relative border rounded ${index === form.thumbnailIndex
+                        ? "border-black ring-2 ring-black"
+                        : "border-black/20"
+                        }`}
+                    >
+                      <div className="w-full h-32 relative">
+                        <Image
+                          src={img.file ? URL.createObjectURL(img.file) : getImageUrl(img.url)}
+                          alt="Preview"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center p-2 text-xs">
+                        {index === form.thumbnailIndex ? (
+                          <button
+                            disabled
+                            className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
+                          >
+                            <Check size={12} />
+                            Thumbnail
+                          </button>
                         ) : (
-                          <Trash2 size={14} />
+                          <button
+                            onClick={() => !isNewImage && handleSetThumbnail(imageKey, index)}
+                            disabled={isSettingThumbnail || isDeleting || isNewImage}
+                            className={`px-2 py-1 rounded ${isNewImage
+                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              : isSettingThumbnail
+                                ? "bg-gray-400 text-white cursor-not-allowed"
+                                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                              } flex items-center gap-1`}
+                          >
+                            {isSettingThumbnail && (
+                              <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                            {isNewImage ? 'Set Thumbnail' : 'Set Thumbnail'}
+                          </button>
                         )}
-                        Remove
-                      </button>
+
+                        <button
+                          onClick={() => !isNewImage && handleDeleteImage(imageKey, index)}
+                          disabled={isDeleting || isSettingThumbnail || isNewImage}
+                          className={`flex items-center gap-1 ${isNewImage
+                            ? "text-gray-400 cursor-not-allowed"
+                            : isDeleting
+                              ? "text-red-400 cursor-not-allowed"
+                              : "text-red-600 hover:text-red-800"
+                            }`}
+                        >
+                          {isDeleting ? (
+                            <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                          {isNewImage ? 'Remove' : 'Remove'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -955,7 +972,7 @@ const EditProduct = () => {
             <button
               onClick={handleUpdate}
               disabled={updating || loading}
-              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${updating || loading
+              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${updating || loading
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-black text-white hover:bg-gray-900"
                 }`}

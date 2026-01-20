@@ -881,7 +881,7 @@ const AddProduct = () => {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${loading
+            className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${loading
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-black text-white hover:bg-gray-800"
               }`}
