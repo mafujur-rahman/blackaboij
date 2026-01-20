@@ -9,8 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tiptap/core": "^3.16.0",
     "@tiptap/react": "^3.14.0",
-    "@tiptap/starter-kit": "^3.14.0",
+    "@tiptap/starter-kit": "^3.16.0",
     "@uiw/react-md-editor": "^4.0.11",
     "axios": "^1.13.2",
     "gsap": "^3.14.2",
@@ -24,7 +25,8 @@
     "react-icons": "^5.5.0",
     "react-phone-input-2": "^2.15.1",
     "react-phone-number-input": "^3.4.14",
-    "sweetalert2": "^11.26.10"
+    "sweetalert2": "^11.26.10",
+    "tiptap": "^1.32.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

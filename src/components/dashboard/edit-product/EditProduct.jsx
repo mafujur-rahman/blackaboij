@@ -14,7 +14,8 @@ import {
   Quote,
   Undo,
   Redo,
-  Loader2,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -22,8 +23,6 @@ import Image from "next/image";
 import api from "@/lib/axios";
 import DashboardShell from "../DashboardShell";
 import { getImageUrl } from "@/components/utils/get-image-url";
-
-// Import TipTap
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import UnderlineExtension from '@tiptap/extension-underline';
@@ -34,6 +33,8 @@ const EditProduct = () => {
 
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [deletingImage, setDeletingImage] = useState(null);
+  const [settingThumbnail, setSettingThumbnail] = useState(null);
   const [parentCategoryId, setParentCategoryId] = useState("");
   const [mounted, setMounted] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
@@ -56,7 +57,6 @@ const EditProduct = () => {
     hotSale: false,
   });
 
-
   const [parentCategories, setParentCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [sizesList, setSizesList] = useState([]);
@@ -67,17 +67,12 @@ const EditProduct = () => {
     colors: false,
   });
 
-  // Initialize mounted state
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // TipTap Editor - Initialize only on client side
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      UnderlineExtension,
-    ],
+    extensions: [StarterKit, UnderlineExtension],
     content: descriptionContent,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -92,14 +87,12 @@ const EditProduct = () => {
     immediatelyRender: false,
   }, [mounted]);
 
-  // Update editor when descriptionContent changes
   useEffect(() => {
     if (editor && descriptionContent && editor.isEmpty) {
       editor.commands.setContent(descriptionContent);
     }
   }, [descriptionContent, editor]);
 
-  // Handle link insertion
   const handleAddLink = useCallback(() => {
     if (showLinkInput) {
       if (linkUrl && editor) {
@@ -112,7 +105,6 @@ const EditProduct = () => {
     }
   }, [editor, linkUrl, showLinkInput]);
 
-  // Remove link
   const handleRemoveLink = useCallback(() => {
     if (editor) {
       editor.chain().focus().unsetLink().run();
@@ -121,7 +113,6 @@ const EditProduct = () => {
     }
   }, [editor]);
 
-  /* ---------------- SHOW LOADING STATE ---------------- */
   useEffect(() => {
     if (loading) {
       document.body.style.cursor = "wait";
@@ -134,7 +125,6 @@ const EditProduct = () => {
     };
   }, [loading]);
 
-  /* ---------------- FETCH PRODUCT DATA ---------------- */
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
@@ -150,9 +140,7 @@ const EditProduct = () => {
         setSizesList(sizes.data.data || []);
         setColorsList(colors.data.data || []);
 
-        const product = products.data.data.find(
-          (p) => p.id === Number(id)
-        );
+        const product = products.data.data.find((p) => p.id === Number(id));
 
         if (!product) {
           Swal.fire("Error", "Product not found", "error");
@@ -160,18 +148,16 @@ const EditProduct = () => {
           return;
         }
 
-        // Set parent category ID for subcategory fetching
         setParentCategoryId(product.category.parent);
 
-
-
         const images = product.images.map((img) => ({
+          id: img.id,
           url: img.image,
           file: null,
+          is_thumbnail: img.is_thumbnail,
         }));
 
-        const thumbnailIndex =
-          product.images.findIndex((img) => img.is_thumbnail) || 0;
+        const thumbnailIndex = images.findIndex(img => img.is_thumbnail) || 0;
 
         setForm({
           name: product.name,
@@ -190,9 +176,7 @@ const EditProduct = () => {
         });
 
         setDescriptionContent(product.description || "");
-
-      } catch (err) {
-        console.error(err);
+      } catch {
         Swal.fire("Error", "Failed to load product data", "error");
         router.push("/dashboard/product-list");
       } finally {
@@ -203,19 +187,15 @@ const EditProduct = () => {
     fetchAll();
   }, [id, router]);
 
-  /* ---------------- FETCH SUB CATEGORIES ---------------- */
   useEffect(() => {
     if (!parentCategoryId) return;
 
     const fetchSubs = async () => {
       try {
         const res = await api.get("/api/categories/get-category-grouped/");
-        const parent = res.data.data.find(
-          (p) => p.id === Number(parentCategoryId)
-        );
+        const parent = res.data.data.find((p) => p.id === Number(parentCategoryId));
         setSubCategories(parent?.sub_categories || []);
-      } catch (err) {
-        console.error(err);
+      } catch {
         Swal.fire("Error", "Failed to load sub-categories", "error");
       }
     };
@@ -223,7 +203,6 @@ const EditProduct = () => {
     fetchSubs();
   }, [parentCategoryId]);
 
-  /* ---------------- HELPERS ---------------- */
   const toggleArray = (key, value) => {
     const newArray = form[key].includes(value)
       ? form[key].filter((v) => v !== value)
@@ -234,7 +213,6 @@ const EditProduct = () => {
       [key]: newArray,
     }));
 
-    // Clear error when selection is made
     if (newArray.length > 0) {
       setErrors((prev) => ({
         ...prev,
@@ -247,24 +225,17 @@ const EditProduct = () => {
     const fileArray = Array.from(files);
 
     const normalizedFiles = fileArray.map((file) => ({
+      id: null,
       file,
       url: null,
+      is_thumbnail: false,
     }));
 
     setForm((prev) => ({
       ...prev,
       images: [...prev.images, ...normalizedFiles],
-      thumbnailIndex:
-        prev.images.length === 0 ? 0 : prev.thumbnailIndex,
+      thumbnailIndex: prev.images.length === 0 ? 0 : prev.thumbnailIndex,
     }));
-  };
-
-
-  const setThumbnail = (index) => {
-    setForm((prev) => {
-      if (!prev.images[index]) return prev;
-      return { ...prev, thumbnailIndex: index };
-    });
   };
 
   const removeImage = (index) => {
@@ -273,17 +244,14 @@ const EditProduct = () => {
 
       let newThumbnailIndex = prev.thumbnailIndex;
 
-      // If removed image IS thumbnail → reset to 0
       if (index === prev.thumbnailIndex) {
         newThumbnailIndex = 0;
       }
 
-      // If removed image is BEFORE thumbnail → shift index
       if (index < prev.thumbnailIndex) {
         newThumbnailIndex = prev.thumbnailIndex - 1;
       }
 
-      // Safety check
       if (newThumbnailIndex >= updatedImages.length) {
         newThumbnailIndex = 0;
       }
@@ -296,17 +264,97 @@ const EditProduct = () => {
     });
   };
 
+  const handleDeleteImage = async (imageId, index) => {
+    if (!imageId) {
+      removeImage(index);
+      return;
+    }
 
+    const confirm = await Swal.fire({
+      title: "Delete Image?",
+      text: "Are you sure you want to delete this image?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
+    });
 
+    if (!confirm.isConfirmed) return;
 
+    setDeletingImage(imageId);
 
+    try {
+      await api.delete(`/api/product/delete-product-image/${imageId}/`);
+      removeImage(index);
 
-  // Handle hot sale toggle
+      Swal.fire({
+        icon: "success",
+        title: "Deleted!",
+        text: "Image has been deleted successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to delete image",
+        confirmButtonColor: "#000",
+      });
+    } finally {
+      setDeletingImage(null);
+    }
+  };
+
+  const handleSetThumbnail = async (imageId, index) => {
+    if (!imageId) {
+      setForm(prev => ({ ...prev, thumbnailIndex: index }));
+      return;
+    }
+
+    setSettingThumbnail(imageId);
+
+    try {
+      await api.patch(`/api/product/${id}/set-product-thumbnail/${imageId}/`);
+
+      setForm(prev => {
+        const updatedImages = prev.images.map((img, i) => ({
+          ...img,
+          is_thumbnail: i === index
+        }));
+        
+        return {
+          ...prev,
+          images: updatedImages,
+          thumbnailIndex: index
+        };
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Success!",
+        text: "Thumbnail has been set successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to set thumbnail",
+        confirmButtonColor: "#000",
+      });
+    } finally {
+      setSettingThumbnail(null);
+    }
+  };
+
   const handleHotSaleToggle = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {
       sizes: form.sizes.length === 0,
@@ -315,11 +363,11 @@ const EditProduct = () => {
 
     setErrors(newErrors);
 
-    // Check for basic required fields
     if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
+    
     if (form.images.length === 0) {
       Swal.fire("Warning", "Please upload at least one image", "warning");
       return false;
@@ -330,8 +378,6 @@ const EditProduct = () => {
       return false;
     }
 
-
-    // Check for size and color selections
     if (newErrors.sizes || newErrors.colors) {
       if (newErrors.sizes && newErrors.colors) {
         Swal.fire("Warning", "Please select at least one size and one color", "warning");
@@ -346,9 +392,7 @@ const EditProduct = () => {
     return true;
   };
 
-  /* ---------------- UPDATE PRODUCT ---------------- */
   const handleUpdate = async () => {
-    // Validation
     if (!validateForm()) {
       return;
     }
@@ -368,10 +412,8 @@ const EditProduct = () => {
     setUpdating(true);
 
     try {
-      // Create FormData with correct format
       const formData = new FormData();
 
-      // Add text fields
       formData.append("name", form.name);
       formData.append("category_id", form.subCategoryId);
       formData.append("description", form.description || "");
@@ -380,23 +422,20 @@ const EditProduct = () => {
       formData.append("meta_title", form.metaTitle || form.name);
       formData.append("meta_description", form.metaDescription || form.name);
 
-      // Add hot sale if checked
       if (form.hotSale) {
         formData.append("hot_sale", "true");
       }
 
-      // FIX: Add sizes as individual values (not as array indices)
       form.sizes.forEach((sizeId) => {
         formData.append("size_ids", sizeId);
       });
 
-      // FIX: Add colors as individual values (not as array indices)
       form.colors.forEach((colorId) => {
         formData.append("color_ids", colorId);
       });
 
       form.images.forEach((img, index) => {
-        if (img.file) {
+        if (img.file && !img.id) {
           formData.append("images", img.file);
           formData.append(
             "is_thumbnail",
@@ -405,8 +444,6 @@ const EditProduct = () => {
         }
       });
 
-
-      // Show loading alert
       Swal.fire({
         title: 'Updating Product...',
         text: 'Please wait while we update your product',
@@ -417,14 +454,12 @@ const EditProduct = () => {
         }
       });
 
-      // Send to backend API
       await api.put(`/api/product/update-product/${id}/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      // Close loading and show success
       Swal.close();
       Swal.fire({
         icon: "success",
@@ -436,37 +471,12 @@ const EditProduct = () => {
       }).then(() => {
         router.push("/dashboard/product-list");
       });
-
-    } catch (err) {
-      // Close loading alert
+    } catch {
       Swal.close();
-
-      // Show error with more details
-      let errorMessage = "Update failed. Please try again.";
-      let errorDetails = "";
-
-      if (err.response?.data) {
-        console.error("Backend error response:", err.response.data);
-
-        if (err.response.data.message) {
-          errorMessage = err.response.data.message;
-        }
-        if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        }
-        if (err.response.data.errors) {
-          errorDetails = JSON.stringify(err.response.data.errors);
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
       Swal.fire({
         icon: "error",
         title: "Error",
-        html: errorDetails ?
-          `<div>${errorMessage}</div><div class="text-sm mt-2">${errorDetails}</div>` :
-          errorMessage,
+        text: "Update failed. Please try again.",
         confirmButtonText: "OK",
         confirmButtonColor: "#000"
       });
@@ -475,7 +485,6 @@ const EditProduct = () => {
     }
   };
 
-  // Don't render editor until mounted (client-side)
   if (!mounted || (!editor && !loading)) {
     return (
       <DashboardShell isLoading={loading}>
@@ -485,7 +494,6 @@ const EditProduct = () => {
           </div>
         ) : (
           <div className="min-h-screen space-y-6">
-            {/* HEADER */}
             <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
               <h1 className="text-xl font-bold">Edit Product</h1>
               <div className="flex items-center space-x-2 text-[16px]">
@@ -513,7 +521,6 @@ const EditProduct = () => {
         </div>
       ) : (
         <div className="min-h-screen space-y-6">
-          {/* HEADER */}
           <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
             <h1 className="text-xl font-bold">Edit Product</h1>
             <div className="flex items-center space-x-2 text-[16px]">
@@ -525,7 +532,6 @@ const EditProduct = () => {
             </div>
           </div>
 
-          {/* PRODUCT INFORMATION */}
           <div className="bg-white p-6 rounded-md shadow-sm space-y-6">
             <h2 className="text-xl font-bold">Product Information</h2>
             <div className="grid grid-cols-2 gap-6">
@@ -555,7 +561,6 @@ const EditProduct = () => {
                     setForm((prev) => ({
                       ...prev,
                       mainCategoryId: e.target.value,
-                      mainCategoryName: selected?.name || "",
                     }));
                   }}
                   className="w-full border border-black/20 rounded px-3 py-2"
@@ -576,13 +581,9 @@ const EditProduct = () => {
                 <select
                   value={form.subCategoryId}
                   onChange={(e) => {
-                    const selected = subCategories.find(
-                      (sub) => sub.id === Number(e.target.value)
-                    );
                     setForm((prev) => ({
                       ...prev,
                       subCategoryId: e.target.value,
-                      subCategoryName: selected?.name || "",
                     }));
                   }}
                   className="w-full border border-black/20 rounded px-3 py-2"
@@ -621,7 +622,6 @@ const EditProduct = () => {
                 />
               </div>
 
-              {/* HOT SALE CHECKBOX */}
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -638,93 +638,77 @@ const EditProduct = () => {
               <div className="col-span-2">
                 <label className="block text-[16px] font-medium mb-1">Description</label>
                 <div className="border border-black/20 rounded">
-                  {/* Toolbar */}
                   <div className="flex flex-wrap gap-2 border-b bg-gray-50 px-4 py-3">
-                    {/* Headings */}
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                         className={`p-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Heading 1"
                       >
                         <Heading size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                         className={`p-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Heading 2"
                       >
                         H2
                       </button>
                       <button
                         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                         className={`p-1 rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Heading 3"
                       >
                         H3
                       </button>
                     </div>
 
-                    {/* Text formatting */}
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBold().run()}
                         className={`p-1 rounded ${editor.isActive('bold') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Bold"
                       >
                         <Bold size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().toggleItalic().run()}
                         className={`p-1 rounded ${editor.isActive('italic') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Italic"
                       >
                         <Italic size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().toggleUnderline().run()}
                         className={`p-1 rounded ${editor.isActive('underline') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Underline"
                       >
                         <Underline size={16} />
                       </button>
                     </div>
 
-                    {/* Lists */}
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBulletList().run()}
                         className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Bullet List"
                       >
                         <List size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().toggleOrderedList().run()}
                         className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Numbered List"
                       >
                         1.
                       </button>
                     </div>
 
-                    {/* Blockquote */}
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBlockquote().run()}
                         className={`p-1 rounded ${editor.isActive('blockquote') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Blockquote"
                       >
                         <Quote size={16} />
                       </button>
                     </div>
 
-                    {/* Links */}
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={handleAddLink}
                         className={`p-1 rounded ${editor.isActive('link') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
-                        title="Add Link"
                       >
                         <Link size={16} />
                       </button>
@@ -732,20 +716,17 @@ const EditProduct = () => {
                         <button
                           onClick={handleRemoveLink}
                           className="p-1 rounded text-red-600 hover:text-red-800"
-                          title="Remove Link"
                         >
                           Remove
                         </button>
                       )}
                     </div>
 
-                    {/* History */}
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={() => editor.chain().focus().undo().run()}
                         disabled={!editor.can().undo()}
                         className={`p-1 rounded ${!editor.can().undo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
-                        title="Undo"
                       >
                         <Undo size={16} />
                       </button>
@@ -753,14 +734,12 @@ const EditProduct = () => {
                         onClick={() => editor.chain().focus().redo().run()}
                         disabled={!editor.can().redo()}
                         className={`p-1 rounded ${!editor.can().redo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
-                        title="Redo"
                       >
                         <Redo size={16} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Link Input */}
                   {showLinkInput && (
                     <div className="border-b bg-gray-50 px-4 py-3">
                       <div className="flex items-center space-x-2">
@@ -799,7 +778,6 @@ const EditProduct = () => {
                     </div>
                   )}
 
-                  {/* Editor Content */}
                   <div className="min-h-[200px] max-h-[400px] overflow-y-auto">
                     <EditorContent editor={editor} />
                   </div>
@@ -811,7 +789,6 @@ const EditProduct = () => {
             </div>
           </div>
 
-          {/* SIZES */}
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-2">
               Sizes *
@@ -839,15 +816,8 @@ const EditProduct = () => {
                 * Please select at least one size
               </p>
             )}
-            <p className="text-sm text-gray-500 mt-2">
-              Selected sizes: {form.sizes.length > 0 ? form.sizes.map(id => {
-                const size = sizesList.find(s => s.id === id);
-                return size ? size.name : id;
-              }).join(", ") : "None"}
-            </p>
           </div>
 
-          {/* COLORS */}
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-2">
               Colors *
@@ -870,9 +840,6 @@ const EditProduct = () => {
                     style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
                   />
                   <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
-                  {c.hex_code && (
-                    <span className="text-[12px] text-gray-500 block">{c.hex_code}</span>
-                  )}
                 </div>
               ))}
             </div>
@@ -881,15 +848,8 @@ const EditProduct = () => {
                 * Please select at least one color
               </p>
             )}
-            <p className="text-sm text-gray-500 mt-2">
-              Selected colors: {form.colors.length > 0 ? form.colors.map(id => {
-                const color = colorsList.find(c => c.id === id);
-                return color ? color.name : id;
-              }).join(", ") : "None"}
-            </p>
           </div>
 
-          {/* MEDIA UPLOAD */}
           <div className="bg-white p-6 rounded-md shadow-sm">
             <h2 className="text-xl font-bold mb-4">Product Images</h2>
 
@@ -905,7 +865,7 @@ const EditProduct = () => {
               />
             </label>
 
-            {Array.isArray(form.images) && form.images.length > 0 && (
+            {form.images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 {form.images.map((img, index) => (
                   <div
@@ -925,20 +885,41 @@ const EditProduct = () => {
                     </div>
 
                     <div className="flex justify-between items-center p-2 text-xs">
-                      {index === form.thumbnailIndex && (
+                      {index === form.thumbnailIndex ? (
                         <button
                           disabled
-                          className="px-2 py-1 rounded bg-black text-white cursor-default"
+                          className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
                         >
+                          <Check size={12} />
                           Thumbnail
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleSetThumbnail(img.id, index)}
+                          disabled={settingThumbnail === img.id}
+                          className={`px-2 py-1 rounded ${settingThumbnail === img.id
+                            ? "bg-gray-400 text-white cursor-not-allowed"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                            } flex items-center gap-1`}
+                        >
+                          {settingThumbnail === img.id && (
+                            <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                          Set Thumbnail
                         </button>
                       )}
 
-
                       <button
-                        onClick={() => removeImage(index)}
-                        className="text-red-600"
+                        onClick={() => handleDeleteImage(img.id, index)}
+                        disabled={deletingImage === img.id}
+                        className={`text-red-600 hover:text-red-800 flex items-center gap-1 ${deletingImage === img.id ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
                       >
+                        {deletingImage === img.id ? (
+                          <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
                         Remove
                       </button>
                     </div>
@@ -948,8 +929,6 @@ const EditProduct = () => {
             )}
           </div>
 
-
-          {/* SEO */}
           <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[16px] font-medium mb-1">Meta Title</label>
@@ -972,7 +951,6 @@ const EditProduct = () => {
             </div>
           </div>
 
-          {/* UPDATE BUTTON */}
           <div className="flex justify-end">
             <button
               onClick={handleUpdate}

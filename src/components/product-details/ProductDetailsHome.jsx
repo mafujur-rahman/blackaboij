@@ -332,7 +332,7 @@ export default function ProductDetailsHome() {
                     {allImages.length > 0 && (
                         <div className="space-y-3">
                             <h3 className="font-medium text-gray-700">Product Images</h3>
-                            <div className="grid grid-cols-4 gap-3">
+                            <div className="grid grid-cols-4 lg:grid-cols-8 xl:grid-cols-10 gap-3">
                                 {allImages.map((img, index) => (
                                     <button
                                         key={index}
