@@ -265,6 +265,7 @@ const EditProduct = () => {
   };
 
   const handleDeleteImage = async (imageId, index) => {
+    // If it's a new image (has no ID), just remove it from the UI
     if (!imageId) {
       removeImage(index);
       return;
@@ -309,6 +310,7 @@ const EditProduct = () => {
   };
 
   const handleSetThumbnail = async (imageId, index) => {
+    // If it's a new image (has no ID), just update the UI state
     if (!imageId) {
       setForm(prev => ({ ...prev, thumbnailIndex: index }));
       return;
@@ -434,15 +436,18 @@ const EditProduct = () => {
         formData.append("color_ids", colorId);
       });
 
-      form.images.forEach((img, index) => {
-        if (img.file && !img.id) {
-          formData.append("images", img.file);
-          formData.append(
-            "is_thumbnail",
-            index === form.thumbnailIndex ? "true" : "false"
-          );
-        }
+      // Add new images only (those with file but no id)
+      const newImages = form.images.filter(img => img.file && !img.id);
+      newImages.forEach((img, index) => {
+        formData.append("images", img.file);
       });
+
+      // Set thumbnail for new images
+      if (form.images[form.thumbnailIndex]?.file && !form.images[form.thumbnailIndex]?.id) {
+        formData.append("thumbnail_index", newImages.findIndex(img => 
+          img.file === form.images[form.thumbnailIndex].file
+        ));
+      }
 
       Swal.fire({
         title: 'Updating Product...',
@@ -497,9 +502,9 @@ const EditProduct = () => {
             <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
               <h1 className="text-xl font-bold">Edit Product</h1>
               <div className="flex items-center space-x-2 text-[16px]">
-                <Link href="/" className="hover:text-purple-600 flex items-center">
+                <a href="/" className="hover:text-purple-600 flex items-center">
                   <Home size={16} />
-                </Link>
+                </a>
                 <ChevronRight size={14} />
                 <span>Edit Product</span>
               </div>
@@ -524,9 +529,9 @@ const EditProduct = () => {
           <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
             <h1 className="text-xl font-bold">Edit Product</h1>
             <div className="flex items-center space-x-2 text-[16px]">
-              <Link href="/" className="hover:text-purple-600 flex items-center">
+              <a href="/" className="hover:text-purple-600 flex items-center">
                 <Home size={16} />
-              </Link>
+              </a>
               <ChevronRight size={14} />
               <span>Edit Product</span>
             </div>
@@ -869,7 +874,7 @@ const EditProduct = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 {form.images.map((img, index) => {
                   // Generate a unique key for each image
-                  const imageKey = img.id || img.file?.name || `img-${index}`;
+                  const imageKey = img.id || (img.file ? `${img.file.name}-${img.file.lastModified}-${img.file.size}` : `img-${index}`);
                   const isSettingThumbnail = settingThumbnail === imageKey;
                   const isDeleting = deletingImage === imageKey;
 
@@ -905,30 +910,26 @@ const EditProduct = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => !isNewImage && handleSetThumbnail(imageKey, index)}
-                            disabled={isSettingThumbnail || isDeleting || isNewImage}
-                            className={`px-2 py-1 rounded ${isNewImage
-                              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              : isSettingThumbnail
-                                ? "bg-gray-400 text-white cursor-not-allowed"
-                                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                            onClick={() => handleSetThumbnail(imageKey, index)}
+                            disabled={isSettingThumbnail || isDeleting}
+                            className={`px-2 py-1 rounded ${isSettingThumbnail
+                              ? "bg-gray-400 text-white cursor-not-allowed"
+                              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                               } flex items-center gap-1`}
                           >
                             {isSettingThumbnail && (
                               <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
                             )}
-                            {isNewImage ? 'Set Thumbnail' : 'Set Thumbnail'}
+                            Set Thumbnail
                           </button>
                         )}
 
                         <button
-                          onClick={() => !isNewImage && handleDeleteImage(imageKey, index)}
-                          disabled={isDeleting || isSettingThumbnail || isNewImage}
-                          className={`flex items-center gap-1 ${isNewImage
-                            ? "text-gray-400 cursor-not-allowed"
-                            : isDeleting
-                              ? "text-red-400 cursor-not-allowed"
-                              : "text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteImage(imageKey, index)}
+                          disabled={isDeleting || isSettingThumbnail}
+                          className={`flex items-center gap-1 ${isDeleting
+                            ? "text-red-400 cursor-not-allowed"
+                            : "text-red-600 hover:text-red-800"
                             }`}
                         >
                           {isDeleting ? (
@@ -936,7 +937,7 @@ const EditProduct = () => {
                           ) : (
                             <Trash2 size={14} />
                           )}
-                          {isNewImage ? 'Remove' : 'Remove'}
+                          Remove
                         </button>
                       </div>
                     </div>

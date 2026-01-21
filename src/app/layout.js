@@ -7,8 +7,9 @@ export const metadata = {
 
   title: {
     default: "Blackaboij | Premium Fashion & Lifestyle Store",
-    template: "Home | Blackaboij",
+    template: "%s | Blackaboij",
   },
+
 
   description:
     "Blackaboij is a premium fashion and lifestyle brand offering modern clothing, accessories, and essentials with fast delivery and secure checkout.",
