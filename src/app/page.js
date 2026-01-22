@@ -13,13 +13,19 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <div>
+    <main>
+      {/* SEO + accessibility H1 (no visual impact) */}
+      <h1 className="visually-hidden">
+        Blackaboij – Premium Fashion & Lifestyle Store
+      </h1>
+
       <Banner />
       <NewArrivals />
       <FridaySale />
       <HotSale />
       <Newsletter />
       <Available />
-    </div>
+    </main>
   );
 }
+
