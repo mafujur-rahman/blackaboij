@@ -16,6 +16,8 @@ export const metadata = {
 
   keywords: [
     "Blackaboij",
+    "blackaboij",
+    "blackaboij.com",
     "fashion store",
     "online clothing store",
     "streetwear brand",

@@ -338,7 +338,7 @@ export default function Navbar() {
                 <Link href="/">
                   <Image
                     src="/images/new-logo.png"
-                    alt="Logo"
+                    alt="Blackaboij"
                     fill
                     style={{ objectFit: "contain" }}
                     priority
