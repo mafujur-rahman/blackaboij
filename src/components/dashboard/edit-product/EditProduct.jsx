@@ -227,14 +227,13 @@ const EditProduct = () => {
     const normalizedFiles = fileArray.map((file) => ({
       id: null,
       file,
-      url: null,
+      url: URL.createObjectURL(file),
       is_thumbnail: false,
     }));
 
     setForm((prev) => ({
       ...prev,
       images: [...prev.images, ...normalizedFiles],
-      thumbnailIndex: prev.images.length === 0 ? 0 : prev.thumbnailIndex,
     }));
   };
 
@@ -252,7 +251,11 @@ const EditProduct = () => {
         newThumbnailIndex = prev.thumbnailIndex - 1;
       }
 
-      if (newThumbnailIndex >= updatedImages.length) {
+      if (newThumbnailIndex >= updatedImages.length && updatedImages.length > 0) {
+        newThumbnailIndex = updatedImages.length - 1;
+      }
+
+      if (updatedImages.length === 0) {
         newThumbnailIndex = 0;
       }
 
@@ -265,12 +268,15 @@ const EditProduct = () => {
   };
 
   const handleDeleteImage = async (imageId, index) => {
-    // If it's a new image (has no ID), just remove it from the UI
-    if (!imageId) {
+    const image = form.images[index];
+
+    // If it's a new image (has no ID), just remove it from the UI immediately
+    if (!image.id) {
       removeImage(index);
       return;
     }
 
+    // For existing images with ID, show confirmation and call API
     const confirm = await Swal.fire({
       title: "Delete Image?",
       text: "Are you sure you want to delete this image?",
@@ -309,17 +315,20 @@ const EditProduct = () => {
     }
   };
 
-  const handleSetThumbnail = async (imageId, index) => {
+  const handleSetThumbnail = async (index) => {
+    const image = form.images[index];
+
     // If it's a new image (has no ID), just update the UI state
-    if (!imageId) {
-      setForm(prev => ({ ...prev, thumbnailIndex: index }));
+    if (!image.id) {
+      // New images can't be set as thumbnail until saved
       return;
     }
 
-    setSettingThumbnail(imageId);
+    // For existing images, call API to set thumbnail
+    setSettingThumbnail(image.id);
 
     try {
-      await api.patch(`/api/product/${id}/set-product-thumbnail/${imageId}/`);
+      await api.patch(`/api/product/${id}/set-product-thumbnail/${image.id}/`);
 
       setForm(prev => {
         const updatedImages = prev.images.map((img, i) => ({
@@ -377,6 +386,12 @@ const EditProduct = () => {
 
     if (!form.images[form.thumbnailIndex]) {
       Swal.fire("Warning", "Please select a thumbnail image", "warning");
+      return false;
+    }
+
+    // Check if thumbnail is a new image (can't be thumbnail until saved)
+    if (!form.images[form.thumbnailIndex]?.id) {
+      Swal.fire("Warning", "Thumbnail must be an existing saved image. Please save the product first or select an existing image as thumbnail.", "warning");
       return false;
     }
 
@@ -438,15 +453,21 @@ const EditProduct = () => {
 
       // Add new images only (those with file but no id)
       const newImages = form.images.filter(img => img.file && !img.id);
-      newImages.forEach((img, index) => {
+      newImages.forEach((img) => {
         formData.append("images", img.file);
       });
 
       // Set thumbnail for new images
-      if (form.images[form.thumbnailIndex]?.file && !form.images[form.thumbnailIndex]?.id) {
-        formData.append("thumbnail_index", newImages.findIndex(img => 
-          img.file === form.images[form.thumbnailIndex].file
-        ));
+      const thumbnailImage = form.images[form.thumbnailIndex];
+      if (thumbnailImage && thumbnailImage.file && !thumbnailImage.id) {
+        // Find the index of this image in the newImages array
+        const newImageIndex = newImages.findIndex(img =>
+          img.file === thumbnailImage.file
+        );
+        formData.append("thumbnail_index", newImageIndex);
+      } else if (thumbnailImage && thumbnailImage.id) {
+        // For existing images, send the thumbnail image ID
+        formData.append("thumbnail_image_id", thumbnailImage.id);
       }
 
       Swal.fire({
@@ -476,8 +497,9 @@ const EditProduct = () => {
       }).then(() => {
         router.push("/dashboard/product-list");
       });
-    } catch {
+    } catch (error) {
       Swal.close();
+      console.error("Update error:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -873,25 +895,23 @@ const EditProduct = () => {
             {form.images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 {form.images.map((img, index) => {
-                  // Generate a unique key for each image
-                  const imageKey = img.id || (img.file ? `${img.file.name}-${img.file.lastModified}-${img.file.size}` : `img-${index}`);
-                  const isSettingThumbnail = settingThumbnail === imageKey;
-                  const isDeleting = deletingImage === imageKey;
-
-                  // Check if this is a new uploaded image (has file but no ID)
                   const isNewImage = img.file && !img.id;
+                  const isExistingImage = img.id;
+                  const isThumbnail = index === form.thumbnailIndex;
+                  const isSettingThumbnailExisting = isExistingImage && settingThumbnail === img.id;
+                  const isDeletingExisting = isExistingImage && deletingImage === img.id;
 
                   return (
                     <div
-                      key={imageKey}
-                      className={`relative border rounded ${index === form.thumbnailIndex
+                      key={img.id ? `existing-${img.id}` : `new-${index}-${img.file?.name}`}
+                      className={`relative border rounded ${isThumbnail
                         ? "border-black ring-2 ring-black"
                         : "border-black/20"
                         }`}
                     >
                       <div className="w-full h-32 relative">
                         <Image
-                          src={img.file ? URL.createObjectURL(img.file) : getImageUrl(img.url)}
+                          src={img.file ? img.url : getImageUrl(img.url)}
                           alt="Preview"
                           fill
                           className="object-cover"
@@ -900,7 +920,8 @@ const EditProduct = () => {
                       </div>
 
                       <div className="flex justify-between items-center p-2 text-xs">
-                        {index === form.thumbnailIndex ? (
+                        {/* Thumbnail Button */}
+                        {isThumbnail ? (
                           <button
                             disabled
                             className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
@@ -910,29 +931,33 @@ const EditProduct = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleSetThumbnail(imageKey, index)}
-                            disabled={isSettingThumbnail || isDeleting}
-                            className={`px-2 py-1 rounded ${isSettingThumbnail
-                              ? "bg-gray-400 text-white cursor-not-allowed"
-                              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                              } flex items-center gap-1`}
+                            onClick={() => isExistingImage && handleSetThumbnail(index)}
+                            disabled={isSettingThumbnailExisting || isDeletingExisting || isNewImage}
+                            className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : isSettingThumbnailExisting
+                                  ? "bg-gray-400 text-white cursor-not-allowed"
+                                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                              }`}
+                            title={isNewImage ? "Save product first to set as thumbnail" : "Set as thumbnail"}
                           >
-                            {isSettingThumbnail && (
+                            {isSettingThumbnailExisting && (
                               <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
                             )}
                             Set Thumbnail
                           </button>
                         )}
 
+                        {/* Remove Button */}
                         <button
-                          onClick={() => handleDeleteImage(imageKey, index)}
-                          disabled={isDeleting || isSettingThumbnail}
-                          className={`flex items-center gap-1 ${isDeleting
-                            ? "text-red-400 cursor-not-allowed"
-                            : "text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteImage(img.id, index)}
+                          disabled={isDeletingExisting || isSettingThumbnailExisting}
+                          className={`flex items-center gap-1 ${isDeletingExisting
+                              ? "text-red-400 cursor-not-allowed"
+                              : "text-red-600 hover:text-red-800"
                             }`}
                         >
-                          {isDeleting ? (
+                          {isDeletingExisting ? (
                             <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                           ) : (
                             <Trash2 size={14} />
@@ -940,11 +965,23 @@ const EditProduct = () => {
                           Remove
                         </button>
                       </div>
+
+                      {/* New Image Badge */}
+                      {isNewImage && (
+                        <div className="absolute top-1 right-1 bg-black text-white text-xs px-1.5 py-0.5 rounded">
+                          New
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
+
+            <p className="text-sm text-gray-500 mt-4">
+              Note: New uploaded images (marked with yellow badge) can be removed immediately.
+              To set a new image as thumbnail, you need to save the product first.
+            </p>
           </div>
 
           <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
