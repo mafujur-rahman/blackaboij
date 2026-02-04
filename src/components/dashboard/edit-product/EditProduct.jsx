@@ -55,6 +55,7 @@ const EditProduct = () => {
     images: [],
     thumbnailIndex: 0,
     hotSale: false,
+    isDesign: false, // Added design field
   });
 
   const [parentCategories, setParentCategories] = useState([]);
@@ -173,6 +174,7 @@ const EditProduct = () => {
           images,
           thumbnailIndex,
           hotSale: product.hot_sale || false,
+          isDesign: product.is_design || false, // Added design field
         });
 
         setDescriptionContent(product.description || "");
@@ -195,6 +197,7 @@ const EditProduct = () => {
         const res = await api.get("/api/categories/get-category-grouped/");
         const parent = res.data.data.find((p) => p.id === Number(parentCategoryId));
         setSubCategories(parent?.sub_categories || []);
+
       } catch {
         Swal.fire("Error", "Failed to load sub-categories", "error");
       }
@@ -219,6 +222,16 @@ const EditProduct = () => {
         [key === "sizes" ? "sizes" : "colors"]: false,
       }));
     }
+  };
+
+  // Handle hot sale toggle
+  const handleHotSaleToggle = () => {
+    setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
+  };
+
+  // Handle design toggle
+  const handleDesignToggle = () => {
+    setForm((prev) => ({ ...prev, isDesign: !prev.isDesign }));
   };
 
   const handleImagesUpload = (files) => {
@@ -362,10 +375,6 @@ const EditProduct = () => {
     }
   };
 
-  const handleHotSaleToggle = () => {
-    setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
-  };
-
   const validateForm = () => {
     const newErrors = {
       sizes: form.sizes.length === 0,
@@ -441,6 +450,10 @@ const EditProduct = () => {
 
       if (form.hotSale) {
         formData.append("hot_sale", "true");
+      }
+
+      if (form.isDesign) {
+        formData.append("is_design", "true");
       }
 
       form.sizes.forEach((sizeId) => {
@@ -648,18 +661,37 @@ const EditProduct = () => {
                   min="0"
                 />
               </div>
+              
 
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="hotSale"
-                  checked={form.hotSale}
-                  onChange={handleHotSaleToggle}
-                  className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
-                />
-                <label htmlFor="hotSale" className="text-[16px] font-medium">
-                  Hot Sale
-                </label>
+              {/* hot sale and design field */}
+              <div className="flex items-center gap-10">
+                {/* Hot Sale Field */}
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="hotSale"
+                    checked={form.hotSale}
+                    onChange={handleHotSaleToggle}
+                    className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                  />
+                  <label htmlFor="hotSale" className="text-[16px] font-medium">
+                    Hot Sale
+                  </label>
+                </div>
+
+                {/* Design Field - Added */}
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="isDesign"
+                    checked={form.isDesign}
+                    onChange={handleDesignToggle}
+                    className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                  />
+                  <label htmlFor="isDesign" className="text-[16px] font-medium">
+                    Design
+                  </label>
+                </div>
               </div>
 
               <div className="col-span-2">
@@ -934,10 +966,10 @@ const EditProduct = () => {
                             onClick={() => isExistingImage && handleSetThumbnail(index)}
                             disabled={isSettingThumbnailExisting || isDeletingExisting || isNewImage}
                             className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : isSettingThumbnailExisting
-                                  ? "bg-gray-400 text-white cursor-not-allowed"
-                                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : isSettingThumbnailExisting
+                                ? "bg-gray-400 text-white cursor-not-allowed"
+                                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
                               }`}
                             title={isNewImage ? "Save product first to set as thumbnail" : "Set as thumbnail"}
                           >
@@ -953,8 +985,8 @@ const EditProduct = () => {
                           onClick={() => handleDeleteImage(img.id, index)}
                           disabled={isDeletingExisting || isSettingThumbnailExisting}
                           className={`flex items-center gap-1 ${isDeletingExisting
-                              ? "text-red-400 cursor-not-allowed"
-                              : "text-red-600 hover:text-red-800"
+                            ? "text-red-400 cursor-not-allowed"
+                            : "text-red-600 hover:text-red-800"
                             }`}
                         >
                           {isDeletingExisting ? (

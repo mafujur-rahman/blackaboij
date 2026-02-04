@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Home, ChevronRight, Plus, Eye, Edit, Trash2, Percent, Package } from "lucide-react";
+import { 
+  Home, 
+  ChevronRight, 
+  Plus, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  Percent, 
+  Package, 
+  Brush 
+} from "lucide-react";
 import DashboardShell from "../DashboardShell";
 import Image from "next/image";
 import Link from "next/link";
@@ -266,6 +276,11 @@ const ProductList = () => {
         });
     };
 
+    // Navigate to design page
+    const navigateToDesignPage = (productId) => {
+        router.push(`/dashboard/add-design/${productId}`);
+    };
+
     // If you need to sort on frontend (if backend doesn't support sorting)
     const displayedProducts = sortProductsByDate(products);
 
@@ -441,6 +456,17 @@ const ProductList = () => {
                                                                 >
                                                                     <Percent size={16} />
                                                                 </button>
+
+                                                                {/* Design Icon - Show only if product.is_design is true */}
+                                                                {product.is_design && (
+                                                                    <button
+                                                                        onClick={() => navigateToDesignPage(product.id)}
+                                                                        className="p-1.5 bg-pink-50 text-pink-600 rounded-md hover:bg-pink-100 cursor-pointer"
+                                                                        title="Add/Edit Design"
+                                                                    >
+                                                                        <Brush size={16} />
+                                                                    </button>
+                                                                )}
 
                                                                 <button
                                                                     onClick={() =>
