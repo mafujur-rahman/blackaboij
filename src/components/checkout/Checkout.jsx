@@ -8,6 +8,7 @@ import { getImageUrl } from "@/components/utils/get-image-url";
 import api from "@/lib/axios";
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { Palette, Layers } from "lucide-react";
 
 export default function Checkout() {
     const [items, setItems] = useState([]);
@@ -44,7 +45,16 @@ export default function Checkout() {
                         original_price: originalPrice,
                         discounted_price: discountPrice,
                         has_discount: hasDiscount,
-                        display_price: hasDiscount ? discountPrice : Number(item.price)
+                        display_price: hasDiscount ? discountPrice : Number(item.price),
+                        // Ensure design properties are preserved
+                        is_design: item.is_design || false,
+                        front_image: item.front_image || '',
+                        back_image: item.back_image || '',
+                        design_id: item.design_id || null,
+                        design_name: item.design_name || '',
+                        color_name: item.color_name || item.color || '',
+                        hex_code: item.hex_code || '',
+                        color_id: item.color_id || item.color_id || null
                     };
                 });
                 setItems(itemsWithDiscount);
@@ -115,6 +125,9 @@ export default function Checkout() {
         );
     }
 
+    // Check if any item is a design product
+    const hasDesignProducts = items.some(item => item.is_design);
+    
     // Calculate totals with discount awareness
     const calculateTotals = () => {
         let subtotal = 0;
@@ -141,9 +154,17 @@ export default function Checkout() {
     };
 
     const totals = calculateTotals();
-    const hasInvalidOptions = items.some(
-        (item) => !item.size_id || !item.color_id
-    );
+    
+    // Validation for design products
+    const hasInvalidOptions = items.some((item) => {
+        if (item.is_design) {
+            // For design products: need size, color, and design
+            return !item.size_id || !item.color_id || !item.design_id;
+        } else {
+            // For regular products: need size and color
+            return !item.size_id || !item.color_id;
+        }
+    });
 
     const handlePlaceOrder = async () => {
         const token =
@@ -194,6 +215,7 @@ export default function Checkout() {
         setLoading(true);
 
         try {
+            // Prepare order data based on product type
             const orderData = {
                 payment_method: payment === "cod" ? "cod" : "online",
                 full_name: fullName,
@@ -201,12 +223,30 @@ export default function Checkout() {
                 street_address: streetAddress,
                 city,
                 zip_code: zipCode,
-                items: items.map((i) => ({
-                    product_id: Number(i.product_id),
-                    quantity: Number(i.quantity) || 1,
-                    size_id: Number(i.size_id),
-                    color_id: Number(i.color_id),
-                })),
+                items: items.map((item) => {
+                    const baseItem = {
+                        product_id: Number(item.product_id),
+                        quantity: Number(item.quantity) || 1,
+                        size_id: Number(item.size_id),
+                    };
+                    
+                    if (item.is_design) {
+                        // For design products, include design_id and color_id
+                        return {
+                            ...baseItem,
+                            color_id: Number(item.color_id),
+                            design_id: Number(item.design_id),
+                            is_design: true
+                        };
+                    } else {
+                        // For regular products, include color_id
+                        return {
+                            ...baseItem,
+                            color_id: Number(item.color_id),
+                            is_design: false
+                        };
+                    }
+                }),
             };
 
             console.log("Sending order data:", orderData);
@@ -276,6 +316,7 @@ export default function Checkout() {
                     <p className="mt-2 text-gray-500">
                         Please fill in your details to complete the order
                     </p>
+                    
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -335,7 +376,7 @@ export default function Checkout() {
                                     placeholder="City / Town"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-border-black focus:ring-2 focus:ring-black focus:outline-none"
+                                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-black focus:ring-2 focus:ring-black focus:outline-none"
                                     required
                                 />
 
@@ -428,28 +469,126 @@ export default function Checkout() {
                                 
                                 return (
                                     <div key={i} className="flex gap-4">
+                                        {/* Image Display for Design vs Regular Products */}
                                         <div className="relative w-24 h-24 bg-gray-100 rounded-lg">
-                                            <Image
-                                                src={getImageUrl(item.image)}
-                                                alt={item.name}
-                                                fill
-                                                className="object-contain"
-                                            />
+                                            {item.is_design ? (
+                                                // Design Product: Show back image or front image
+                                                <div className="relative w-full h-full">
+                                                    {item.back_image ? (
+                                                        <Image
+                                                            src={getImageUrl(item.back_image)}
+                                                            alt={`${item.name} - Back Design`}
+                                                            fill
+                                                            className="object-contain"
+                                                        />
+                                                    ) : item.front_image ? (
+                                                        <Image
+                                                            src={getImageUrl(item.front_image)}
+                                                            alt={`${item.name} - Front View`}
+                                                            fill
+                                                            className="object-contain"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <Palette size={24} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                // Regular Product
+                                                <Image
+                                                    src={getImageUrl(item.image)}
+                                                    alt={item.name}
+                                                    fill
+                                                    className="object-contain"
+                                                />
+                                            )}
+                                            
+                                            {/* Discount Badge */}
                                             {hasDiscount && discountPercentage > 0 && (
                                                 <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                                                     -{discountPercentage}%
                                                 </div>
                                             )}
+                                            
+                                            {/* Design Product Badge */}
+                                            {item.is_design && (
+                                                <div className="absolute -top-2 -left-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                                                    Design
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex-1">
-                                            <p className="font-semibold">
-                                                {item.name}
-                                            </p>
-                                            <div className="mt-2 text-sm text-gray-500">
-                                                <p>Size: {item.size}</p>
-                                                <p>Color: {item.color}</p>
-                                                <p>Quantity: {quantity}</p>
+                                            <div className="flex justify-between items-start">
+                                                <p className="font-semibold">
+                                                    {item.name}
+                                                </p>
+                                                
+                                            </div>
+                                            
+                                            {/* Product Details */}
+                                            <div className="mt-2 space-y-2">
+                                                <div className="text-sm text-gray-500">
+                                                    <p>Size: {item.size}</p>
+                                                    <p>Color: {item.color_name || item.color}</p>
+                                                    {item.is_design && item.design_name && (
+                                                        <p className="text-gray-600 font-medium">
+                                                            Design: {item.design_name}
+                                                        </p>
+                                                    )}
+                                                    <p>Quantity: {quantity}</p>
+                                                </div>
+                                                
+                                                {/* Color Swatch for Design Products */}
+                                                {item.is_design && item.hex_code && (
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <span className="text-gray-500">Color:</span>
+                                                        <div 
+                                                            className="w-4 h-4 rounded-full border border-gray-300"
+                                                            style={{ backgroundColor: item.hex_code }}
+                                                            title={item.hex_code}
+                                                        />
+                                                        <span>{item.color_name}</span>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Image Preview for Design Products */}
+                                                {item.is_design && (item.front_image || item.back_image) && (
+                                                    <div className="mt-3">
+                                                        <p className="text-xs text-gray-500 mb-1">Images:</p>
+                                                        <div className="flex gap-2">
+                                                            {item.front_image && (
+                                                                <div className="relative w-10 h-10 border border-gray-200 rounded overflow-hidden">
+                                                                    <Image
+                                                                        src={getImageUrl(item.front_image)}
+                                                                        alt="Front View"
+                                                                        fill
+                                                                        className="object-cover"
+                                                                        title="Front View"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                                                        <span className="text-[8px] text-white bg-blue-500 px-1">F</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {item.back_image && (
+                                                                <div className="relative w-10 h-10 border border-gray-200 rounded overflow-hidden">
+                                                                    <Image
+                                                                        src={getImageUrl(item.back_image)}
+                                                                        alt="Back Design"
+                                                                        fill
+                                                                        className="object-cover"
+                                                                        title="Back Design"
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-gray-500/20 flex items-center justify-center">
+                                                                        <span className="text-[8px] text-white bg-gray-500 px-1">B</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                             
                                             {/* Price Display */}
@@ -510,6 +649,8 @@ export default function Checkout() {
                                 <span>Shipping</span>
                                 <span className="text-green-600 font-semibold">Free</span>
                             </div>
+                            
+                            
                             <div className="flex justify-between text-lg font-semibold border-t pt-3">
                                 <span>Total</span>
                                 <span className="text-xl">€{totals.total.toFixed(2)}</span>
@@ -524,7 +665,7 @@ export default function Checkout() {
                         <button
                             onClick={handlePlaceOrder}
                             disabled={loading || hasInvalidOptions}
-                            className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition ${loading || hasInvalidOptions
+                            className={`mt-8 w-full rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition cursor-pointer ${loading || hasInvalidOptions
                                     ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                                     : "bg-black text-white "
                                 }`}
@@ -535,7 +676,10 @@ export default function Checkout() {
 
                         {hasInvalidOptions && (
                             <p className="mt-3 text-sm text-red-600 text-center">
-                                Please go back and reselect product options
+                                {hasDesignProducts 
+                                    ? "Please complete all selections (size, color, design)"
+                                    : "Please go back and reselect product options"
+                                }
                             </p>
                         )}
                     </aside>

@@ -7,14 +7,13 @@ import {
   ChevronRight,
   Upload,
   Trash2,
-  X,
   Palette,
   Plus,
   Camera,
   Image as ImageIcon,
   CheckSquare,
   Square,
-  AlertCircle,
+  Layout,
 } from "lucide-react";
 import DashboardShell from "../DashboardShell";
 import Swal from "sweetalert2";
@@ -33,14 +32,17 @@ const AddDesign = () => {
   // Store ALL colors from the colors API
   const [allColors, setAllColors] = useState([]);
   
+  // Store ALL designs from the product
+  const [allDesigns, setAllDesigns] = useState([]);
+  
   // Store SELECTED colors
   const [selectedColors, setSelectedColors] = useState([]);
   
-  // Store design images organized by color
-  const [designImages, setDesignImages] = useState({});
+  // Store SELECTED designs
+  const [selectedDesigns, setSelectedDesigns] = useState([]);
   
-  // Store available designs (for back images)
-  const [designs, setDesigns] = useState([]);
+  // Store design images organized by color and design
+  const [designImages, setDesignImages] = useState({});
 
   useEffect(() => {
     fetchAllData();
@@ -71,19 +73,23 @@ const AddDesign = () => {
       }
 
       setProduct(foundProduct);
-      setDesigns(foundProduct.designs || []);
+      const productDesigns = foundProduct.designs || [];
+      setAllDesigns(productDesigns);
+      
+      // Initialize selected designs - select ALL by default
+      setSelectedDesigns(productDesigns.map(d => d.id));
 
       // Initialize selected colors from product colors if they exist
       const productColorIds = foundProduct.colors?.map(c => c.id) || [];
       setSelectedColors(productColorIds);
 
-      // Initialize designImages structure for selected colors
+      // Initialize designImages structure for selected colors and designs
       const initialImages = {};
       allColorsData.forEach(color => {
         if (productColorIds.includes(color.id)) {
           initialImages[color.id] = {
             front_image: null,
-            back_images: {} // Will store {design_id: [array of images]}
+            back_images: {}
           };
         }
       });
@@ -96,9 +102,7 @@ const AddDesign = () => {
         foundProduct.product_colors.forEach(productColor => {
           const colorId = productColor.color;
           
-          // Check if colorId exists in updatedImages before accessing it
           if (!updatedImages[colorId]) {
-            // If color doesn't exist in initial images, create entry for it
             updatedImages[colorId] = {
               front_image: null,
               back_images: {}
@@ -121,12 +125,10 @@ const AddDesign = () => {
           productColor.back_designs.forEach(backDesign => {
             const designId = backDesign.design;
             
-            // Initialize back_images array for this design if not exists
             if (!updatedImages[colorId].back_images[designId]) {
               updatedImages[colorId].back_images[designId] = [];
             }
             
-            // Add the back image to the array
             updatedImages[colorId].back_images[designId].push({
               existing: true,
               url: getImageUrl(backDesign.image),
@@ -153,11 +155,9 @@ const AddDesign = () => {
   const toggleColorSelection = (colorId) => {
     setSelectedColors(prev => {
       if (prev.includes(colorId)) {
-        // Remove color and its images
         setDesignImages(prevImages => {
           const updated = { ...prevImages };
           if (updated[colorId]) {
-            // Clean up object URLs
             if (updated[colorId]?.front_image?.preview) {
               URL.revokeObjectURL(updated[colorId].front_image.preview);
             }
@@ -176,7 +176,6 @@ const AddDesign = () => {
         });
         return prev.filter(id => id !== colorId);
       } else {
-        // Add color
         setDesignImages(prev => ({
           ...prev,
           [colorId]: {
@@ -189,6 +188,59 @@ const AddDesign = () => {
     });
   };
 
+  // Toggle design selection
+  const toggleDesignSelection = (designId) => {
+    setSelectedDesigns(prev => {
+      if (prev.includes(designId)) {
+        setDesignImages(prevImages => {
+          const updated = { ...prevImages };
+          Object.keys(updated).forEach(colorId => {
+            const designImages = updated[colorId]?.back_images?.[designId] || [];
+            designImages.forEach(img => {
+              if (img.preview) {
+                URL.revokeObjectURL(img.preview);
+              }
+            });
+            
+            if (updated[colorId]?.back_images?.[designId]) {
+              delete updated[colorId].back_images[designId];
+            }
+          });
+          return updated;
+        });
+        return prev.filter(id => id !== designId);
+      } else {
+        return [...prev, designId];
+      }
+    });
+  };
+
+  // Select all designs
+  const selectAllDesigns = () => {
+    const allDesignIds = allDesigns.map(d => d.id);
+    setSelectedDesigns(allDesignIds);
+  };
+
+  // Deselect all designs
+  const deselectAllDesigns = () => {
+    setDesignImages(prevImages => {
+      const updated = { ...prevImages };
+      Object.keys(updated).forEach(colorId => {
+        Object.keys(updated[colorId]?.back_images || {}).forEach(designId => {
+          const images = updated[colorId].back_images[designId] || [];
+          images.forEach(img => {
+            if (img.preview) {
+              URL.revokeObjectURL(img.preview);
+            }
+          });
+        });
+        updated[colorId].back_images = {};
+      });
+      return updated;
+    });
+    setSelectedDesigns([]);
+  };
+
   // Handle front image upload
   const handleFrontImageUpload = (colorId, file) => {
     if (file.size > 10 * 1024 * 1024) {
@@ -196,7 +248,6 @@ const AddDesign = () => {
       return;
     }
 
-    // Clean up old preview if exists
     const existingFrontImage = designImages[colorId]?.front_image;
     if (existingFrontImage?.preview && !existingFrontImage.existing) {
       URL.revokeObjectURL(existingFrontImage.preview);
@@ -218,6 +269,11 @@ const AddDesign = () => {
 
   // Handle back image upload for a specific design (multiple images)
   const handleBackImageUpload = (colorId, designId, files) => {
+    if (!selectedDesigns.includes(parseInt(designId))) {
+      Swal.fire("Error", "This design is not selected", "error");
+      return;
+    }
+
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(file => {
       if (file.size > 10 * 1024 * 1024) {
@@ -258,8 +314,8 @@ const AddDesign = () => {
       text: "Are you sure you want to remove this front image?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      confirmButtonColor: "#000000",
+      cancelButtonColor: "#6b7280",
       confirmButtonText: "Yes, remove it!",
       cancelButtonText: "Cancel",
     }).then((result) => {
@@ -286,8 +342,8 @@ const AddDesign = () => {
       text: "Are you sure you want to remove this back image?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      confirmButtonColor: "#000000",
+      cancelButtonColor: "#6b7280",
       confirmButtonText: "Yes, remove it!",
       cancelButtonText: "Cancel",
     }).then((result) => {
@@ -296,12 +352,10 @@ const AddDesign = () => {
           const updated = { ...prev };
           const images = [...(updated[colorId]?.back_images?.[designId] || [])];
           
-          // Clean up object URL
           if (images[imageIndex]?.preview && !images[imageIndex].existing) {
             URL.revokeObjectURL(images[imageIndex].preview);
           }
           
-          // Remove the image
           images.splice(imageIndex, 1);
           
           updated[colorId] = {
@@ -325,8 +379,8 @@ const AddDesign = () => {
       text: "This will remove all front and back images for this color.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      confirmButtonColor: "#000000",
+      cancelButtonColor: "#6b7280",
       confirmButtonText: "Yes, clear all!",
       cancelButtonText: "Cancel",
     }).then((result) => {
@@ -334,7 +388,6 @@ const AddDesign = () => {
         setDesignImages(prev => {
           const updated = { ...prev };
           
-          // Clean up object URLs
           if (updated[colorId]?.front_image?.preview && !updated[colorId].front_image.existing) {
             URL.revokeObjectURL(updated[colorId].front_image.preview);
           }
@@ -364,40 +417,41 @@ const AddDesign = () => {
       Swal.fire("Warning", "Please select at least one color", "warning");
       return false;
     }
+
+    if (selectedDesigns.length === 0) {
+      Swal.fire("Warning", "Please select at least one design", "warning");
+      return false;
+    }
     
-    // Check each selected color
     for (const colorId of selectedColors) {
       const colorData = designImages[colorId];
       
-      // Skip colors with no images at all
       if (!colorData?.front_image && 
           Object.values(colorData?.back_images || {}).every(images => images.length === 0)) {
         continue;
       }
       
-      // If a color has ANY images, it must have:
-      // 1. A front image
-      // 2. At least one back image for EACH design
-      
-      // Check front image
       if (!colorData?.front_image) {
         const color = getColorById(colorId);
         Swal.fire("Warning", `Color "${color?.name}" must have a front image`, "warning");
         return false;
       }
       
-      // Check back images for all designs
-      const missingDesigns = designs.filter(design => {
-        const backImages = colorData?.back_images?.[design.id] || [];
+      const missingDesigns = selectedDesigns.filter(designId => {
+        const backImages = colorData?.back_images?.[designId] || [];
         return backImages.length === 0;
       });
       
       if (missingDesigns.length > 0) {
         const color = getColorById(colorId);
-        const designNames = missingDesigns.map(d => d.name).join(", ");
+        const designNames = missingDesigns.map(designId => {
+          const design = getDesignById(designId);
+          return design?.name;
+        }).join(", ");
+        
         Swal.fire({
           title: "Missing Back Images",
-          html: `For color "<strong>${color?.name}</strong>", you need to upload at least one back image for each of these designs:<br/><strong>${designNames}</strong>`,
+          html: `For color "<strong>${color?.name}</strong>", upload at least one back image for:<br/><strong>${designNames}</strong>`,
           icon: "warning",
           confirmButtonText: "OK"
         });
@@ -417,10 +471,8 @@ const AddDesign = () => {
     try {
       const formData = new FormData();
       
-      // Add product_id
       formData.append("product_id", id);
       
-      // Collect color IDs that have images
       const colorIdsWithImages = [];
       selectedColors.forEach(colorId => {
         const colorData = designImages[colorId];
@@ -430,12 +482,10 @@ const AddDesign = () => {
         }
       });
       
-      // Add color_ids as multiple parameters
       colorIdsWithImages.forEach(colorId => {
         formData.append("color_ids", colorId);
       });
       
-      // Add front images
       colorIdsWithImages.forEach(colorId => {
         const frontImage = designImages[colorId]?.front_image;
         if (frontImage?.file) {
@@ -443,27 +493,21 @@ const AddDesign = () => {
         }
       });
       
-      // Add back images - using design IDs in field names
       colorIdsWithImages.forEach(colorId => {
         const backImages = designImages[colorId]?.back_images || {};
         
-        designs.forEach(design => {
-          const designImagesArray = backImages[design.id] || [];
+        selectedDesigns.forEach(designId => {
+          const designImagesArray = backImages[designId] || [];
           
           if (designImagesArray.length > 0) {
-            // Use design ID in field name as per API documentation
-            // Format: back_image_{color_id}_{design_id}
-            
-            // Send only the FIRST image for each design
             const firstImage = designImagesArray[0];
             if (firstImage?.file) {
-              formData.append(`back_image_${colorId}_${design.id}`, firstImage.file);
+              formData.append(`back_image_${colorId}_${designId}`, firstImage.file);
             }
           }
         });
       });
       
-      // Show loading
       Swal.fire({
         title: "Uploading Images...",
         text: "Please wait while we upload your design images",
@@ -472,7 +516,6 @@ const AddDesign = () => {
         didOpen: () => Swal.showLoading(),
       });
 
-      // Upload to API
       const response = await api.post(
         "/api/product/upload-design-images/",
         formData,
@@ -483,14 +526,18 @@ const AddDesign = () => {
         }
       );
 
+      // Sweet success alert
       Swal.fire({
         title: "Success!",
         text: "Design images uploaded successfully",
         icon: "success",
-        confirmButtonText: "OK"
+        confirmButtonColor: "#000000",
+        confirmButtonText: "Great!",
+        background: "#ffffff",
+        color: "#000000",
+        iconColor: "#10b981",
       });
 
-      // Refresh data
       fetchAllData();
 
     } catch (error) {
@@ -511,6 +558,7 @@ const AddDesign = () => {
         title: "Upload Failed",
         text: errorMessage,
         icon: "error",
+        confirmButtonColor: "#000000",
         confirmButtonText: "OK"
       });
     } finally {
@@ -524,17 +572,20 @@ const AddDesign = () => {
     return allColors.find(color => color.id === parseInt(colorId));
   };
 
-  // Check if a color is ready for upload (has all required images)
+  // Get design by ID from allDesigns
+  const getDesignById = (designId) => {
+    return allDesigns.find(design => design.id === parseInt(designId));
+  };
+
+  // Check if a color is ready for upload (has all required images for SELECTED designs)
   const isColorReadyForUpload = (colorId) => {
     const colorData = designImages[colorId];
     if (!colorData) return false;
     
-    // Must have front image
     if (!colorData.front_image) return false;
     
-    // Must have at least one back image for EVERY design
-    const missingDesigns = designs.filter(design => {
-      const backImages = colorData?.back_images?.[design.id] || [];
+    const missingDesigns = selectedDesigns.filter(designId => {
+      const backImages = colorData?.back_images?.[designId] || [];
       return backImages.length === 0;
     });
     
@@ -555,71 +606,59 @@ const AddDesign = () => {
     <DashboardShell>
       <div className="min-h-screen space-y-6">
         {/* HEADER */}
-        <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
-          <h1 className="text-xl font-bold">Upload Design Images - {product?.name}</h1>
-          <div className="flex items-center space-x-2 text-[16px]">
-            <button onClick={() => router.push("/")} className="hover:text-purple-600 flex items-center">
+        <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm border border-gray-200">
+          <h1 className="text-xl font-bold text-black">Upload Design Images - {product?.name}</h1>
+          <div className="flex items-center space-x-2 text-[16px] text-gray-700">
+            <button onClick={() => router.push("/")} className="hover:text-black flex items-center">
               <Home size={16} />
             </button>
             <ChevronRight size={14} />
-            <button onClick={() => router.push("/dashboard/product-list")} className="hover:text-purple-600">
+            <button onClick={() => router.push("/dashboard/product-list")} className="hover:text-black">
               Products
             </button>
             <ChevronRight size={14} />
-            <span>Design Images</span>
+            <span className="text-black font-medium">Design Images</span>
           </div>
         </div>
 
         {/* PRODUCT INFO */}
-        <div className="bg-white p-6 rounded-md shadow-sm">
-          <h2 className="text-xl font-bold mb-4">Product Information</h2>
+        <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold mb-4 text-black">Product Information</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-gray-600">Product Name:</p>
-              <p className="font-medium">{product?.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Product ID:</p>
-              <p className="font-medium">{product?.id}</p>
+              <p className="font-medium text-black">{product?.name}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Selected Colors:</p>
-              <p className="font-medium">{selectedColors.length} colors</p>
+              <p className="font-medium text-black">{selectedColors.length} colors</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Designs Required:</p>
-              <p className="font-medium">{designs.length} designs</p>
-            </div>
-          </div>
-          
-          {/* IMPORTANT NOTE */}
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="text-yellow-600 mt-0.5 flex-shrink-0" size={16} />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">Important Requirement</p>
-                <p className="text-xs text-yellow-700">
-                  For each color you upload, you must provide:
-                  <ul className="list-disc ml-4 mt-1">
-                    <li>One front image</li>
-                    <li>At least one back image for <strong>EVERY</strong> design
-                    </li>
-                  </ul>
-                </p>
-                <p className="text-xs text-yellow-700 mt-2">
-                  Field format: <code>back_image_{`{color_id}_{design_id}`}</code>
-                </p>
-              </div>
+              <p className="text-sm text-gray-600">Selected Designs:</p>
+              <p className="font-medium text-black">{selectedDesigns.length} of {allDesigns.length} designs</p>
             </div>
           </div>
         </div>
 
         {/* COLOR SELECTION */}
-        <div className="bg-white p-6 rounded-md shadow-sm">
-          <h2 className="text-xl font-bold mb-4">Select Colors</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Select colors for which you want to upload design images. Only selected colors will be shown.
-          </p>
+        <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-black">Select Colors</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedColors(allColors.map(c => c.id))}
+                className="text-sm text-black hover:text-gray-700 font-medium"
+              >
+                Select All
+              </button>
+              <button
+                onClick={() => setSelectedColors([])}
+                className="text-sm text-black hover:text-gray-700 font-medium"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
           
           <div className="flex flex-wrap gap-3">
             {allColors.map((color) => {
@@ -633,38 +672,37 @@ const AddDesign = () => {
                 <button
                   key={color.id}
                   onClick={() => toggleColorSelection(color.id)}
-                  className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-all ${
+                  className={`flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${
                     isSelected 
                       ? isReady
-                        ? 'bg-green-100 border-green-300 ring-2 ring-green-300'
+                        ? 'bg-gray-100 border-black ring-2 ring-gray-300'
                         : hasImages
-                          ? 'bg-yellow-100 border-yellow-300 ring-1 ring-yellow-300'
-                          : 'bg-blue-100 border-blue-300 ring-1 ring-blue-300'
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          ? 'bg-gray-50 border-gray-400 ring-1 ring-gray-300'
+                          : 'bg-white border-black ring-1 ring-gray-200'
+                      : 'bg-white border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   {isSelected ? (
-                    <CheckSquare size={16} className={isReady ? "text-green-600" : "text-blue-600"} />
+                    <CheckSquare size={18} className={isReady ? "text-black" : "text-gray-600"} />
                   ) : (
-                    <Square size={16} className="text-gray-400" />
+                    <Square size={18} className="text-gray-400" />
                   )}
                   <div
-                    className="w-6 h-6 rounded-full border border-gray-300"
+                    className="w-7 h-7 rounded-full border border-gray-400"
                     style={{ backgroundColor: color.hex_code || '#cccccc' }}
                     title={color.hex_code || 'No color code'}
                   />
                   <div className="text-left">
-                    <p className="font-medium text-sm">{color.name}</p>
-                    <p className="text-xs text-gray-500">ID: {color.id}</p>
+                    <p className="font-medium text-sm text-black">{color.name}</p>
                   </div>
                   {isSelected && isReady && (
-                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                      ✓ Ready
+                    <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded">
+                      Ready
                     </span>
                   )}
                   {isSelected && hasImages && !isReady && (
-                    <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
-                      Needs more
+                    <span className="ml-2 text-xs bg-gray-300 text-black px-2 py-0.5 rounded">
+                      Incomplete
                     </span>
                   )}
                 </button>
@@ -673,10 +711,71 @@ const AddDesign = () => {
           </div>
         </div>
 
+        {/* DESIGN SELECTION */}
+        <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-black flex items-center gap-2">
+              <Layout size={18} />
+              Select Designs
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={selectAllDesigns}
+                className="text-sm text-black hover:text-gray-700 font-medium"
+              >
+                Select All
+              </button>
+              <button
+                onClick={deselectAllDesigns}
+                className="text-sm text-black hover:text-gray-700 font-medium"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            {allDesigns.map((design) => {
+              const isSelected = selectedDesigns.includes(design.id);
+              
+              const colorsWithImages = selectedColors.filter(colorId => {
+                const images = designImages[colorId]?.back_images?.[design.id] || [];
+                return images.length > 0;
+              }).length;
+              
+              return (
+                <button
+                  key={design.id}
+                  onClick={() => toggleDesignSelection(design.id)}
+                  className={`flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${
+                    isSelected 
+                      ? 'bg-gray-100 border-black ring-1 ring-gray-300'
+                      : 'bg-white border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {isSelected ? (
+                    <CheckSquare size={18} className="text-black" />
+                  ) : (
+                    <Square size={18} className="text-gray-400" />
+                  )}
+                  <div className="text-left">
+                    <p className="font-medium text-sm text-black">{design.name}</p>
+                    {isSelected && (
+                      <p className="text-xs text-gray-600">
+                        {colorsWithImages} of {selectedColors.length} colors
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* DESIGN IMAGES UPLOAD FOR SELECTED COLORS */}
-        {selectedColors.length > 0 ? (
-          <div className="bg-white p-6 rounded-md shadow-sm">
-            <h2 className="text-xl font-bold mb-6">Upload Images for Selected Colors</h2>
+        {selectedColors.length > 0 && selectedDesigns.length > 0 ? (
+          <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
+            <h2 className="text-xl font-bold mb-6 text-black">Upload Images for Selected Colors & Designs</h2>
             
             <div className="space-y-8">
               {selectedColors.map((colorId) => {
@@ -687,7 +786,7 @@ const AddDesign = () => {
                 const isReady = isColorReadyForUpload(colorId);
                 
                 return (
-                  <div key={colorId} className={`border rounded-lg p-6 ${isReady ? 'bg-green-50 border-green-200' : 'bg-white'}`}>
+                  <div key={colorId} className={`border rounded-lg p-6 ${isReady ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-300'}`}>
                     <div className="flex justify-between items-center mb-6">
                       <div className="flex items-center gap-3">
                         <div
@@ -696,15 +795,15 @@ const AddDesign = () => {
                         />
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold">{color.name}</h3>
+                            <h3 className="text-lg font-bold text-black">{color.name}</h3>
                             {isReady && (
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                                Ready to upload
+                              <span className="text-xs bg-black text-white px-2 py-0.5 rounded">
+                                Ready
                               </span>
                             )}
                           </div>
                           <p className="text-sm text-gray-600">
-                            Color ID: {color.id} • Hex: {color.hex_code || 'N/A'}
+                            Required for {selectedDesigns.length} design{selectedDesigns.length !== 1 ? 's' : ''}
                           </p>
                         </div>
                       </div>
@@ -718,7 +817,7 @@ const AddDesign = () => {
                         </button>
                         <button
                           onClick={() => clearColorImages(colorId)}
-                          className="text-sm text-red-600 hover:text-red-800 flex items-center gap-1"
+                          className="text-sm text-gray-600 hover:text-black flex items-center gap-1"
                         >
                           <Trash2 size={14} />
                           Clear All
@@ -728,20 +827,17 @@ const AddDesign = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* FRONT IMAGE SECTION */}
-                      <div className="border rounded-lg p-4">
+                      <div className="border border-gray-300 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-bold flex items-center gap-2">
+                          <h4 className="font-bold text-black flex items-center gap-2">
                             <Camera size={16} />
                             Front Image
                           </h4>
-                          <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-                            front_image_{color.id}
-                          </span>
                         </div>
                         
                         {colorData.front_image ? (
                           <div className="space-y-3">
-                            <div className="relative w-full h-48 border rounded overflow-hidden">
+                            <div className="relative w-full h-48 border border-gray-300 rounded overflow-hidden">
                               {colorData.front_image.existing ? (
                                 <Image
                                   src={colorData.front_image.url}
@@ -761,13 +857,13 @@ const AddDesign = () => {
                               )}
                               <button
                                 onClick={() => removeFrontImage(color.id)}
-                                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                                className="absolute top-2 right-2 bg-black text-white p-1 rounded-full hover:bg-gray-800"
                               >
                                 <Trash2 size={16} />
                               </button>
                             </div>
                             <div className="text-center">
-                              <p className="text-sm font-medium truncate">
+                              <p className="text-sm font-medium text-black truncate">
                                 {colorData.front_image.name}
                               </p>
                               {!colorData.front_image.existing && (
@@ -778,10 +874,10 @@ const AddDesign = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-red-50">
-                            <Camera className="mx-auto h-8 w-8 text-red-400 mb-2" />
-                            <p className="text-red-600 font-medium mb-2">Required: Front Image</p>
-                            <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-3 py-1.5 text-sm rounded hover:bg-gray-800 transition">
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                            <Camera className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                            <p className="text-gray-700 font-medium mb-2">Front Image Required</p>
+                            <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 text-sm rounded hover:bg-gray-800 transition">
                               <Upload size={14} />
                               Upload Front Image
                               <input
@@ -799,34 +895,37 @@ const AddDesign = () => {
                         )}
                       </div>
 
-                      {/* BACK IMAGES SECTION */}
-                      <div className="border rounded-lg p-4">
+                      {/* BACK IMAGES SECTION - ONLY FOR SELECTED DESIGNS */}
+                      <div className="border border-gray-300 rounded-lg p-4">
                         <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-bold flex items-center gap-2">
+                          <h4 className="font-bold text-black flex items-center gap-2">
                             <ImageIcon size={16} />
                             Back Images by Design
                           </h4>
-                          <span className="text-xs text-gray-500">
-                            {designs.length} designs required
+                          <span className="text-xs text-gray-600">
+                            {selectedDesigns.length} design{selectedDesigns.length !== 1 ? 's' : ''} selected
                           </span>
                         </div>
                         
                         <div className="space-y-4">
-                          {designs.map((design) => {
-                            const backImages = colorData.back_images?.[design.id] || [];
+                          {selectedDesigns.map((designId) => {
+                            const design = getDesignById(designId);
+                            if (!design) return null;
+                            
+                            const backImages = colorData.back_images?.[designId] || [];
                             const totalImages = backImages.length;
                             const hasImages = totalImages > 0;
                             
                             return (
-                              <div key={design.id} className={`border rounded p-3 ${hasImages ? 'bg-green-50' : 'bg-red-50'}`}>
+                              <div key={designId} className={`border rounded p-3 ${hasImages ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-300'}`}>
                                 <div className="flex justify-between items-center mb-2">
                                   <div>
-                                    <p className={`font-medium ${hasImages ? 'text-green-800' : 'text-red-800'}`}>
-                                      {design.name} (ID: {design.id})
+                                    <p className={`font-medium ${hasImages ? 'text-black' : 'text-gray-700'}`}>
+                                      {design.name}
                                     </p>
                                   </div>
                                   <div className="flex flex-col items-end gap-1">
-                                    <span className={`text-xs px-2 py-1 rounded ${hasImages ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    <span className={`text-xs px-2 py-1 rounded ${hasImages ? 'bg-gray-200 text-black' : 'bg-gray-100 text-gray-700'}`}>
                                       {hasImages ? `${totalImages} image${totalImages !== 1 ? 's' : ''}` : 'Required'}
                                     </span>
                                   </div>
@@ -837,7 +936,7 @@ const AddDesign = () => {
                                   <div className="space-y-3">
                                     <div className="grid grid-cols-2 gap-2">
                                       {backImages.map((image, index) => (
-                                        <div key={index} className={`border rounded p-2 bg-white ${index === 0 ? 'ring-1 ring-green-300' : ''}`}>
+                                        <div key={index} className={`border border-gray-300 rounded p-2 bg-white ${index === 0 ? 'ring-1 ring-gray-400' : ''}`}>
                                           <div className="relative w-full h-24 mb-1">
                                             {image.existing ? (
                                               <Image
@@ -858,27 +957,27 @@ const AddDesign = () => {
                                             )}
                                             <button
                                               onClick={() => removeBackImage(color.id, design.id, index)}
-                                              className="absolute top-1 right-1 bg-red-500 text-white p-0.5 rounded-full hover:bg-red-600"
+                                              className="absolute top-1 right-1 bg-black text-white p-0.5 rounded-full hover:bg-gray-800"
                                             >
                                               <Trash2 size={12} />
                                             </button>
                                           </div>
-                                          <p className="text-xs truncate">{image.name}</p>
+                                          <p className="text-xs text-black truncate">{image.name}</p>
                                           {!image.existing && (
                                             <p className="text-xs text-gray-500">
                                               {(image.size / 1024 / 1024).toFixed(2)} MB
                                             </p>
                                           )}
                                           {index === 0 && (
-                                            <p className="text-xs text-green-600 mt-1">✓ Will be uploaded</p>
+                                            <p className="text-xs text-gray-600 mt-1">Main image</p>
                                           )}
                                         </div>
                                       ))}
                                     </div>
                                     
                                     {/* Add more images button */}
-                                    <label className="block text-center py-2 border border-gray-300 rounded cursor-pointer hover:border-gray-400 hover:bg-gray-50">
-                                      <div className="flex items-center justify-center gap-1 text-sm text-gray-600">
+                                    <label className="block text-center py-2 border border-gray-300 rounded cursor-pointer hover:border-black hover:bg-gray-50">
+                                      <div className="flex items-center justify-center gap-1 text-sm text-gray-700">
                                         <Plus size={14} />
                                         Add More Images
                                         <input
@@ -896,8 +995,8 @@ const AddDesign = () => {
                                     </label>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-4 border-2 border-dashed border-red-300 rounded">
-                                    <label className="inline-flex items-center gap-1 cursor-pointer text-sm text-red-600 hover:text-red-800">
+                                  <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded">
+                                    <label className="inline-flex items-center gap-1 cursor-pointer text-sm text-black hover:text-gray-800">
                                       <Upload size={12} />
                                       Upload back images
                                       <input
@@ -912,9 +1011,6 @@ const AddDesign = () => {
                                         className="hidden"
                                       />
                                     </label>
-                                    <p className="text-xs text-red-500 mt-1">
-                                      At least one image required
-                                    </p>
                                   </div>
                                 )}
                               </div>
@@ -929,30 +1025,46 @@ const AddDesign = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white p-6 rounded-md shadow-sm text-center py-12">
-            <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-            <h3 className="text-lg font-bold mb-2">No Colors Selected</h3>
-            <p className="text-gray-600 mb-4">Select colors from the color selection panel above to start uploading images.</p>
+          <div className="bg-white p-6 rounded-md shadow-sm text-center py-12 border border-gray-200">
+            {selectedColors.length === 0 && selectedDesigns.length === 0 ? (
+              <>
+                <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <h3 className="text-lg font-bold mb-2 text-black">No Colors or Designs Selected</h3>
+                <p className="text-gray-600 mb-4">Select colors and designs to start uploading images.</p>
+              </>
+            ) : selectedColors.length === 0 ? (
+              <>
+                <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <h3 className="text-lg font-bold mb-2 text-black">No Colors Selected</h3>
+                <p className="text-gray-600 mb-4">Select colors to start uploading images.</p>
+              </>
+            ) : (
+              <>
+                <Layout className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <h3 className="text-lg font-bold mb-2 text-black">No Designs Selected</h3>
+                <p className="text-gray-600 mb-4">Select designs to start uploading images.</p>
+              </>
+            )}
           </div>
         )}
 
         {/* ACTION BUTTONS */}
-        {selectedColors.length > 0 && (
-          <div className="bg-white p-6 rounded-md shadow-sm">
+        {selectedColors.length > 0 && selectedDesigns.length > 0 && (
+          <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-bold mb-1">Ready to Upload</h3>
+                <h3 className="font-bold mb-1 text-black">Ready to Upload</h3>
                 <p className="text-sm text-gray-600">
-                  Upload all design images to the server for {selectedColors.length} selected color{selectedColors.length !== 1 ? 's' : ''}
+                  {selectedColors.filter(id => isColorReadyForUpload(id)).length} of {selectedColors.length} colors ready
                 </p>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-gray-600">Ready colors: {selectedColors.filter(id => isColorReadyForUpload(id)).length}</span>
+                    <div className="w-3 h-3 rounded-full bg-black"></div>
+                    <span className="text-xs text-gray-600">Ready: {selectedColors.filter(id => isColorReadyForUpload(id)).length}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <span className="text-xs text-gray-600">Incomplete colors: {selectedColors.filter(id => !isColorReadyForUpload(id)).length}</span>
+                    <div className="w-3 h-3 rounded-full bg-gray-400"></div>
+                    <span className="text-xs text-gray-600">Incomplete: {selectedColors.filter(id => !isColorReadyForUpload(id)).length}</span>
                   </div>
                 </div>
               </div>
@@ -960,7 +1072,7 @@ const AddDesign = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => router.push("/dashboard/product-list")}
-                  className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-black"
                 >
                   Cancel
                 </button>
@@ -970,7 +1082,7 @@ const AddDesign = () => {
                   disabled={uploading || selectedColors.filter(id => isColorReadyForUpload(id)).length === 0}
                   className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${
                     uploading || selectedColors.filter(id => isColorReadyForUpload(id)).length === 0
-                      ? "bg-gray-400 cursor-not-allowed"
+                      ? "bg-gray-400 cursor-not-allowed text-gray-600"
                       : "bg-black text-white hover:bg-gray-800"
                   }`}
                 >

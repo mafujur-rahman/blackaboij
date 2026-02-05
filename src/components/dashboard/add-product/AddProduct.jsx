@@ -316,12 +316,9 @@ const AddProduct = () => {
   if (form.isDesign && form.designNames.length > 0) {
     console.log("Adding design names to FormData:", form.designNames);
 
-    form.designNames.forEach((name, index) => {
-      // Send only the design name
-      if (name && name.trim() !== "") {
-        formData.append("design_names", name);
-      }
-    });
+    form.designNames.forEach((name) => {
+  formData.append("design_names[]", name);
+});
   }
 
   // Debug: Log FormData
