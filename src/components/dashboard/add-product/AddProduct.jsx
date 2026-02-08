@@ -281,58 +281,76 @@ const AddProduct = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  const createFormData = () => {
-  const formData = new FormData();
+  // Create JSON payload for design products
+  const createJsonPayload = () => {
+    const payload = {
+      name: form.name,
+      description: form.description || "",
+      category_id: Number(form.subCategoryId),
+      unit_price: Number(form.price),
+      quantity: Number(form.qty),
+      meta_title: form.metaTitle || form.name,
+      meta_description: form.metaDescription || form.description,
+      hot_sale: form.hotSale,
+      is_design: form.isDesign,
+      size_ids: form.sizes.map(id => Number(id)),
+    };
 
-  formData.append("name", form.name);
-  formData.append("category_id", Number(form.subCategoryId));
-  formData.append("unit_price", Number(form.price));
-  formData.append("quantity", Number(form.qty));
-  formData.append("description", form.description || "");
-  formData.append("meta_title", form.metaTitle || form.name);
-  formData.append("meta_description", form.metaDescription || form.description);
-
-  // FIX: Convert boolean to Django-style string
-  formData.append("hot_sale", form.hotSale ? "True" : "False");
-  formData.append("is_design", form.isDesign ? "True" : "False");
-
-  form.sizes.forEach((id) => formData.append("size_ids", id));
-  form.colors.forEach((id) => formData.append("color_ids", id));
-
-  // Add regular images (only if not in design mode)
-  if (!form.isDesign && form.images.length > 0) {
-    form.images.forEach((img, index) => {
-      if (img.file) {
-        formData.append("images", img.file);
-        formData.append(
-          "is_thumbnail",
-          index === form.thumbnailIndex ? True : False 
-        );
-      }
-    });
-  }
-
-  // Add design names if isDesign is true
-  if (form.isDesign && form.designNames.length > 0) {
-    console.log("Adding design names to FormData:", form.designNames);
-
-    form.designNames.forEach((name) => {
-  formData.append("design_names[]", name);
-});
-  }
-
-  // Debug: Log FormData
-  console.log("=== FORMDATA CONTENTS ===");
-  for (let [key, value] of formData.entries()) {
-    if (value instanceof File) {
-      console.log(key, value.name, value.type, value.size);
-    } else {
-      console.log(key, value);
+    // Only add colors for non-design products
+    if (!form.isDesign && form.colors.length > 0) {
+      payload.color_ids = form.colors.map(id => Number(id));
     }
-  }
 
-  return formData;
-};
+    // Add design names for design products
+    if (form.isDesign && form.designNames.length > 0) {
+      payload.design_names = form.designNames
+        .filter(name => name && name.trim() !== "")
+        .map(name => name.trim());
+    }
+
+    console.log("JSON Payload:", payload);
+    return payload;
+  };
+
+  // Create FormData payload for regular products with images
+  const createFormDataPayload = () => {
+    const formData = new FormData();
+
+    formData.append("name", form.name);
+    formData.append("description", form.description || "");
+    formData.append("category_id", Number(form.subCategoryId));
+    formData.append("unit_price", Number(form.price));
+    formData.append("quantity", Number(form.qty));
+    formData.append("meta_title", form.metaTitle || form.name);
+    formData.append("meta_description", form.metaDescription || form.description);
+    formData.append("hot_sale", form.hotSale ? "True" : "False");
+    formData.append("is_design", form.isDesign ? "True" : "False");
+
+    form.sizes.forEach((id) => {
+      formData.append("size_ids", id.toString());
+    });
+    
+    if (!form.isDesign && form.colors.length > 0) {
+      form.colors.forEach((id) => {
+        formData.append("color_ids", id.toString());
+      });
+    }
+
+    // Add images for regular products
+    if (!form.isDesign && form.images.length > 0) {
+      form.images.forEach((img, index) => {
+        if (img.file) {
+          formData.append("images", img.file);
+          formData.append(
+            "is_thumbnail",
+            (index === form.thumbnailIndex) ? "True" : "False"
+          );
+        }
+      });
+    }
+
+    return formData;
+  };
 
   // Validate form
   const validateForm = () => {
@@ -350,7 +368,7 @@ const AddProduct = () => {
 
     // Regular images are required only if not in design mode
     if (!form.isDesign && form.images.length === 0) {
-      Swal.fire("Warning", "Please upload at least one image", "warning");
+      Swal.fire("Warning", "Please upload at least one image for regular products", "warning");
       return false;
     }
 
@@ -397,7 +415,20 @@ const AddProduct = () => {
     setLoading(true);
 
     try {
-      const formData = createFormData();
+      let payload;
+      let headers = {};
+      let endpoint = "/api/product/create-product/";
+
+      // DECISION: Use JSON for design products, FormData for regular products
+      if (form.isDesign) {
+        // Design product - send as JSON
+        payload = createJsonPayload();
+        headers['Content-Type'] = 'application/json';
+      } else {
+        // Regular product with images - send as FormData
+        payload = createFormDataPayload();
+        // Don't set Content-Type header for FormData - browser will set it with boundary
+      }
 
       Swal.fire({
         title: "Adding Product...",
@@ -409,18 +440,17 @@ const AddProduct = () => {
       });
 
       console.log("=== SENDING PRODUCT ===");
-      console.log("Form isDesign:", form.isDesign);
-      console.log("Design names:", form.designNames);
+      console.log("Is Design:", form.isDesign);
+      console.log("Using:", form.isDesign ? "JSON" : "FormData");
 
-      const response = await api.post(
-        "/api/product/create-product/",
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          }
-        }
-      );
+      let response;
+      if (form.isDesign) {
+        // Send JSON for design products
+        response = await api.post(endpoint, payload, { headers });
+      } else {
+        // Send FormData for regular products
+        response = await api.post(endpoint, payload);
+      }
 
       console.log("Product creation response:", response);
 
@@ -1031,7 +1061,7 @@ const AddProduct = () => {
               onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
               rows={3}
               className="w-full border border-black/20 rounded px-3 py-2"
-              placeholder="SEO description for search engines"
+              placeholder="SEO description for search engineers"
             />
           </div>
         </div>
