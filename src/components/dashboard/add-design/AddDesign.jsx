@@ -26,11 +26,13 @@ import DesignSelector from "./DesignSelector";
 import DesignImageUploader from "./DesignImageUploader";
 import ExistingDataPreview from "./ExistingDataPreview";
 
+// Import child components
+
+
 const AddDesign = () => {
   const { id } = useParams();
   const router = useRouter();
 
-  // ============== STATE MANAGEMENT ==============
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [product, setProduct] = useState(null);
@@ -56,7 +58,6 @@ const AddDesign = () => {
   // Track if preview is expanded
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(true);
 
-  // ============== INITIAL DATA FETCH ==============
   useEffect(() => {
     fetchAllData();
   }, [id]);
@@ -86,7 +87,7 @@ const AddDesign = () => {
       }
 
       setProduct(foundProduct);
-      setExistingProductData(foundProduct);
+      setExistingProductData(foundProduct); // Store for preview
 
       const productDesigns = foundProduct.designs || [];
       setAllDesigns(productDesigns);
@@ -104,7 +105,7 @@ const AddDesign = () => {
         if (productColorIds.includes(color.id)) {
           initialImages[color.id] = {
             front_image: null,
-            back_images: {},
+            back_images: {}, // Will store SINGLE image per design
           };
         }
       });
@@ -141,6 +142,7 @@ const AddDesign = () => {
           productColor.back_designs.forEach((backDesign) => {
             const designId = backDesign.design;
 
+            // Only store the first image for each design
             if (!updatedImages[colorId].back_images[designId]) {
               updatedImages[colorId].back_images[designId] = {
                 existing: true,
@@ -166,15 +168,7 @@ const AddDesign = () => {
     }
   };
 
-  // ============== HELPER FUNCTIONS ==============
-  const getColorById = (colorId) => {
-    return allColors.find((color) => color.id === parseInt(colorId));
-  };
-
-  const getDesignById = (designId) => {
-    return allDesigns.find((design) => design.id === parseInt(designId));
-  };
-
+  // Check if color already has designs in the API
   const colorHasExistingDesigns = (colorId) => {
     if (!existingProductData?.product_colors) return false;
 
@@ -185,33 +179,9 @@ const AddDesign = () => {
     return productColor && productColor.back_designs && productColor.back_designs.length > 0;
   };
 
-  const isColorReadyForUpload = (colorId) => {
-    const colorData = designImages[colorId];
-    if (!colorData) return false;
-    if (!colorData.front_image) return false;
-
-    const missingDesigns = selectedDesigns.filter((designId) => {
-      const backImage = colorData?.back_images?.[designId];
-      return !backImage;
-    });
-
-    return missingDesigns.length === 0;
-  };
-
-  const hasExistingImages = (colorId) => {
-    const colorData = designImages[colorId];
-    if (!colorData) return false;
-    if (colorData.front_image?.existing) return true;
-    return Object.values(colorData.back_images || {}).some((img) => img?.existing);
-  };
-
-  // ============== GET AUTH TOKEN ==============
-  const getAuthToken = () => {
-    return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-  };
-
-  // ============== COLOR SELECTION ==============
+  // Toggle color selection with duplicate check
   const toggleColorSelection = (colorId) => {
+    // Check if trying to add a color that already has designs
     if (!selectedColors.includes(colorId) && colorHasExistingDesigns(colorId)) {
       Swal.fire({
         title: "Color Already Has Designs!",
@@ -233,6 +203,7 @@ const AddDesign = () => {
         cancelButtonText: "View Existing",
       }).then((result) => {
         if (result.isDismissed) {
+          // Scroll to preview
           document.getElementById("existing-data-preview")?.scrollIntoView({
             behavior: "smooth"
           });
@@ -241,6 +212,7 @@ const AddDesign = () => {
       return;
     }
 
+    // Normal toggle behavior
     setSelectedColors((prev) => {
       if (prev.includes(colorId)) {
         setDesignImages((prevImages) => {
@@ -250,6 +222,7 @@ const AddDesign = () => {
               URL.revokeObjectURL(updated[colorId].front_image.preview);
             }
 
+            // Revoke back image previews
             Object.values(updated[colorId]?.back_images || {}).forEach((img) => {
               if (img?.preview) {
                 URL.revokeObjectURL(img.preview);
@@ -274,7 +247,7 @@ const AddDesign = () => {
     });
   };
 
-  // ============== DESIGN SELECTION ==============
+  // Toggle design selection
   const toggleDesignSelection = (designId) => {
     setSelectedDesigns((prev) => {
       if (prev.includes(designId)) {
@@ -299,11 +272,13 @@ const AddDesign = () => {
     });
   };
 
+  // Select all designs
   const selectAllDesigns = () => {
     const allDesignIds = allDesigns.map((d) => d.id);
     setSelectedDesigns(allDesignIds);
   };
 
+  // Deselect all designs
   const deselectAllDesigns = () => {
     setDesignImages((prevImages) => {
       const updated = { ...prevImages };
@@ -321,9 +296,12 @@ const AddDesign = () => {
     setSelectedDesigns([]);
   };
 
-  // ============== IMAGE UPLOAD HANDLERS ==============
+  // Handle front image upload
   const handleFrontImageUpload = (colorId, file) => {
-    // No size limit - handle large files
+    if (file.size > 10 * 1024 * 1024) {
+      Swal.fire("Error", "Image exceeds 10MB limit", "error");
+      return;
+    }
 
     const existingFrontImage = designImages[colorId]?.front_image;
     if (existingFrontImage?.preview && !existingFrontImage.existing) {
@@ -344,14 +322,19 @@ const AddDesign = () => {
     }));
   };
 
+  // Handle back image upload for a specific design (SINGLE image)
   const handleBackImageUpload = (colorId, designId, file) => {
     if (!selectedDesigns.includes(parseInt(designId))) {
       Swal.fire("Error", "This design is not selected", "error");
       return;
     }
 
-    // No size limit - handle large files
+    if (file.size > 10 * 1024 * 1024) {
+      Swal.fire("Error", "Image exceeds 10MB limit", "error");
+      return;
+    }
 
+    // Check if this color already has this design in the API
     const hasExistingDesign = existingProductData?.product_colors?.some(
       (pc) => pc.color === parseInt(colorId) &&
         pc.back_designs?.some(bd => bd.design === parseInt(designId))
@@ -368,6 +351,7 @@ const AddDesign = () => {
       return;
     }
 
+    // Check if there's an existing image and revoke its preview
     const existingImage = designImages[colorId]?.back_images?.[designId];
     if (existingImage?.preview && !existingImage.existing) {
       URL.revokeObjectURL(existingImage.preview);
@@ -390,7 +374,7 @@ const AddDesign = () => {
     }));
   };
 
-  // ============== IMAGE REMOVAL HANDLERS ==============
+  // Remove front image
   const removeFrontImage = (colorId) => {
     Swal.fire({
       title: "Remove Front Image?",
@@ -418,6 +402,7 @@ const AddDesign = () => {
     });
   };
 
+  // Remove back image
   const removeBackImage = (colorId, designId) => {
     Swal.fire({
       title: "Remove Back Image?",
@@ -448,6 +433,7 @@ const AddDesign = () => {
     });
   };
 
+  // Clear all images for a color
   const clearColorImages = (colorId) => {
     Swal.fire({
       title: "Clear all images?",
@@ -484,264 +470,289 @@ const AddDesign = () => {
     });
   };
 
-  // ============== API RESPONSE HANDLER ==============
+  // ============== HELPER FUNCTION FOR API RESPONSES ==============
+
+  // Helper function to handle API responses
   const handleApiResponse = async (response) => {
+    // Check if response is ok
     if (!response.ok) {
+      // Try to get the response text
       const text = await response.text();
       console.error('API Error Response:', text);
-
+      
+      // Check if it's HTML (server error page)
       if (text.trim().startsWith('<!DOCTYPE')) {
+        // Try to extract the error message from HTML
         const errorMatch = text.match(/<title>([^<]+)<\/title>/);
         const errorTitle = errorMatch ? errorMatch[1] : 'Unknown error';
         throw new Error(`Server error (${response.status}): ${errorTitle}`);
       }
-
+      
+      // Try to parse as JSON
       try {
         const errorData = JSON.parse(text);
         throw new Error(errorData.message || errorData.error || errorData.detail || `Server error: ${response.status}`);
       } catch (e) {
         if (e instanceof SyntaxError) {
+          // If it's not JSON, show the first 500 characters of HTML
           throw new Error(`Server error (${response.status}): ${text.substring(0, 500)}`);
         }
         throw e;
       }
     }
-
+    
+    // Parse JSON response
     const data = await response.json();
     return data;
   };
 
   // ============== UPDATE FUNCTIONS ==============
 
-
+  // Update function for front image
   const handleUpdateFrontImage = async (colorId, file) => {
     try {
-      if (!file) return;
-
-      console.log("Updating front image:", { colorId, fileName: file.name });
-
-      const formData = new FormData();
-      // EXACT format from your API doc: front_image_1 (where 1 is color_id)
-      formData.append(`front_image_${colorId}`, file);
-
-      const token = getAuthToken();
-
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      
       if (!token) {
         Swal.fire('Error', 'Authentication token not found', 'error');
         return;
       }
-
+      
+      const productIdToUse = product?.id || id;
+      
+      // Ensure product ID is valid
+      const parsedProductId = parseInt(productIdToUse);
+      const parsedColorId = parseInt(colorId);
+      
+      if (isNaN(parsedProductId)) {
+        Swal.fire('Error', 'Invalid product ID', 'error');
+        return;
+      }
+      
+      console.log('Updating front image for:', { productId: parsedProductId, colorId: parsedColorId });
+      
+      // Create FormData with all required product fields
+      const formData = new FormData();
+      
+      // Add basic product info
+      formData.append("name", product.name);
+      formData.append("category_id", product.category.id);
+      formData.append("description", product.description || "");
+      formData.append("unit_price", product.unit_price);
+      formData.append("quantity", product.quantity);
+      
+      // Add size_ids
+      if (product.sizes && product.sizes.length > 0) {
+        product.sizes.forEach(size => {
+          formData.append("size_ids", size.id);
+        });
+      }
+      
+      // Add color_ids (include all selected colors)
+      if (selectedColors.length > 0) {
+        selectedColors.forEach(cId => {
+          formData.append("color_ids", cId);
+        });
+      }
+      
+      // Add meta fields
+      formData.append("meta_title", product.meta_title || "");
+      formData.append("meta_description", product.meta_description || "");
+      
+      // Add the front image
+      formData.append("front_image_1", file);
+      
       Swal.fire({
         title: "Updating...",
-        text: "Please wait",
+        text: "Please wait while we update the front image",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
 
-      // Use the EXACT endpoint and method from your API doc
-      const response = await fetch(
-        `https://api.blackaboij.com/api/product/update-product/${id}/`,
-        {
-          method: "PUT",
-          headers: {
-            'Authorization': `Token ${token}`,
-            // DO NOT set Content-Type header - let browser set it with boundary
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`https://api.blackaboij.com/api/product/update-product/${parsedProductId}/`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData
+      });
 
-      const data = await response.json();
-      console.log("Update response:", data);
-
+      const data = await handleApiResponse(response);
+      
       Swal.close();
-
+      
       if (data.success) {
         Swal.fire({
           title: 'Success!',
           text: 'Front image updated successfully',
           icon: 'success',
           confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
         });
-
-        // Force a fresh fetch
         await fetchAllData();
       } else {
-        throw new Error(data.message || 'Update failed');
+        Swal.fire({
+          title: 'Error!',
+          text: data.message || 'Failed to update front image',
+          icon: 'error',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
       }
-
     } catch (error) {
-      console.error("Update Error:", error);
+      console.error('Update error:', error);
       Swal.close();
       Swal.fire({
         title: 'Error!',
-        text: error.message,
+        text: error.message || 'Failed to update front image',
         icon: 'error',
         confirmButtonColor: "#000000",
+        confirmButtonText: 'OK'
       });
     }
   };
 
-  /**
-   * UPDATE BACK IMAGE HELPER - FIXED VERSION
-   */
-  const handleUpdateBackImage = async (colorId, designId, file) => {
+  // Update function for back design image using api instance
+  const handleUpdateBackImageWithApi = async (colorId, designId, file) => {
     try {
-      if (!file) return;
-
-      console.log("Updating back image:", { colorId, designId, fileName: file.name });
-
-      const formData = new FormData();
-      // EXACT format from your API doc: back_image_1_17 (where 1 is color_id, 17 is design_id)
-      formData.append(`back_image_${colorId}_${designId}`, file);
-
-      const token = getAuthToken();
-
-      if (!token) {
-        Swal.fire('Error', 'Authentication token not found', 'error');
+      const productIdToUse = product?.id || id;
+      
+      const parsedProductId = parseInt(productIdToUse);
+      const parsedColorId = parseInt(colorId);
+      const parsedDesignId = parseInt(designId);
+      
+      if (isNaN(parsedProductId) || isNaN(parsedColorId) || isNaN(parsedDesignId)) {
+        Swal.fire('Error', 'Invalid product ID, color ID, or design ID', 'error');
         return;
       }
-
+      
+      console.log('Updating back image with API instance:', { 
+        productId: parsedProductId, 
+        colorId: parsedColorId, 
+        designId: parsedDesignId 
+      });
+      
+      const formData = new FormData();
+      
+      // Add all required fields
+      formData.append("name", product.name);
+      formData.append("category_id", product.category.id);
+      formData.append("description", product.description || "");
+      formData.append("unit_price", product.unit_price);
+      formData.append("quantity", product.quantity);
+      
+      if (product.sizes && product.sizes.length > 0) {
+        product.sizes.forEach(size => {
+          formData.append("size_ids", size.id);
+        });
+      }
+      
+      if (selectedColors.length > 0) {
+        selectedColors.forEach(cId => {
+          formData.append("color_ids", cId);
+        });
+      }
+      
+      formData.append("meta_title", product.meta_title || "");
+      formData.append("meta_description", product.meta_description || "");
+      
+      const fieldName = `back_image_${parsedColorId}_${parsedDesignId}`;
+      console.log('Using field name:', fieldName);
+      formData.append(fieldName, file);
+      
       Swal.fire({
         title: "Updating...",
-        text: "Please wait",
+        text: "Please wait while we update the back design image",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => Swal.showLoading(),
       });
 
-      // Log exactly what we're sending
-      console.log("Sending to:", `https://api.blackaboij.com/api/product/update-product/${id}/`);
-      console.log("FormData keys:");
-      for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
+      console.log('Sending PUT request to:', `https://api.blackaboij.com/api/product/update-product/${parsedProductId}/`);
+      
+      const response = await api.put(`/api/product/update-product/${parsedProductId}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-      const response = await fetch(
-        `https://api.blackaboij.com/api/product/update-product/${id}/`,
-        {
-          method: "PUT",
-          headers: {
-            'Authorization': `Token ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-      console.log("Update response:", data);
-
+      console.log('API Response:', response.data);
+      
       Swal.close();
-
-      if (data.success) {
+      
+      if (response.data.success) {
         Swal.fire({
           title: 'Success!',
-          text: 'Back image updated successfully',
+          text: 'Back design image updated successfully',
           icon: 'success',
           confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
         });
-
-        // Force a fresh fetch
         await fetchAllData();
       } else {
-        throw new Error(data.message || 'Update failed');
+        Swal.fire({
+          title: 'Error!',
+          text: response.data.message || 'Failed to update back design image',
+          icon: 'error',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
       }
-
     } catch (error) {
-      console.error("Update Error:", error);
+      console.error('Update error:', error);
       Swal.close();
+      
+      let errorMessage = 'Failed to update back design image';
+      if (error.response?.data) {
+        console.error('Error response data:', error.response.data);
+        errorMessage = error.response.data.message || 
+                      error.response.data.error || 
+                      JSON.stringify(error.response.data);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       Swal.fire({
         title: 'Error!',
-        text: error.message,
+        text: errorMessage,
         icon: 'error',
         confirmButtonColor: "#000000",
+        confirmButtonText: 'OK'
       });
     }
   };
 
-
-
-
-
-
-  /**
-   * MAIN UPDATE FUNCTION
-   * - For front image: sends colorId only
-   * - For back image: sends colorId AND designId
-   * Product ID is taken from URL, not sent in body
-   */
-  const updateDesignImage = async (colorId, designId, imageData, imageType = "back") => {
-    console.log('updateDesignImage called with:', {
-      colorId,
-      designId,
-      imageType,
-      hasFile: !!imageData?.file,
-      fileName: imageData?.file?.name
-    });
-
-    const parsedColorId = parseInt(colorId);
-    const parsedDesignId = designId ? parseInt(designId) : null;
-
-    if (isNaN(parsedColorId)) {
-      console.error('Invalid colorId:', colorId);
-      Swal.fire('Error', 'Invalid color ID', 'error');
-      return;
-    }
-
-    if (imageType === "back" && (parsedDesignId === null || isNaN(parsedDesignId))) {
-      console.error('Invalid designId for back image:', designId);
-      Swal.fire('Error', 'Invalid design ID', 'error');
-      return;
-    }
-
-    if (!imageData?.file) {
-      console.error('No file in imageData:', imageData);
-      Swal.fire('Error', 'No image file provided', 'error');
-      return;
-    }
-
-    if (imageType === "front") {
-      // Front image update - only colorId needed
-      await handleUpdateFrontImage(parsedColorId, imageData.file);
-    } else {
-      // Back image update - both colorId and designId needed
-      await handleUpdateBackImage(parsedColorId, parsedDesignId, imageData.file);
-    }
-  };
-
   // ============== DELETE FUNCTIONS ==============
-  /**
-   * DELETE FRONT IMAGE
-   * Required: colorId only
-   * No product ID needed - uses URL parameter
-   */
+
+  // Delete function for front image
   const handleDeleteFrontImage = async (colorId) => {
     try {
-      const token = getAuthToken();
-
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      
       if (!token) {
         Swal.fire('Error', 'Authentication token not found', 'error');
         return;
       }
-
+      
       const productIdToUse = product?.id || id;
+      
       const parsedProductId = parseInt(productIdToUse);
       const parsedColorId = parseInt(colorId);
-
+      
       if (isNaN(parsedProductId) || isNaN(parsedColorId)) {
         Swal.fire('Error', 'Invalid product ID or color ID', 'error');
         return;
       }
-
-      // NO PRODUCT ID IN BODY - using URL parameter
+      
       const deleteData = {
+        product_id: parsedProductId,
         color_id: parsedColorId,
         image_type: "front"
       };
-
+      
       console.log('Deleting front image with data:', deleteData);
-
+      
       Swal.fire({
         title: "Deleting...",
         text: "Please wait while we delete the front image",
@@ -750,8 +761,7 @@ const AddDesign = () => {
         didOpen: () => Swal.showLoading(),
       });
 
-      // Using URL parameter for product ID
-      const response = await fetch(`https://api.blackaboij.com/api/product/delete-product-image/${parsedProductId}/`, {
+      const response = await fetch('/api/product/delete-product-image/', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -761,9 +771,9 @@ const AddDesign = () => {
       });
 
       const data = await handleApiResponse(response);
-
+      
       Swal.close();
-
+      
       if (data.success) {
         Swal.fire({
           title: 'Deleted!',
@@ -795,39 +805,36 @@ const AddDesign = () => {
     }
   };
 
-  /**
-   * DELETE BACK DESIGN IMAGE
-   * Required: colorId AND designId
-   * No product ID needed - uses URL parameter
-   */
+  // Delete function for back design image
   const handleDeleteBackImage = async (colorId, designId) => {
     try {
-      const token = getAuthToken();
-
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      
       if (!token) {
         Swal.fire('Error', 'Authentication token not found', 'error');
         return;
       }
-
+      
       const productIdToUse = product?.id || id;
+      
       const parsedProductId = parseInt(productIdToUse);
       const parsedColorId = parseInt(colorId);
       const parsedDesignId = parseInt(designId);
-
+      
       if (isNaN(parsedProductId) || isNaN(parsedColorId) || isNaN(parsedDesignId)) {
         Swal.fire('Error', 'Invalid product ID, color ID, or design ID', 'error');
         return;
       }
-
-      // NO PRODUCT ID IN BODY - using URL parameter
+      
       const deleteData = {
+        product_id: parsedProductId,
         color_id: parsedColorId,
         design_id: parsedDesignId,
         image_type: "back"
       };
-
+      
       console.log('Deleting back image with data:', deleteData);
-
+      
       Swal.fire({
         title: "Deleting...",
         text: "Please wait while we delete the back design image",
@@ -836,8 +843,7 @@ const AddDesign = () => {
         didOpen: () => Swal.showLoading(),
       });
 
-      // Using URL parameter for product ID
-      const response = await fetch(`https://api.blackaboij.com/api/product/delete-product-image/${parsedProductId}/`, {
+      const response = await fetch('/api/product/delete-product-image/', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -847,9 +853,9 @@ const AddDesign = () => {
       });
 
       const data = await handleApiResponse(response);
-
+      
       Swal.close();
-
+      
       if (data.success) {
         Swal.fire({
           title: 'Deleted!',
@@ -881,40 +887,74 @@ const AddDesign = () => {
     }
   };
 
-  /**
-   * MAIN DELETE FUNCTION
-   * - For front image: sends colorId only
-   * - For back image: sends colorId AND designId
-   * Product ID is taken from URL, not sent in body
-   */
-  const deleteDesignImage = async (colorId, designId, imageType = "back") => {
-    console.log('deleteDesignImage called with:', { colorId, designId, imageType });
+  // ============== MAIN UPDATE/DELETE FUNCTIONS ==============
 
+  // Update existing design image
+  const updateDesignImage = async (colorId, designId, imageData, imageType = "back") => {
+    console.log('updateDesignImage called with:', { 
+      colorId, 
+      designId, 
+      imageType, 
+      hasFile: !!imageData?.file,
+      fileName: imageData?.file?.name
+    });
+    
     const parsedColorId = parseInt(colorId);
     const parsedDesignId = designId ? parseInt(designId) : null;
-
+    
     if (isNaN(parsedColorId)) {
       console.error('Invalid colorId:', colorId);
       Swal.fire('Error', 'Invalid color ID', 'error');
       return;
     }
-
+    
     if (imageType === "back" && (parsedDesignId === null || isNaN(parsedDesignId))) {
       console.error('Invalid designId for back image:', designId);
       Swal.fire('Error', 'Invalid design ID', 'error');
       return;
     }
-
+    
+    if (!imageData?.file) {
+      console.error('No file in imageData:', imageData);
+      Swal.fire('Error', 'No image file provided', 'error');
+      return;
+    }
+    
     if (imageType === "front") {
-      // Front image delete - only colorId needed
+      await handleUpdateFrontImage(parsedColorId, imageData.file);
+    } else {
+      // Use the API instance version for better error handling
+      await handleUpdateBackImageWithApi(parsedColorId, parsedDesignId, imageData.file);
+    }
+  };
+
+  // Delete design image
+  const deleteDesignImage = async (colorId, designId, imageType = "back") => {
+    console.log('deleteDesignImage called with:', { colorId, designId, imageType });
+    
+    const parsedColorId = parseInt(colorId);
+    const parsedDesignId = designId ? parseInt(designId) : null;
+    
+    if (isNaN(parsedColorId)) {
+      console.error('Invalid colorId:', colorId);
+      Swal.fire('Error', 'Invalid color ID', 'error');
+      return;
+    }
+    
+    if (imageType === "back" && (parsedDesignId === null || isNaN(parsedDesignId))) {
+      console.error('Invalid designId for back image:', designId);
+      Swal.fire('Error', 'Invalid design ID', 'error');
+      return;
+    }
+    
+    if (imageType === "front") {
       await handleDeleteFrontImage(parsedColorId);
     } else {
-      // Back image delete - both colorId and designId needed
       await handleDeleteBackImage(parsedColorId, parsedDesignId);
     }
   };
 
-  // ============== UPLOAD VALIDATION ==============
+  // Validate before upload
   const validateUpload = () => {
     if (selectedColors.length === 0) {
       Swal.fire("Warning", "Please select at least one color", "warning");
@@ -926,6 +966,7 @@ const AddDesign = () => {
       return false;
     }
 
+    // Check for colors that already have designs in the API
     const colorsWithExistingDesigns = selectedColors.filter(colorId =>
       colorHasExistingDesigns(colorId)
     );
@@ -998,23 +1039,16 @@ const AddDesign = () => {
     return true;
   };
 
-  // ============== BULK UPLOAD ==============
+  // Upload all design images
   const uploadAllImages = async () => {
     if (!validateUpload()) return;
 
     setUploading(true);
 
     try {
-      const token = getAuthToken();
-
-      if (!token) {
-        Swal.fire('Error', 'Authentication token not found', 'error');
-        return;
-      }
-
       const formData = new FormData();
 
-      // NO PRODUCT ID IN FORM DATA - using URL parameter
+      formData.append("product_id", id);
 
       const colorIdsWithImages = [];
       selectedColors.forEach((colorId) => {
@@ -1058,16 +1092,11 @@ const AddDesign = () => {
         didOpen: () => Swal.showLoading(),
       });
 
-      // Using URL parameter for product ID
-      const response = await fetch(`https://api.blackaboij.com/api/product/upload-design-images/${id}/`, {
-        method: 'POST',
+      const response = await api.post("/api/product/upload-design-images/", formData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
-        body: formData
       });
-
-      const data = await handleApiResponse(response);
 
       Swal.fire({
         title: "Success!",
@@ -1082,8 +1111,14 @@ const AddDesign = () => {
       console.error("Error uploading design images:", error);
 
       let errorMessage = "Failed to upload design images";
-      if (error.message) {
-        errorMessage = error.message;
+      if (error.response?.data) {
+        if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        }
       }
 
       Swal.fire({
@@ -1099,7 +1134,41 @@ const AddDesign = () => {
     }
   };
 
-  // ============== RENDERING ==============
+  // Get color by ID from allColors
+  const getColorById = (colorId) => {
+    return allColors.find((color) => color.id === parseInt(colorId));
+  };
+
+  // Get design by ID from allDesigns
+  const getDesignById = (designId) => {
+    return allDesigns.find((design) => design.id === parseInt(designId));
+  };
+
+  // Check if a color is ready for upload (has all required images for SELECTED designs)
+  const isColorReadyForUpload = (colorId) => {
+    const colorData = designImages[colorId];
+    if (!colorData) return false;
+
+    if (!colorData.front_image) return false;
+
+    const missingDesigns = selectedDesigns.filter((designId) => {
+      const backImage = colorData?.back_images?.[designId];
+      return !backImage;
+    });
+
+    return missingDesigns.length === 0;
+  };
+
+  // Check if a color has any existing images
+  const hasExistingImages = (colorId) => {
+    const colorData = designImages[colorId];
+    if (!colorData) return false;
+
+    if (colorData.front_image?.existing) return true;
+
+    return Object.values(colorData.back_images || {}).some((img) => img?.existing);
+  };
+
   if (loading) {
     return (
       <DashboardShell>
@@ -1271,10 +1340,11 @@ const AddDesign = () => {
                 <button
                   onClick={uploadAllImages}
                   disabled={uploading || selectedColors.filter((id) => isColorReadyForUpload(id)).length === 0}
-                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${uploading || selectedColors.filter((id) => isColorReadyForUpload(id)).length === 0
-                    ? "bg-gray-400 cursor-not-allowed text-gray-600"
-                    : "bg-black text-white hover:bg-gray-800"
-                    }`}
+                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${
+                    uploading || selectedColors.filter((id) => isColorReadyForUpload(id)).length === 0
+                      ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                      : "bg-black text-white hover:bg-gray-800"
+                  }`}
                 >
                   {uploading ? (
                     <>
@@ -1290,7 +1360,7 @@ const AddDesign = () => {
           </div>
         )}
 
-        {/* EXISTING DATA PREVIEW SECTION */}
+        {/* EXISTING DATA PREVIEW SECTION - SHOW AT BOTTOM */}
         <div id="existing-data-preview">
           <ExistingDataPreview
             productData={existingProductData}
