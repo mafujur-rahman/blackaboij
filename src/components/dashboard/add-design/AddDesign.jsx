@@ -8,42 +8,55 @@ import {
   Upload,
   Trash2,
   Palette,
-  Plus,
   Camera,
   Image as ImageIcon,
   CheckSquare,
   Square,
   Layout,
+  Eye,
+  AlertCircle,
 } from "lucide-react";
 import DashboardShell from "../DashboardShell";
 import Swal from "sweetalert2";
 import Image from "next/image";
 import api from "@/lib/axios";
 import { getImageUrl } from "@/components/utils/get-image-url";
+import ColorSelector from "./ColorSelector";
+import DesignSelector from "./DesignSelector";
+import DesignImageUploader from "./DesignImageUploader";
+import ExistingDataPreview from "./ExistingDataPreview";
 
 const AddDesign = () => {
-  const { id } = useParams(); 
+  const { id } = useParams();
   const router = useRouter();
 
+  // ============== STATE MANAGEMENT ==============
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [product, setProduct] = useState(null);
-  
+
   // Store ALL colors from the colors API
   const [allColors, setAllColors] = useState([]);
-  
+
   // Store ALL designs from the product
   const [allDesigns, setAllDesigns] = useState([]);
-  
+
   // Store SELECTED colors
   const [selectedColors, setSelectedColors] = useState([]);
-  
+
   // Store SELECTED designs
   const [selectedDesigns, setSelectedDesigns] = useState([]);
-  
-  // Store design images organized by color and design
+
+  // Store design images organized by color and design (SINGLE image per design)
   const [designImages, setDesignImages] = useState({});
 
+  // Store existing product data for preview
+  const [existingProductData, setExistingProductData] = useState(null);
+
+  // Track if preview is expanded
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(true);
+
+  // ============== INITIAL DATA FETCH ==============
   useEffect(() => {
     fetchAllData();
   }, [id]);
@@ -58,8 +71,8 @@ const AddDesign = () => {
 
       // Fetch product details
       const productRes = await api.get(`/api/products/get-all-products/`);
-      
-      const foundProduct = productRes.data.data.find(p => p.id === Number(id));
+
+      const foundProduct = productRes.data.data.find((p) => p.id === Number(id));
       if (!foundProduct) {
         Swal.fire("Error", "Product not found", "error");
         router.push("/dashboard/product-list");
@@ -73,23 +86,25 @@ const AddDesign = () => {
       }
 
       setProduct(foundProduct);
+      setExistingProductData(foundProduct);
+
       const productDesigns = foundProduct.designs || [];
       setAllDesigns(productDesigns);
-      
+
       // Initialize selected designs - select ALL by default
-      setSelectedDesigns(productDesigns.map(d => d.id));
+      setSelectedDesigns(productDesigns.map((d) => d.id));
 
       // Initialize selected colors from product colors if they exist
-      const productColorIds = foundProduct.colors?.map(c => c.id) || [];
+      const productColorIds = foundProduct.colors?.map((c) => c.id) || [];
       setSelectedColors(productColorIds);
 
       // Initialize designImages structure for selected colors and designs
       const initialImages = {};
-      allColorsData.forEach(color => {
+      allColorsData.forEach((color) => {
         if (productColorIds.includes(color.id)) {
           initialImages[color.id] = {
             front_image: null,
-            back_images: {}
+            back_images: {},
           };
         }
       });
@@ -98,17 +113,17 @@ const AddDesign = () => {
       // If product already has uploaded images, populate them
       if (foundProduct.product_colors) {
         const updatedImages = { ...initialImages };
-        
-        foundProduct.product_colors.forEach(productColor => {
+
+        foundProduct.product_colors.forEach((productColor) => {
           const colorId = productColor.color;
-          
+
           if (!updatedImages[colorId]) {
             updatedImages[colorId] = {
               front_image: null,
-              back_images: {}
+              back_images: {},
             };
           }
-          
+
           // Front image
           if (productColor.front_image?.image) {
             updatedImages[colorId] = {
@@ -116,32 +131,32 @@ const AddDesign = () => {
               front_image: {
                 existing: true,
                 url: getImageUrl(productColor.front_image.image),
-                name: productColor.front_image.image.split('/').pop()
-              }
+                name: productColor.front_image.image.split("/").pop(),
+                id: productColor.front_image.id,
+              },
             };
           }
-          
-          // Back images (multiple per design)
-          productColor.back_designs.forEach(backDesign => {
+
+          // Back images (ONE per design)
+          productColor.back_designs.forEach((backDesign) => {
             const designId = backDesign.design;
-            
+
             if (!updatedImages[colorId].back_images[designId]) {
-              updatedImages[colorId].back_images[designId] = [];
+              updatedImages[colorId].back_images[designId] = {
+                existing: true,
+                url: getImageUrl(backDesign.image),
+                name: backDesign.image.split("/").pop(),
+                back_design_id: backDesign.id,
+                design_name: backDesign.design_name,
+                design_id: designId,
+                color_id: colorId,
+              };
             }
-            
-            updatedImages[colorId].back_images[designId].push({
-              existing: true,
-              url: getImageUrl(backDesign.image),
-              name: backDesign.image.split('/').pop(),
-              design_name: backDesign.design_name,
-              back_design_id: backDesign.id
-            });
           });
         });
-        
+
         setDesignImages(updatedImages);
       }
-
     } catch (error) {
       console.error("Error fetching data:", error);
       Swal.fire("Error", "Failed to load data", "error");
@@ -151,88 +166,153 @@ const AddDesign = () => {
     }
   };
 
-  // Toggle color selection
+  // ============== HELPER FUNCTIONS ==============
+  const getColorById = (colorId) => {
+    return allColors.find((color) => color.id === parseInt(colorId));
+  };
+
+  const getDesignById = (designId) => {
+    return allDesigns.find((design) => design.id === parseInt(designId));
+  };
+
+  const colorHasExistingDesigns = (colorId) => {
+    if (!existingProductData?.product_colors) return false;
+
+    const productColor = existingProductData.product_colors.find(
+      (pc) => pc.color === parseInt(colorId)
+    );
+
+    return productColor && productColor.back_designs && productColor.back_designs.length > 0;
+  };
+
+  const isColorReadyForUpload = (colorId) => {
+    const colorData = designImages[colorId];
+    if (!colorData) return false;
+    if (!colorData.front_image) return false;
+
+    const missingDesigns = selectedDesigns.filter((designId) => {
+      const backImage = colorData?.back_images?.[designId];
+      return !backImage;
+    });
+
+    return missingDesigns.length === 0;
+  };
+
+  const hasExistingImages = (colorId) => {
+    const colorData = designImages[colorId];
+    if (!colorData) return false;
+    if (colorData.front_image?.existing) return true;
+    return Object.values(colorData.back_images || {}).some((img) => img?.existing);
+  };
+
+  // ============== GET AUTH TOKEN ==============
+  const getAuthToken = () => {
+    return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  };
+
+  // ============== COLOR SELECTION ==============
   const toggleColorSelection = (colorId) => {
-    setSelectedColors(prev => {
+    if (!selectedColors.includes(colorId) && colorHasExistingDesigns(colorId)) {
+      Swal.fire({
+        title: "Color Already Has Designs!",
+        html: `
+          <div class="text-left">
+            <p class="mb-3">This color already has existing designs in the system.</p>
+            <p class="text-sm text-gray-600 mb-2">You can:</p>
+            <ul class="list-disc pl-5 text-sm text-gray-600">
+              <li>Update existing designs using the update button in preview</li>
+              <li>Delete existing designs first</li>
+            </ul>
+          </div>
+        `,
+        icon: "warning",
+        confirmButtonColor: "#000000",
+        confirmButtonText: "OK",
+        showCancelButton: true,
+        cancelButtonColor: "#6b7280",
+        cancelButtonText: "View Existing",
+      }).then((result) => {
+        if (result.isDismissed) {
+          document.getElementById("existing-data-preview")?.scrollIntoView({
+            behavior: "smooth"
+          });
+        }
+      });
+      return;
+    }
+
+    setSelectedColors((prev) => {
       if (prev.includes(colorId)) {
-        setDesignImages(prevImages => {
+        setDesignImages((prevImages) => {
           const updated = { ...prevImages };
           if (updated[colorId]) {
             if (updated[colorId]?.front_image?.preview) {
               URL.revokeObjectURL(updated[colorId].front_image.preview);
             }
-            
-            Object.values(updated[colorId]?.back_images || {}).forEach(designImages => {
-              designImages.forEach(img => {
-                if (img.preview) {
-                  URL.revokeObjectURL(img.preview);
-                }
-              });
+
+            Object.values(updated[colorId]?.back_images || {}).forEach((img) => {
+              if (img?.preview) {
+                URL.revokeObjectURL(img.preview);
+              }
             });
-            
+
             delete updated[colorId];
           }
           return updated;
         });
-        return prev.filter(id => id !== colorId);
+        return prev.filter((id) => id !== colorId);
       } else {
-        setDesignImages(prev => ({
+        setDesignImages((prev) => ({
           ...prev,
           [colorId]: {
             front_image: null,
-            back_images: {}
-          }
+            back_images: {},
+          },
         }));
         return [...prev, colorId];
       }
     });
   };
 
-  // Toggle design selection
+  // ============== DESIGN SELECTION ==============
   const toggleDesignSelection = (designId) => {
-    setSelectedDesigns(prev => {
+    setSelectedDesigns((prev) => {
       if (prev.includes(designId)) {
-        setDesignImages(prevImages => {
+        setDesignImages((prevImages) => {
           const updated = { ...prevImages };
-          Object.keys(updated).forEach(colorId => {
-            const designImages = updated[colorId]?.back_images?.[designId] || [];
-            designImages.forEach(img => {
-              if (img.preview) {
-                URL.revokeObjectURL(img.preview);
-              }
-            });
-            
+          Object.keys(updated).forEach((colorId) => {
+            const designImage = updated[colorId]?.back_images?.[designId];
+            if (designImage?.preview) {
+              URL.revokeObjectURL(designImage.preview);
+            }
+
             if (updated[colorId]?.back_images?.[designId]) {
               delete updated[colorId].back_images[designId];
             }
           });
           return updated;
         });
-        return prev.filter(id => id !== designId);
+        return prev.filter((id) => id !== designId);
       } else {
         return [...prev, designId];
       }
     });
   };
 
-  // Select all designs
   const selectAllDesigns = () => {
-    const allDesignIds = allDesigns.map(d => d.id);
+    const allDesignIds = allDesigns.map((d) => d.id);
     setSelectedDesigns(allDesignIds);
   };
 
-  // Deselect all designs
   const deselectAllDesigns = () => {
-    setDesignImages(prevImages => {
+    setDesignImages((prevImages) => {
       const updated = { ...prevImages };
-      Object.keys(updated).forEach(colorId => {
-        Object.keys(updated[colorId]?.back_images || {}).forEach(designId => {
-          const images = updated[colorId].back_images[designId] || [];
-          images.forEach(img => {
-            if (img.preview) {
-              URL.revokeObjectURL(img.preview);
-            }
-          });
+      Object.keys(updated).forEach((colorId) => {
+        Object.keys(updated[colorId]?.back_images || {}).forEach((designId) => {
+          const image = updated[colorId].back_images[designId];
+          if (image?.preview) {
+            URL.revokeObjectURL(image.preview);
+          }
         });
         updated[colorId].back_images = {};
       });
@@ -241,19 +321,16 @@ const AddDesign = () => {
     setSelectedDesigns([]);
   };
 
-  // Handle front image upload
+  // ============== IMAGE UPLOAD HANDLERS ==============
   const handleFrontImageUpload = (colorId, file) => {
-    if (file.size > 10 * 1024 * 1024) {
-      Swal.fire("Error", "Image exceeds 10MB limit", "error");
-      return;
-    }
+    // No size limit - handle large files
 
     const existingFrontImage = designImages[colorId]?.front_image;
     if (existingFrontImage?.preview && !existingFrontImage.existing) {
       URL.revokeObjectURL(existingFrontImage.preview);
     }
 
-    setDesignImages(prev => ({
+    setDesignImages((prev) => ({
       ...prev,
       [colorId]: {
         ...prev[colorId],
@@ -261,53 +338,59 @@ const AddDesign = () => {
           file,
           preview: URL.createObjectURL(file),
           name: file.name,
-          size: file.size
-        }
-      }
+          size: file.size,
+        },
+      },
     }));
   };
 
-  // Handle back image upload for a specific design (multiple images)
-  const handleBackImageUpload = (colorId, designId, files) => {
+  const handleBackImageUpload = (colorId, designId, file) => {
     if (!selectedDesigns.includes(parseInt(designId))) {
       Swal.fire("Error", "This design is not selected", "error");
       return;
     }
 
-    const fileArray = Array.from(files);
-    const validFiles = fileArray.filter(file => {
-      if (file.size > 10 * 1024 * 1024) {
-        Swal.fire("Error", `${file.name} exceeds 10MB limit`, "error");
-        return false;
-      }
-      return true;
-    });
+    // No size limit - handle large files
 
-    if (validFiles.length === 0) return;
+    const hasExistingDesign = existingProductData?.product_colors?.some(
+      (pc) => pc.color === parseInt(colorId) &&
+        pc.back_designs?.some(bd => bd.design === parseInt(designId))
+    );
 
-    const newBackImages = validFiles.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size
-    }));
+    if (hasExistingDesign) {
+      Swal.fire({
+        title: "Design Already Exists!",
+        text: "This design already exists for this color. Please use the update button to modify it.",
+        icon: "warning",
+        confirmButtonColor: "#000000",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
 
-    setDesignImages(prev => ({
+    const existingImage = designImages[colorId]?.back_images?.[designId];
+    if (existingImage?.preview && !existingImage.existing) {
+      URL.revokeObjectURL(existingImage.preview);
+    }
+
+    setDesignImages((prev) => ({
       ...prev,
       [colorId]: {
         ...prev[colorId],
         back_images: {
           ...prev[colorId]?.back_images,
-          [designId]: [
-            ...(prev[colorId]?.back_images?.[designId] || []),
-            ...newBackImages
-          ]
-        }
-      }
+          [designId]: {
+            file,
+            preview: URL.createObjectURL(file),
+            name: file.name,
+            size: file.size,
+          },
+        },
+      },
     }));
   };
 
-  // Remove front image
+  // ============== IMAGE REMOVAL HANDLERS ==============
   const removeFrontImage = (colorId) => {
     Swal.fire({
       title: "Remove Front Image?",
@@ -320,14 +403,14 @@ const AddDesign = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        setDesignImages(prev => {
+        setDesignImages((prev) => {
           const updated = { ...prev };
           if (updated[colorId]?.front_image?.preview && !updated[colorId].front_image.existing) {
             URL.revokeObjectURL(updated[colorId].front_image.preview);
           }
           updated[colorId] = {
             ...updated[colorId],
-            front_image: null
+            front_image: null,
           };
           return updated;
         });
@@ -335,8 +418,7 @@ const AddDesign = () => {
     });
   };
 
-  // Remove back image
-  const removeBackImage = (colorId, designId, imageIndex) => {
+  const removeBackImage = (colorId, designId) => {
     Swal.fire({
       title: "Remove Back Image?",
       text: "Are you sure you want to remove this back image?",
@@ -348,31 +430,24 @@ const AddDesign = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        setDesignImages(prev => {
+        setDesignImages((prev) => {
           const updated = { ...prev };
-          const images = [...(updated[colorId]?.back_images?.[designId] || [])];
-          
-          if (images[imageIndex]?.preview && !images[imageIndex].existing) {
-            URL.revokeObjectURL(images[imageIndex].preview);
+          const image = updated[colorId]?.back_images?.[designId];
+
+          if (image?.preview && !image.existing) {
+            URL.revokeObjectURL(image.preview);
           }
-          
-          images.splice(imageIndex, 1);
-          
-          updated[colorId] = {
-            ...updated[colorId],
-            back_images: {
-              ...updated[colorId]?.back_images,
-              [designId]: images
-            }
-          };
-          
+
+          if (updated[colorId]?.back_images?.[designId]) {
+            delete updated[colorId].back_images[designId];
+          }
+
           return updated;
         });
       }
     });
   };
 
-  // Clear all images for a color
   const clearColorImages = (colorId) => {
     Swal.fire({
       title: "Clear all images?",
@@ -385,33 +460,461 @@ const AddDesign = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        setDesignImages(prev => {
+        setDesignImages((prev) => {
           const updated = { ...prev };
-          
+
           if (updated[colorId]?.front_image?.preview && !updated[colorId].front_image.existing) {
             URL.revokeObjectURL(updated[colorId].front_image.preview);
           }
-          
-          Object.values(updated[colorId]?.back_images || {}).forEach(designImages => {
-            designImages.forEach(img => {
-              if (img.preview && !img.existing) {
-                URL.revokeObjectURL(img.preview);
-              }
-            });
+
+          Object.values(updated[colorId]?.back_images || {}).forEach((img) => {
+            if (img?.preview && !img.existing) {
+              URL.revokeObjectURL(img.preview);
+            }
           });
-          
+
           updated[colorId] = {
             front_image: null,
-            back_images: {}
+            back_images: {},
           };
-          
+
           return updated;
         });
       }
     });
   };
 
-  // Validate before upload
+  // ============== API RESPONSE HANDLER ==============
+  const handleApiResponse = async (response) => {
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('API Error Response:', text);
+
+      if (text.trim().startsWith('<!DOCTYPE')) {
+        const errorMatch = text.match(/<title>([^<]+)<\/title>/);
+        const errorTitle = errorMatch ? errorMatch[1] : 'Unknown error';
+        throw new Error(`Server error (${response.status}): ${errorTitle}`);
+      }
+
+      try {
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.message || errorData.error || errorData.detail || `Server error: ${response.status}`);
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          throw new Error(`Server error (${response.status}): ${text.substring(0, 500)}`);
+        }
+        throw e;
+      }
+    }
+
+    const data = await response.json();
+    return data;
+  };
+
+  // ============== UPDATE FUNCTIONS ==============
+
+
+  const handleUpdateFrontImage = async (colorId, file) => {
+    try {
+      if (!file) return;
+
+      console.log("Updating front image:", { colorId, fileName: file.name });
+
+      const formData = new FormData();
+      // EXACT format from your API doc: front_image_1 (where 1 is color_id)
+      formData.append(`front_image_${colorId}`, file);
+
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire('Error', 'Authentication token not found', 'error');
+        return;
+      }
+
+      Swal.fire({
+        title: "Updating...",
+        text: "Please wait",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // Use the EXACT endpoint and method from your API doc
+      const response = await fetch(
+        `https://api.blackaboij.com/api/product/update-product/${id}/`,
+        {
+          method: "PUT",
+          headers: {
+            'Authorization': `Token ${token}`,
+            // DO NOT set Content-Type header - let browser set it with boundary
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      console.log("Update response:", data);
+
+      Swal.close();
+
+      if (data.success) {
+        Swal.fire({
+          title: 'Success!',
+          text: 'Front image updated successfully',
+          icon: 'success',
+          confirmButtonColor: "#000000",
+        });
+
+        // Force a fresh fetch
+        await fetchAllData();
+      } else {
+        throw new Error(data.message || 'Update failed');
+      }
+
+    } catch (error) {
+      console.error("Update Error:", error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: error.message,
+        icon: 'error',
+        confirmButtonColor: "#000000",
+      });
+    }
+  };
+
+  /**
+   * UPDATE BACK IMAGE HELPER - FIXED VERSION
+   */
+  const handleUpdateBackImage = async (colorId, designId, file) => {
+    try {
+      if (!file) return;
+
+      console.log("Updating back image:", { colorId, designId, fileName: file.name });
+
+      const formData = new FormData();
+      // EXACT format from your API doc: back_image_1_17 (where 1 is color_id, 17 is design_id)
+      formData.append(`back_image_${colorId}_${designId}`, file);
+
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire('Error', 'Authentication token not found', 'error');
+        return;
+      }
+
+      Swal.fire({
+        title: "Updating...",
+        text: "Please wait",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // Log exactly what we're sending
+      console.log("Sending to:", `https://api.blackaboij.com/api/product/update-product/${id}/`);
+      console.log("FormData keys:");
+      for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
+
+      const response = await fetch(
+        `https://api.blackaboij.com/api/product/update-product/${id}/`,
+        {
+          method: "PUT",
+          headers: {
+            'Authorization': `Token ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+      console.log("Update response:", data);
+
+      Swal.close();
+
+      if (data.success) {
+        Swal.fire({
+          title: 'Success!',
+          text: 'Back image updated successfully',
+          icon: 'success',
+          confirmButtonColor: "#000000",
+        });
+
+        // Force a fresh fetch
+        await fetchAllData();
+      } else {
+        throw new Error(data.message || 'Update failed');
+      }
+
+    } catch (error) {
+      console.error("Update Error:", error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: error.message,
+        icon: 'error',
+        confirmButtonColor: "#000000",
+      });
+    }
+  };
+
+
+
+
+
+
+  /**
+   * MAIN UPDATE FUNCTION
+   * - For front image: sends colorId only
+   * - For back image: sends colorId AND designId
+   * Product ID is taken from URL, not sent in body
+   */
+  const updateDesignImage = async (colorId, designId, imageData, imageType = "back") => {
+    console.log('updateDesignImage called with:', {
+      colorId,
+      designId,
+      imageType,
+      hasFile: !!imageData?.file,
+      fileName: imageData?.file?.name
+    });
+
+    const parsedColorId = parseInt(colorId);
+    const parsedDesignId = designId ? parseInt(designId) : null;
+
+    if (isNaN(parsedColorId)) {
+      console.error('Invalid colorId:', colorId);
+      Swal.fire('Error', 'Invalid color ID', 'error');
+      return;
+    }
+
+    if (imageType === "back" && (parsedDesignId === null || isNaN(parsedDesignId))) {
+      console.error('Invalid designId for back image:', designId);
+      Swal.fire('Error', 'Invalid design ID', 'error');
+      return;
+    }
+
+    if (!imageData?.file) {
+      console.error('No file in imageData:', imageData);
+      Swal.fire('Error', 'No image file provided', 'error');
+      return;
+    }
+
+    if (imageType === "front") {
+      // Front image update - only colorId needed
+      await handleUpdateFrontImage(parsedColorId, imageData.file);
+    } else {
+      // Back image update - both colorId and designId needed
+      await handleUpdateBackImage(parsedColorId, parsedDesignId, imageData.file);
+    }
+  };
+
+  // ============== DELETE FUNCTIONS ==============
+  /**
+   * DELETE FRONT IMAGE
+   * Required: colorId only
+   * No product ID needed - uses URL parameter
+   */
+  const handleDeleteFrontImage = async (colorId) => {
+    try {
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire('Error', 'Authentication token not found', 'error');
+        return;
+      }
+
+      const productIdToUse = product?.id || id;
+      const parsedProductId = parseInt(productIdToUse);
+      const parsedColorId = parseInt(colorId);
+
+      if (isNaN(parsedProductId) || isNaN(parsedColorId)) {
+        Swal.fire('Error', 'Invalid product ID or color ID', 'error');
+        return;
+      }
+
+      // NO PRODUCT ID IN BODY - using URL parameter
+      const deleteData = {
+        color_id: parsedColorId,
+        image_type: "front"
+      };
+
+      console.log('Deleting front image with data:', deleteData);
+
+      Swal.fire({
+        title: "Deleting...",
+        text: "Please wait while we delete the front image",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // Using URL parameter for product ID
+      const response = await fetch(`https://api.blackaboij.com/api/product/delete-product-image/${parsedProductId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(deleteData)
+      });
+
+      const data = await handleApiResponse(response);
+
+      Swal.close();
+
+      if (data.success) {
+        Swal.fire({
+          title: 'Deleted!',
+          text: data.message || 'Front image deleted successfully',
+          icon: 'success',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
+        await fetchAllData();
+      } else {
+        Swal.fire({
+          title: 'Error!',
+          text: data.message || 'Failed to delete front image',
+          icon: 'error',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: error.message || 'Failed to delete front image',
+        icon: 'error',
+        confirmButtonColor: "#000000",
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
+  /**
+   * DELETE BACK DESIGN IMAGE
+   * Required: colorId AND designId
+   * No product ID needed - uses URL parameter
+   */
+  const handleDeleteBackImage = async (colorId, designId) => {
+    try {
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire('Error', 'Authentication token not found', 'error');
+        return;
+      }
+
+      const productIdToUse = product?.id || id;
+      const parsedProductId = parseInt(productIdToUse);
+      const parsedColorId = parseInt(colorId);
+      const parsedDesignId = parseInt(designId);
+
+      if (isNaN(parsedProductId) || isNaN(parsedColorId) || isNaN(parsedDesignId)) {
+        Swal.fire('Error', 'Invalid product ID, color ID, or design ID', 'error');
+        return;
+      }
+
+      // NO PRODUCT ID IN BODY - using URL parameter
+      const deleteData = {
+        color_id: parsedColorId,
+        design_id: parsedDesignId,
+        image_type: "back"
+      };
+
+      console.log('Deleting back image with data:', deleteData);
+
+      Swal.fire({
+        title: "Deleting...",
+        text: "Please wait while we delete the back design image",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      // Using URL parameter for product ID
+      const response = await fetch(`https://api.blackaboij.com/api/product/delete-product-image/${parsedProductId}/`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(deleteData)
+      });
+
+      const data = await handleApiResponse(response);
+
+      Swal.close();
+
+      if (data.success) {
+        Swal.fire({
+          title: 'Deleted!',
+          text: data.message || 'Back design image deleted successfully',
+          icon: 'success',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
+        await fetchAllData();
+      } else {
+        Swal.fire({
+          title: 'Error!',
+          text: data.message || 'Failed to delete back design image',
+          icon: 'error',
+          confirmButtonColor: "#000000",
+          confirmButtonText: 'OK'
+        });
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: error.message || 'Failed to delete back design image',
+        icon: 'error',
+        confirmButtonColor: "#000000",
+        confirmButtonText: 'OK'
+      });
+    }
+  };
+
+  /**
+   * MAIN DELETE FUNCTION
+   * - For front image: sends colorId only
+   * - For back image: sends colorId AND designId
+   * Product ID is taken from URL, not sent in body
+   */
+  const deleteDesignImage = async (colorId, designId, imageType = "back") => {
+    console.log('deleteDesignImage called with:', { colorId, designId, imageType });
+
+    const parsedColorId = parseInt(colorId);
+    const parsedDesignId = designId ? parseInt(designId) : null;
+
+    if (isNaN(parsedColorId)) {
+      console.error('Invalid colorId:', colorId);
+      Swal.fire('Error', 'Invalid color ID', 'error');
+      return;
+    }
+
+    if (imageType === "back" && (parsedDesignId === null || isNaN(parsedDesignId))) {
+      console.error('Invalid designId for back image:', designId);
+      Swal.fire('Error', 'Invalid design ID', 'error');
+      return;
+    }
+
+    if (imageType === "front") {
+      // Front image delete - only colorId needed
+      await handleDeleteFrontImage(parsedColorId);
+    } else {
+      // Back image delete - both colorId and designId needed
+      await handleDeleteBackImage(parsedColorId, parsedDesignId);
+    }
+  };
+
+  // ============== UPLOAD VALIDATION ==============
   const validateUpload = () => {
     if (selectedColors.length === 0) {
       Swal.fire("Warning", "Please select at least one color", "warning");
@@ -422,92 +925,131 @@ const AddDesign = () => {
       Swal.fire("Warning", "Please select at least one design", "warning");
       return false;
     }
-    
+
+    const colorsWithExistingDesigns = selectedColors.filter(colorId =>
+      colorHasExistingDesigns(colorId)
+    );
+
+    if (colorsWithExistingDesigns.length > 0) {
+      const colorNames = colorsWithExistingDesigns
+        .map(id => getColorById(id)?.name)
+        .join(", ");
+
+      Swal.fire({
+        title: "Warning: Colors Already Have Designs",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">These colors already have designs in the system:</p>
+            <p class="font-bold mb-3">${colorNames}</p>
+            <p class="text-sm text-gray-600">You can:</p>
+            <ul class="list-disc pl-5 text-sm text-gray-600">
+              <li>Update existing designs using the update button in preview</li>
+              <li>Delete existing designs first</li>
+            </ul>
+          </div>
+        `,
+        icon: "warning",
+        confirmButtonColor: "#000000",
+        confirmButtonText: "I Understand",
+      });
+      return false;
+    }
+
     for (const colorId of selectedColors) {
       const colorData = designImages[colorId];
-      
-      if (!colorData?.front_image && 
-          Object.values(colorData?.back_images || {}).every(images => images.length === 0)) {
+
+      if (
+        !colorData?.front_image &&
+        Object.values(colorData?.back_images || {}).every((img) => !img)
+      ) {
         continue;
       }
-      
+
       if (!colorData?.front_image) {
         const color = getColorById(colorId);
         Swal.fire("Warning", `Color "${color?.name}" must have a front image`, "warning");
         return false;
       }
-      
-      const missingDesigns = selectedDesigns.filter(designId => {
-        const backImages = colorData?.back_images?.[designId] || [];
-        return backImages.length === 0;
+
+      const missingDesigns = selectedDesigns.filter((designId) => {
+        const backImage = colorData?.back_images?.[designId];
+        return !backImage;
       });
-      
+
       if (missingDesigns.length > 0) {
         const color = getColorById(colorId);
-        const designNames = missingDesigns.map(designId => {
-          const design = getDesignById(designId);
-          return design?.name;
-        }).join(", ");
-        
+        const designNames = missingDesigns
+          .map((designId) => {
+            const design = getDesignById(designId);
+            return design?.name;
+          })
+          .join(", ");
+
         Swal.fire({
           title: "Missing Back Images",
-          html: `For color "<strong>${color?.name}</strong>", upload at least one back image for:<br/><strong>${designNames}</strong>`,
+          html: `For color "<strong>${color?.name}</strong>", upload a back image for:<br/><strong>${designNames}</strong>`,
           icon: "warning",
-          confirmButtonText: "OK"
+          confirmButtonText: "OK",
         });
         return false;
       }
     }
-    
+
     return true;
   };
 
-  // Upload all design images
+  // ============== BULK UPLOAD ==============
   const uploadAllImages = async () => {
     if (!validateUpload()) return;
 
     setUploading(true);
-    
+
     try {
+      const token = getAuthToken();
+
+      if (!token) {
+        Swal.fire('Error', 'Authentication token not found', 'error');
+        return;
+      }
+
       const formData = new FormData();
-      
-      formData.append("product_id", id);
-      
+
+      // NO PRODUCT ID IN FORM DATA - using URL parameter
+
       const colorIdsWithImages = [];
-      selectedColors.forEach(colorId => {
+      selectedColors.forEach((colorId) => {
         const colorData = designImages[colorId];
-        if (colorData?.front_image || 
-            Object.values(colorData?.back_images || {}).some(images => images.length > 0)) {
+        if (
+          colorData?.front_image ||
+          Object.values(colorData?.back_images || {}).some((img) => img)
+        ) {
           colorIdsWithImages.push(parseInt(colorId));
         }
       });
-      
-      colorIdsWithImages.forEach(colorId => {
+
+      colorIdsWithImages.forEach((colorId) => {
         formData.append("color_ids", colorId);
       });
-      
-      colorIdsWithImages.forEach(colorId => {
+
+      colorIdsWithImages.forEach((colorId) => {
         const frontImage = designImages[colorId]?.front_image;
         if (frontImage?.file) {
           formData.append(`front_image_${colorId}`, frontImage.file);
         }
       });
-      
-      colorIdsWithImages.forEach(colorId => {
+
+      colorIdsWithImages.forEach((colorId) => {
         const backImages = designImages[colorId]?.back_images || {};
-        
-        selectedDesigns.forEach(designId => {
-          const designImagesArray = backImages[designId] || [];
-          
-          if (designImagesArray.length > 0) {
-            const firstImage = designImagesArray[0];
-            if (firstImage?.file) {
-              formData.append(`back_image_${colorId}_${designId}`, firstImage.file);
-            }
+
+        selectedDesigns.forEach((designId) => {
+          const backImage = backImages[designId];
+
+          if (backImage?.file) {
+            formData.append(`back_image_${colorId}_${designId}`, backImage.file);
           }
         });
       });
-      
+
       Swal.fire({
         title: "Uploading Images...",
         text: "Please wait while we upload your design images",
@@ -516,50 +1058,40 @@ const AddDesign = () => {
         didOpen: () => Swal.showLoading(),
       });
 
-      const response = await api.post(
-        "/api/product/upload-design-images/",
-        formData,
-        {
-          headers: { 
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      // Using URL parameter for product ID
+      const response = await fetch(`https://api.blackaboij.com/api/product/upload-design-images/${id}/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData
+      });
 
-      // Sweet success alert
+      const data = await handleApiResponse(response);
+
       Swal.fire({
         title: "Success!",
         text: "Design images uploaded successfully",
         icon: "success",
         confirmButtonColor: "#000000",
         confirmButtonText: "Great!",
-        background: "#ffffff",
-        color: "#000000",
-        iconColor: "#10b981",
       });
 
       fetchAllData();
-
     } catch (error) {
       console.error("Error uploading design images:", error);
-      
+
       let errorMessage = "Failed to upload design images";
-      if (error.response?.data) {
-        if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        }
+      if (error.message) {
+        errorMessage = error.message;
       }
-      
+
       Swal.fire({
         title: "Upload Failed",
         text: errorMessage,
         icon: "error",
         confirmButtonColor: "#000000",
-        confirmButtonText: "OK"
+        confirmButtonText: "OK",
       });
     } finally {
       Swal.close();
@@ -567,31 +1099,7 @@ const AddDesign = () => {
     }
   };
 
-  // Get color by ID from allColors
-  const getColorById = (colorId) => {
-    return allColors.find(color => color.id === parseInt(colorId));
-  };
-
-  // Get design by ID from allDesigns
-  const getDesignById = (designId) => {
-    return allDesigns.find(design => design.id === parseInt(designId));
-  };
-
-  // Check if a color is ready for upload (has all required images for SELECTED designs)
-  const isColorReadyForUpload = (colorId) => {
-    const colorData = designImages[colorId];
-    if (!colorData) return false;
-    
-    if (!colorData.front_image) return false;
-    
-    const missingDesigns = selectedDesigns.filter(designId => {
-      const backImages = colorData?.back_images?.[designId] || [];
-      return backImages.length === 0;
-    });
-    
-    return missingDesigns.length === 0;
-  };
-
+  // ============== RENDERING ==============
   if (loading) {
     return (
       <DashboardShell>
@@ -613,7 +1121,10 @@ const AddDesign = () => {
               <Home size={16} />
             </button>
             <ChevronRight size={14} />
-            <button onClick={() => router.push("/dashboard/product-list")} className="hover:text-black">
+            <button
+              onClick={() => router.push("/dashboard/product-list")}
+              className="hover:text-black"
+            >
               Products
             </button>
             <ChevronRight size={14} />
@@ -635,402 +1146,64 @@ const AddDesign = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Selected Designs:</p>
-              <p className="font-medium text-black">{selectedDesigns.length} of {allDesigns.length} designs</p>
+              <p className="font-medium text-black">
+                {selectedDesigns.length} of {allDesigns.length} designs
+              </p>
             </div>
           </div>
         </div>
 
         {/* COLOR SELECTION */}
-        <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-black">Select Colors</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSelectedColors(allColors.map(c => c.id))}
-                className="text-sm text-black hover:text-gray-700 font-medium"
-              >
-                Select All
-              </button>
-              <button
-                onClick={() => setSelectedColors([])}
-                className="text-sm text-black hover:text-gray-700 font-medium"
-              >
-                Deselect All
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            {allColors.map((color) => {
-              const isSelected = selectedColors.includes(color.id);
-              const isReady = isColorReadyForUpload(color.id);
-              const colorImages = designImages[color.id] || {};
-              const hasImages = colorImages.front_image || 
-                Object.values(colorImages.back_images || {}).some(images => images.length > 0);
-              
-              return (
-                <button
-                  key={color.id}
-                  onClick={() => toggleColorSelection(color.id)}
-                  className={`flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${
-                    isSelected 
-                      ? isReady
-                        ? 'bg-gray-100 border-black ring-2 ring-gray-300'
-                        : hasImages
-                          ? 'bg-gray-50 border-gray-400 ring-1 ring-gray-300'
-                          : 'bg-white border-black ring-1 ring-gray-200'
-                      : 'bg-white border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {isSelected ? (
-                    <CheckSquare size={18} className={isReady ? "text-black" : "text-gray-600"} />
-                  ) : (
-                    <Square size={18} className="text-gray-400" />
-                  )}
-                  <div
-                    className="w-7 h-7 rounded-full border border-gray-400"
-                    style={{ backgroundColor: color.hex_code || '#cccccc' }}
-                    title={color.hex_code || 'No color code'}
-                  />
-                  <div className="text-left">
-                    <p className="font-medium text-sm text-black">{color.name}</p>
-                  </div>
-                  {isSelected && isReady && (
-                    <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded">
-                      Ready
-                    </span>
-                  )}
-                  {isSelected && hasImages && !isReady && (
-                    <span className="ml-2 text-xs bg-gray-300 text-black px-2 py-0.5 rounded">
-                      Incomplete
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <ColorSelector
+          allColors={allColors}
+          selectedColors={selectedColors}
+          designImages={designImages}
+          isColorReadyForUpload={isColorReadyForUpload}
+          toggleColorSelection={toggleColorSelection}
+          setSelectedColors={setSelectedColors}
+          colorHasExistingDesigns={colorHasExistingDesigns}
+        />
 
         {/* DESIGN SELECTION */}
-        <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-black flex items-center gap-2">
-              <Layout size={18} />
-              Select Designs
-            </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={selectAllDesigns}
-                className="text-sm text-black hover:text-gray-700 font-medium"
-              >
-                Select All
-              </button>
-              <button
-                onClick={deselectAllDesigns}
-                className="text-sm text-black hover:text-gray-700 font-medium"
-              >
-                Deselect All
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            {allDesigns.map((design) => {
-              const isSelected = selectedDesigns.includes(design.id);
-              
-              const colorsWithImages = selectedColors.filter(colorId => {
-                const images = designImages[colorId]?.back_images?.[design.id] || [];
-                return images.length > 0;
-              }).length;
-              
-              return (
-                <button
-                  key={design.id}
-                  onClick={() => toggleDesignSelection(design.id)}
-                  className={`flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${
-                    isSelected 
-                      ? 'bg-gray-100 border-black ring-1 ring-gray-300'
-                      : 'bg-white border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {isSelected ? (
-                    <CheckSquare size={18} className="text-black" />
-                  ) : (
-                    <Square size={18} className="text-gray-400" />
-                  )}
-                  <div className="text-left">
-                    <p className="font-medium text-sm text-black">{design.name}</p>
-                    {isSelected && (
-                      <p className="text-xs text-gray-600">
-                        {colorsWithImages} of {selectedColors.length} colors
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <DesignSelector
+          allDesigns={allDesigns}
+          selectedDesigns={selectedDesigns}
+          selectedColors={selectedColors}
+          designImages={designImages}
+          toggleDesignSelection={toggleDesignSelection}
+          selectAllDesigns={selectAllDesigns}
+          deselectAllDesigns={deselectAllDesigns}
+        />
 
-        {/* DESIGN IMAGES UPLOAD FOR SELECTED COLORS */}
+        {/* DESIGN IMAGES UPLOAD */}
         {selectedColors.length > 0 && selectedDesigns.length > 0 ? (
-          <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
-            <h2 className="text-xl font-bold mb-6 text-black">Upload Images for Selected Colors & Designs</h2>
-            
-            <div className="space-y-8">
-              {selectedColors.map((colorId) => {
-                const color = getColorById(colorId);
-                if (!color) return null;
-                
-                const colorData = designImages[colorId] || { front_image: null, back_images: {} };
-                const isReady = isColorReadyForUpload(colorId);
-                
-                return (
-                  <div key={colorId} className={`border rounded-lg p-6 ${isReady ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-300'}`}>
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-full border-2 border-black"
-                          style={{ backgroundColor: color.hex_code || '#cccccc' }}
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold text-black">{color.name}</h3>
-                            {isReady && (
-                              <span className="text-xs bg-black text-white px-2 py-0.5 rounded">
-                                Ready
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            Required for {selectedDesigns.length} design{selectedDesigns.length !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => toggleColorSelection(colorId)}
-                          className="text-sm text-gray-600 hover:text-black flex items-center gap-1"
-                        >
-                          <Square size={14} />
-                          Deselect
-                        </button>
-                        <button
-                          onClick={() => clearColorImages(colorId)}
-                          className="text-sm text-gray-600 hover:text-black flex items-center gap-1"
-                        >
-                          <Trash2 size={14} />
-                          Clear All
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {/* FRONT IMAGE SECTION */}
-                      <div className="border border-gray-300 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-bold text-black flex items-center gap-2">
-                            <Camera size={16} />
-                            Front Image
-                          </h4>
-                        </div>
-                        
-                        {colorData.front_image ? (
-                          <div className="space-y-3">
-                            <div className="relative w-full h-48 border border-gray-300 rounded overflow-hidden">
-                              {colorData.front_image.existing ? (
-                                <Image
-                                  src={colorData.front_image.url}
-                                  alt={`Front image for ${color.name}`}
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
-                                />
-                              ) : (
-                                <Image
-                                  src={colorData.front_image.preview}
-                                  alt={`Front image preview for ${color.name}`}
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
-                                />
-                              )}
-                              <button
-                                onClick={() => removeFrontImage(color.id)}
-                                className="absolute top-2 right-2 bg-black text-white p-1 rounded-full hover:bg-gray-800"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm font-medium text-black truncate">
-                                {colorData.front_image.name}
-                              </p>
-                              {!colorData.front_image.existing && (
-                                <p className="text-xs text-gray-500">
-                                  {(colorData.front_image.size / 1024 / 1024).toFixed(2)} MB
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-                            <Camera className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                            <p className="text-gray-700 font-medium mb-2">Front Image Required</p>
-                            <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 text-sm rounded hover:bg-gray-800 transition">
-                              <Upload size={14} />
-                              Upload Front Image
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  if (e.target.files[0]) {
-                                    handleFrontImageUpload(color.id, e.target.files[0]);
-                                  }
-                                }}
-                                className="hidden"
-                              />
-                            </label>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* BACK IMAGES SECTION - ONLY FOR SELECTED DESIGNS */}
-                      <div className="border border-gray-300 rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-bold text-black flex items-center gap-2">
-                            <ImageIcon size={16} />
-                            Back Images by Design
-                          </h4>
-                          <span className="text-xs text-gray-600">
-                            {selectedDesigns.length} design{selectedDesigns.length !== 1 ? 's' : ''} selected
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          {selectedDesigns.map((designId) => {
-                            const design = getDesignById(designId);
-                            if (!design) return null;
-                            
-                            const backImages = colorData.back_images?.[designId] || [];
-                            const totalImages = backImages.length;
-                            const hasImages = totalImages > 0;
-                            
-                            return (
-                              <div key={designId} className={`border rounded p-3 ${hasImages ? 'bg-gray-50 border-gray-300' : 'bg-white border-gray-300'}`}>
-                                <div className="flex justify-between items-center mb-2">
-                                  <div>
-                                    <p className={`font-medium ${hasImages ? 'text-black' : 'text-gray-700'}`}>
-                                      {design.name}
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1">
-                                    <span className={`text-xs px-2 py-1 rounded ${hasImages ? 'bg-gray-200 text-black' : 'bg-gray-100 text-gray-700'}`}>
-                                      {hasImages ? `${totalImages} image${totalImages !== 1 ? 's' : ''}` : 'Required'}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                {/* Multiple Images Display */}
-                                {hasImages ? (
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {backImages.map((image, index) => (
-                                        <div key={index} className={`border border-gray-300 rounded p-2 bg-white ${index === 0 ? 'ring-1 ring-gray-400' : ''}`}>
-                                          <div className="relative w-full h-24 mb-1">
-                                            {image.existing ? (
-                                              <Image
-                                                src={image.url}
-                                                alt={`Back image ${index + 1} for ${color.name} - ${design.name}`}
-                                                fill
-                                                className="object-cover rounded"
-                                                unoptimized
-                                              />
-                                            ) : (
-                                              <Image
-                                                src={image.preview}
-                                                alt={`Back image preview ${index + 1} for ${color.name} - ${design.name}`}
-                                                fill
-                                                className="object-cover rounded"
-                                                unoptimized
-                                              />
-                                            )}
-                                            <button
-                                              onClick={() => removeBackImage(color.id, design.id, index)}
-                                              className="absolute top-1 right-1 bg-black text-white p-0.5 rounded-full hover:bg-gray-800"
-                                            >
-                                              <Trash2 size={12} />
-                                            </button>
-                                          </div>
-                                          <p className="text-xs text-black truncate">{image.name}</p>
-                                          {!image.existing && (
-                                            <p className="text-xs text-gray-500">
-                                              {(image.size / 1024 / 1024).toFixed(2)} MB
-                                            </p>
-                                          )}
-                                          {index === 0 && (
-                                            <p className="text-xs text-gray-600 mt-1">Main image</p>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                    
-                                    {/* Add more images button */}
-                                    <label className="block text-center py-2 border border-gray-300 rounded cursor-pointer hover:border-black hover:bg-gray-50">
-                                      <div className="flex items-center justify-center gap-1 text-sm text-gray-700">
-                                        <Plus size={14} />
-                                        Add More Images
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          multiple
-                                          onChange={(e) => {
-                                            if (e.target.files.length > 0) {
-                                              handleBackImageUpload(color.id, design.id, e.target.files);
-                                            }
-                                          }}
-                                          className="hidden"
-                                        />
-                                      </div>
-                                    </label>
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded">
-                                    <label className="inline-flex items-center gap-1 cursor-pointer text-sm text-black hover:text-gray-800">
-                                      <Upload size={12} />
-                                      Upload back images
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={(e) => {
-                                          if (e.target.files.length > 0) {
-                                            handleBackImageUpload(color.id, design.id, e.target.files);
-                                          }
-                                        }}
-                                        className="hidden"
-                                      />
-                                    </label>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <DesignImageUploader
+            selectedColors={selectedColors}
+            selectedDesigns={selectedDesigns}
+            designImages={designImages}
+            allColors={allColors}
+            allDesigns={allDesigns}
+            isColorReadyForUpload={isColorReadyForUpload}
+            hasExistingImages={hasExistingImages}
+            onFrontImageUpload={handleFrontImageUpload}
+            onBackImageUpload={handleBackImageUpload}
+            onRemoveFrontImage={removeFrontImage}
+            onRemoveBackImage={removeBackImage}
+            onClearColorImages={clearColorImages}
+            onToggleColor={toggleColorSelection}
+            onUpdateDesign={updateDesignImage}
+            onDeleteDesign={deleteDesignImage}
+            colorHasExistingDesigns={colorHasExistingDesigns}
+          />
         ) : (
           <div className="bg-white p-6 rounded-md shadow-sm text-center py-12 border border-gray-200">
             {selectedColors.length === 0 && selectedDesigns.length === 0 ? (
               <>
                 <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
                 <h3 className="text-lg font-bold mb-2 text-black">No Colors or Designs Selected</h3>
-                <p className="text-gray-600 mb-4">Select colors and designs to start uploading images.</p>
+                <p className="text-gray-600 mb-4">
+                  Select colors and designs to start uploading images.
+                </p>
               </>
             ) : selectedColors.length === 0 ? (
               <>
@@ -1055,36 +1228,53 @@ const AddDesign = () => {
               <div>
                 <h3 className="font-bold mb-1 text-black">Ready to Upload</h3>
                 <p className="text-sm text-gray-600">
-                  {selectedColors.filter(id => isColorReadyForUpload(id)).length} of {selectedColors.length} colors ready
+                  {selectedColors.filter((id) => isColorReadyForUpload(id)).length} of{" "}
+                  {selectedColors.length} colors ready
                 </p>
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-black"></div>
-                    <span className="text-xs text-gray-600">Ready: {selectedColors.filter(id => isColorReadyForUpload(id)).length}</span>
+                    <span className="text-xs text-gray-600">
+                      Ready: {selectedColors.filter((id) => isColorReadyForUpload(id)).length}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                    <span className="text-xs text-gray-600">Incomplete: {selectedColors.filter(id => !isColorReadyForUpload(id)).length}</span>
+                    <span className="text-xs text-gray-600">
+                      Incomplete: {selectedColors.filter((id) => !isColorReadyForUpload(id)).length}
+                    </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    document.getElementById("existing-data-preview")?.scrollIntoView({
+                      behavior: "smooth"
+                    });
+                    setIsPreviewExpanded(true);
+                  }}
+                  className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-black flex items-center gap-2"
+                >
+                  <Eye size={16} />
+                  View Existing Data
+                </button>
+
                 <button
                   onClick={() => router.push("/dashboard/product-list")}
                   className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-black"
                 >
                   Cancel
                 </button>
-                
+
                 <button
                   onClick={uploadAllImages}
-                  disabled={uploading || selectedColors.filter(id => isColorReadyForUpload(id)).length === 0}
-                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${
-                    uploading || selectedColors.filter(id => isColorReadyForUpload(id)).length === 0
-                      ? "bg-gray-400 cursor-not-allowed text-gray-600"
-                      : "bg-black text-white hover:bg-gray-800"
-                  }`}
+                  disabled={uploading || selectedColors.filter((id) => isColorReadyForUpload(id)).length === 0}
+                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${uploading || selectedColors.filter((id) => isColorReadyForUpload(id)).length === 0
+                    ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                    : "bg-black text-white hover:bg-gray-800"
+                    }`}
                 >
                   {uploading ? (
                     <>
@@ -1092,13 +1282,27 @@ const AddDesign = () => {
                       Uploading...
                     </>
                   ) : (
-                    `Upload (${selectedColors.filter(id => isColorReadyForUpload(id)).length} ready)`
+                    `Upload (${selectedColors.filter((id) => isColorReadyForUpload(id)).length} ready)`
                   )}
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* EXISTING DATA PREVIEW SECTION */}
+        <div id="existing-data-preview">
+          <ExistingDataPreview
+            productData={existingProductData}
+            allColors={allColors}
+            allDesigns={allDesigns}
+            isExpanded={isPreviewExpanded}
+            onToggleExpand={() => setIsPreviewExpanded(!isPreviewExpanded)}
+            onUpdate={updateDesignImage}
+            onDelete={deleteDesignImage}
+            productId={product?.id || id}
+          />
+        </div>
       </div>
     </DashboardShell>
   );

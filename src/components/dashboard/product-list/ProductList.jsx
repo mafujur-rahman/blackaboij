@@ -281,6 +281,21 @@ const ProductList = () => {
         router.push(`/dashboard/add-design/${productId}`);
     };
 
+    // Get product image based on type (design or regular)
+    const getProductImage = (product) => {
+        // If it's a design product and has product_colors with front_image
+        if (product.is_design && product.product_colors && product.product_colors.length > 0) {
+            // Find the first color that has a front_image
+            const colorWithFrontImage = product.product_colors.find(pc => pc.front_image);
+            if (colorWithFrontImage && colorWithFrontImage.front_image) {
+                return colorWithFrontImage.front_image.image;
+            }
+        }
+        
+        // For regular products, use the thumbnail image
+        return product.images?.find(img => img.is_thumbnail)?.image;
+    };
+
     // If you need to sort on frontend (if backend doesn't support sorting)
     const displayedProducts = sortProductsByDate(products);
 
@@ -352,6 +367,8 @@ const ProductList = () => {
                                                     ? product.unit_price * (1 - product.discount_percent / 100)
                                                     : null;
 
+                                                const productImage = getProductImage(product);
+
                                                 return (
                                                     <tr
                                                         key={product.id}
@@ -363,17 +380,30 @@ const ProductList = () => {
 
                                                         <td className="px-4 py-4 border-r border-black/10">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-full border border-black/10">
-                                                                    <Image
-                                                                        src={getImageUrl(product.images?.find(img => img.is_thumbnail)?.image)}
-                                                                        alt={product.name}
-                                                                        width={40}
-                                                                        height={40}
-                                                                        className="w-full h-full object-cover"
-                                                                    />
+                                                                <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-full border border-black/10 relative">
+                                                                    {productImage ? (
+                                                                        <Image
+                                                                            src={getImageUrl(productImage)}
+                                                                            alt={product.name}
+                                                                            fill
+                                                                            className="object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                                                                            No img
+                                                                        </div>
+                                                                    )}
                                                                 </div>
 
-                                                                <span className="text-sm font-medium">{product.name}</span>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-medium">{product.name}</span>
+                                                                    {/* {product.is_design && (
+                                                                        <span className="text-xs text-pink-600 flex items-center gap-1">
+                                                                            <Brush size={12} />
+                                                                            Design Product
+                                                                        </span>
+                                                                    )} */}
+                                                                </div>
                                                             </div>
                                                         </td>
 

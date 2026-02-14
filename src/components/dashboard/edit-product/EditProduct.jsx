@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Home,
   ChevronRight,
@@ -16,6 +16,8 @@ import {
   Redo,
   Trash2,
   Check,
+  Plus,
+  X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -55,8 +57,17 @@ const EditProduct = () => {
     images: [],
     thumbnailIndex: 0,
     hotSale: false,
-    isDesign: false, // Added design field
+    isDesign: false,
+    designs: [], // Changed from designNames to designs array of objects
   });
+
+  // Use a ref to track form state in callbacks
+  const formRef = useRef(form);
+
+  // Update the ref whenever form changes
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
 
   const [parentCategories, setParentCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
@@ -174,7 +185,8 @@ const EditProduct = () => {
           images,
           thumbnailIndex,
           hotSale: product.hot_sale || false,
-          isDesign: product.is_design || false, // Added design field
+          isDesign: product.is_design || false,
+          designs: product.designs || [], // Store the designs array as is
         });
 
         setDescriptionContent(product.description || "");
@@ -229,15 +241,89 @@ const EditProduct = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Handle design toggle
+  // Handle design toggle - matches AddProduct behavior
   const handleDesignToggle = () => {
-    setForm((prev) => ({ ...prev, isDesign: !prev.isDesign }));
+    const newIsDesign = !form.isDesign;
+
+    setForm((prev) => ({
+      ...prev,
+      isDesign: newIsDesign,
+      colors: newIsDesign ? [] : prev.colors, // Clear colors when toggling to design
+      designs: newIsDesign ? prev.designs : [], // Keep designs when toggling to design, clear when toggling off
+    }));
+  };
+
+  // Add a new design
+  const addDesign = () => {
+    setForm(prev => ({
+      ...prev,
+      designs: [...prev.designs, { 
+        id: null, // New designs won't have an ID yet
+        name: "", 
+        is_default: prev.designs.length === 0 // First design is default
+      }]
+    }));
+  };
+
+  // Update design name
+  const updateDesignName = (index, name) => {
+    setForm(prev => {
+      const updated = [...prev.designs];
+      updated[index] = { ...updated[index], name };
+      return { ...prev, designs: updated };
+    });
+  };
+
+  // Set design as default
+  const setDefaultDesign = (index) => {
+    setForm(prev => {
+      const updated = prev.designs.map((design, i) => ({
+        ...design,
+        is_default: i === index
+      }));
+      return { ...prev, designs: updated };
+    });
+  };
+
+  // Remove a design with confirmation
+  const removeDesign = (index) => {
+    const design = form.designs[index];
+    
+    // Don't allow removing the default design
+    if (design.is_default) {
+      Swal.fire("Warning", "Cannot remove the default design. Set another design as default first.", "warning");
+      return;
+    }
+
+    Swal.fire({
+      title: "Remove Design?",
+      text: "This design will be removed.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, remove it",
+      cancelButtonText: "Cancel",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setForm(prev => ({
+          ...prev,
+          designs: prev.designs.filter((_, i) => i !== index)
+        }));
+      }
+    });
   };
 
   const handleImagesUpload = (files) => {
     const fileArray = Array.from(files);
 
-    const normalizedFiles = fileArray.map((file) => ({
+    const validFiles = fileArray.filter((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        Swal.fire("Error", `${file.name} exceeds 10MB`, "error");
+        return false;
+      }
+      return true;
+    });
+
+    const normalizedFiles = validFiles.map((file) => ({
       id: null,
       file,
       url: URL.createObjectURL(file),
@@ -375,6 +461,126 @@ const EditProduct = () => {
     }
   };
 
+  // Create JSON payload for design products
+  const createJsonPayload = () => {
+    const payload = {
+      name: form.name,
+      description: form.description || "",
+      category_id: Number(form.subCategoryId),
+      unit_price: Number(form.price),
+      quantity: Number(form.qty),
+      meta_title: form.metaTitle || form.name,
+      meta_description: form.metaDescription || form.description,
+      hot_sale: form.hotSale,
+      is_design: form.isDesign,
+      size_ids: form.sizes.map(id => Number(id)),
+    };
+
+    // Only add colors for non-design products
+    if (!form.isDesign && form.colors.length > 0) {
+      payload.color_ids = form.colors.map(id => Number(id));
+    }
+
+    // Add designs for design products
+    if (form.isDesign && form.designs.length > 0) {
+      // Send design names for new designs (without IDs)
+      // Existing designs will be handled separately by the backend
+      payload.design_names = form.designs
+        .filter(design => !design.id) // Only new designs without IDs
+        .map(design => design.name.trim())
+        .filter(name => name !== "");
+      
+      // If there are existing designs, we might need to send their IDs
+      // This depends on your API design
+      const existingDesignIds = form.designs
+        .filter(design => design.id)
+        .map(design => design.id);
+      
+      if (existingDesignIds.length > 0) {
+        payload.design_ids = existingDesignIds;
+      }
+    }
+
+    return payload;
+  };
+
+  // Create FormData payload for regular products with images
+  const createFormDataPayload = () => {
+    const formData = new FormData();
+
+    formData.append("name", form.name);
+    formData.append("category_id", Number(form.subCategoryId));
+    formData.append("description", form.description || "");
+    formData.append("unit_price", Number(form.price));
+    formData.append("quantity", Number(form.qty));
+    formData.append("meta_title", form.metaTitle || form.name);
+    formData.append("meta_description", form.metaDescription || form.name);
+    
+    if (form.hotSale) {
+      formData.append("hot_sale", "true");
+    }
+
+    if (form.isDesign) {
+      formData.append("is_design", "true");
+    }
+
+    form.sizes.forEach((sizeId) => {
+      formData.append("size_ids", sizeId);
+    });
+
+    if (!form.isDesign && form.colors.length > 0) {
+      form.colors.forEach((colorId) => {
+        formData.append("color_ids", colorId);
+      });
+    }
+
+    // Add designs for design products
+    if (form.isDesign && form.designs.length > 0) {
+      // Add new design names
+      form.designs
+        .filter(design => !design.id) // Only new designs without IDs
+        .forEach((design) => {
+          if (design.name && design.name.trim() !== "") {
+            formData.append("design_names", design.name.trim());
+          }
+        });
+      
+      // Add existing design IDs
+      const existingDesignIds = form.designs
+        .filter(design => design.id)
+        .map(design => design.id);
+      
+      existingDesignIds.forEach(id => {
+        formData.append("design_ids", id);
+      });
+
+      // Add default design info
+      const defaultDesign = form.designs.find(d => d.is_default);
+      if (defaultDesign) {
+        formData.append("default_design_id", defaultDesign.id || "");
+      }
+    }
+
+    // Add new images only (those with file but no id)
+    const newImages = form.images.filter(img => img.file && !img.id);
+    newImages.forEach((img) => {
+      formData.append("images", img.file);
+    });
+
+    // Set thumbnail for new images
+    const thumbnailImage = form.images[form.thumbnailIndex];
+    if (thumbnailImage && thumbnailImage.file && !thumbnailImage.id) {
+      const newImageIndex = newImages.findIndex(img =>
+        img.file === thumbnailImage.file
+      );
+      formData.append("thumbnail_index", newImageIndex);
+    } else if (thumbnailImage && thumbnailImage.id) {
+      formData.append("thumbnail_image_id", thumbnailImage.id);
+    }
+
+    return formData;
+  };
+
   const validateForm = () => {
     const newErrors = {
       sizes: form.sizes.length === 0,
@@ -388,31 +594,56 @@ const EditProduct = () => {
       return false;
     }
 
-    if (form.images.length === 0) {
-      Swal.fire("Warning", "Please upload at least one image", "warning");
+    // Regular images are required only if not in design mode
+    if (!form.isDesign && form.images.length === 0) {
+      Swal.fire("Warning", "Please upload at least one image for regular products", "warning");
       return false;
     }
 
-    if (!form.images[form.thumbnailIndex]) {
+    // Thumbnail check only for non-design mode
+    if (!form.isDesign && !form.images[form.thumbnailIndex]) {
       Swal.fire("Warning", "Please select a thumbnail image", "warning");
       return false;
     }
 
-    // Check if thumbnail is a new image (can't be thumbnail until saved)
-    if (!form.images[form.thumbnailIndex]?.id) {
+    // Check if thumbnail is a new image (can't be thumbnail until saved) - only for non-design
+    if (!form.isDesign && !form.images[form.thumbnailIndex]?.id) {
       Swal.fire("Warning", "Thumbnail must be an existing saved image. Please save the product first or select an existing image as thumbnail.", "warning");
       return false;
     }
 
-    if (newErrors.sizes || newErrors.colors) {
-      if (newErrors.sizes && newErrors.colors) {
-        Swal.fire("Warning", "Please select at least one size and one color", "warning");
-      } else if (newErrors.sizes) {
-        Swal.fire("Warning", "Please select at least one size", "warning");
-      } else if (newErrors.colors) {
-        Swal.fire("Warning", "Please select at least one color", "warning");
-      }
+    // Size validation
+    if (newErrors.sizes) {
+      Swal.fire("Warning", "Please select at least one size", "warning");
       return false;
+    }
+
+    // Color validation only for non-design mode
+    if (!form.isDesign && newErrors.colors) {
+      Swal.fire("Warning", "Please select at least one color", "warning");
+      return false;
+    }
+
+    // Validate designs if isDesign is true
+    if (form.isDesign) {
+      if (form.designs.length === 0) {
+        Swal.fire("Warning", "Please add at least one design", "warning");
+        return false;
+      }
+
+      // Check if all design names are filled
+      const emptyNames = form.designs.filter(design => !design.name || design.name.trim() === "");
+      if (emptyNames.length > 0) {
+        Swal.fire("Warning", "Please enter names for all designs", "warning");
+        return false;
+      }
+
+      // Check if there's a default design
+      const hasDefault = form.designs.some(design => design.is_default);
+      if (!hasDefault) {
+        Swal.fire("Warning", "Please select a default design", "warning");
+        return false;
+      }
     }
 
     return true;
@@ -438,49 +669,19 @@ const EditProduct = () => {
     setUpdating(true);
 
     try {
-      const formData = new FormData();
+      let payload;
+      let headers = {};
+      let endpoint = `/api/product/update-product/${id}/`;
 
-      formData.append("name", form.name);
-      formData.append("category_id", form.subCategoryId);
-      formData.append("description", form.description || "");
-      formData.append("unit_price", form.price);
-      formData.append("quantity", form.qty);
-      formData.append("meta_title", form.metaTitle || form.name);
-      formData.append("meta_description", form.metaDescription || form.name);
-
-      if (form.hotSale) {
-        formData.append("hot_sale", "true");
-      }
-
+      // DECISION: Use JSON for design products, FormData for regular products
       if (form.isDesign) {
-        formData.append("is_design", "true");
-      }
-
-      form.sizes.forEach((sizeId) => {
-        formData.append("size_ids", sizeId);
-      });
-
-      form.colors.forEach((colorId) => {
-        formData.append("color_ids", colorId);
-      });
-
-      // Add new images only (those with file but no id)
-      const newImages = form.images.filter(img => img.file && !img.id);
-      newImages.forEach((img) => {
-        formData.append("images", img.file);
-      });
-
-      // Set thumbnail for new images
-      const thumbnailImage = form.images[form.thumbnailIndex];
-      if (thumbnailImage && thumbnailImage.file && !thumbnailImage.id) {
-        // Find the index of this image in the newImages array
-        const newImageIndex = newImages.findIndex(img =>
-          img.file === thumbnailImage.file
-        );
-        formData.append("thumbnail_index", newImageIndex);
-      } else if (thumbnailImage && thumbnailImage.id) {
-        // For existing images, send the thumbnail image ID
-        formData.append("thumbnail_image_id", thumbnailImage.id);
+        // Design product - send as JSON
+        payload = createJsonPayload();
+        headers['Content-Type'] = 'application/json';
+      } else {
+        // Regular product with images - send as FormData
+        payload = createFormDataPayload();
+        // Don't set Content-Type header for FormData - browser will set it with boundary
       }
 
       Swal.fire({
@@ -493,11 +694,19 @@ const EditProduct = () => {
         }
       });
 
-      await api.put(`/api/product/update-product/${id}/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      console.log("=== UPDATING PRODUCT ===");
+      console.log("Is Design:", form.isDesign);
+      console.log("Using:", form.isDesign ? "JSON" : "FormData");
+      console.log("Payload:", payload);
+
+      let response;
+      if (form.isDesign) {
+        // Send JSON for design products
+        response = await api.put(endpoint, payload, { headers });
+      } else {
+        // Send FormData for regular products
+        response = await api.put(endpoint, payload);
+      }
 
       Swal.close();
       Swal.fire({
@@ -513,10 +722,11 @@ const EditProduct = () => {
     } catch (error) {
       Swal.close();
       console.error("Update error:", error);
+      console.error("Error response:", error.response?.data);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Update failed. Please try again.",
+        text: error.response?.data?.message || "Update failed. Please try again.",
         confirmButtonText: "OK",
         confirmButtonColor: "#000"
       });
@@ -661,7 +871,6 @@ const EditProduct = () => {
                   min="0"
                 />
               </div>
-              
 
               {/* hot sale and design field */}
               <div className="flex items-center gap-10">
@@ -679,7 +888,7 @@ const EditProduct = () => {
                   </label>
                 </div>
 
-                {/* Design Field - Added */}
+                {/* Design Field */}
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
@@ -848,6 +1057,7 @@ const EditProduct = () => {
             </div>
           </div>
 
+          {/* SIZES */}
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-2">
               Sizes *
@@ -877,145 +1087,225 @@ const EditProduct = () => {
             )}
           </div>
 
-          <div className="bg-white p-6 rounded-md shadow-sm">
-            <label className="block text-[16px] font-medium mb-2">
-              Colors *
-              {errors.colors && <span className="text-red-500 ml-2">(Please select at least one color)</span>}
-            </label>
-            <div className="flex gap-6 flex-wrap">
-              {colorsList.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => toggleArray("colors", c.id)}
-                  className="cursor-pointer text-center group"
-                >
+          {/* COLORS - Only show when NOT in design mode */}
+          {!form.isDesign && (
+            <div className="bg-white p-6 rounded-md shadow-sm">
+              <label className="block text-[16px] font-medium mb-2">
+                Colors *
+                {errors.colors && <span className="text-red-500 ml-2">(Please select at least one color)</span>}
+              </label>
+              <div className="flex gap-6 flex-wrap">
+                {colorsList.map((c) => (
                   <div
-                    className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id)
-                      ? "border-black scale-110 shadow"
-                      : errors.colors
-                        ? "border-red-500 group-hover:border-red-600"
-                        : "border-black/20 group-hover:border-black/60"
-                      }`}
-                    style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
-                  />
-                  <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
-                </div>
-              ))}
-            </div>
-            {errors.colors && (
-              <p className="text-sm text-red-500 mt-2">
-                * Please select at least one color
-              </p>
-            )}
-          </div>
-
-          <div className="bg-white p-6 rounded-md shadow-sm">
-            <h2 className="text-xl font-bold mb-4">Product Images</h2>
-
-            <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
-              <Upload size={16} />
-              Upload Images
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => handleImagesUpload(e.target.files)}
-                className="hidden"
-              />
-            </label>
-
-            {form.images.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-                {form.images.map((img, index) => {
-                  const isNewImage = img.file && !img.id;
-                  const isExistingImage = img.id;
-                  const isThumbnail = index === form.thumbnailIndex;
-                  const isSettingThumbnailExisting = isExistingImage && settingThumbnail === img.id;
-                  const isDeletingExisting = isExistingImage && deletingImage === img.id;
-
-                  return (
+                    key={c.id}
+                    onClick={() => toggleArray("colors", c.id)}
+                    className="cursor-pointer text-center group"
+                  >
                     <div
-                      key={img.id ? `existing-${img.id}` : `new-${index}-${img.file?.name}`}
-                      className={`relative border rounded ${isThumbnail
-                        ? "border-black ring-2 ring-black"
-                        : "border-black/20"
+                      className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id)
+                        ? "border-black scale-110 shadow"
+                        : errors.colors
+                          ? "border-red-500 group-hover:border-red-600"
+                          : "border-black/20 group-hover:border-black/60"
                         }`}
-                    >
-                      <div className="w-full h-32 relative">
-                        <Image
-                          src={img.file ? img.url : getImageUrl(img.url)}
-                          alt="Preview"
-                          fill
-                          className="object-cover"
-                          unoptimized
+                      style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
+                    />
+                    <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
+                    {c.hex_code && (
+                      <span className="text-[12px] text-gray-500 block">{c.hex_code}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {errors.colors && (
+                <p className="text-sm text-red-500 mt-2">
+                  * Please select at least one color
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* REGULAR MEDIA UPLOAD - Only show when NOT in design mode */}
+          {!form.isDesign && (
+            <div className="bg-white p-6 rounded-md shadow-sm">
+              <h2 className="text-xl font-bold mb-4">Product Images</h2>
+
+              <label className="inline-flex items-center gap-2 cursor-pointer bg-black text-white px-4 py-2 rounded hover:bg-gray-800">
+                <Upload size={16} />
+                Upload Images
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleImagesUpload(e.target.files)}
+                  className="hidden"
+                />
+              </label>
+
+              {form.images.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                  {form.images.map((img, index) => {
+                    const isNewImage = img.file && !img.id;
+                    const isExistingImage = img.id;
+                    const isThumbnail = index === form.thumbnailIndex;
+                    const isSettingThumbnailExisting = isExistingImage && settingThumbnail === img.id;
+                    const isDeletingExisting = isExistingImage && deletingImage === img.id;
+
+                    return (
+                      <div
+                        key={img.id ? `existing-${img.id}` : `new-${index}-${img.file?.name}`}
+                        className={`relative border rounded ${isThumbnail
+                          ? "border-black ring-2 ring-black"
+                          : "border-black/20"
+                          }`}
+                      >
+                        <div className="w-full h-32 relative">
+                          <Image
+                            src={img.file ? img.url : getImageUrl(img.url)}
+                            alt="Preview"
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center p-2 text-xs">
+                          {/* Thumbnail Button */}
+                          {isThumbnail ? (
+                            <button
+                              disabled
+                              className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
+                            >
+                              <Check size={12} />
+                              Thumbnail
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => isExistingImage && handleSetThumbnail(index)}
+                              disabled={isSettingThumbnailExisting || isDeletingExisting || isNewImage}
+                              className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : isSettingThumbnailExisting
+                                  ? "bg-gray-400 text-white cursor-not-allowed"
+                                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                                }`}
+                              title={isNewImage ? "Save product first to set as thumbnail" : "Set as thumbnail"}
+                            >
+                              {isSettingThumbnailExisting && (
+                                <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                              )}
+                              Set Thumbnail
+                            </button>
+                          )}
+
+                          {/* Remove Button */}
+                          <button
+                            onClick={() => handleDeleteImage(img.id, index)}
+                            disabled={isDeletingExisting || isSettingThumbnailExisting}
+                            className={`flex items-center gap-1 ${isDeletingExisting
+                              ? "text-red-400 cursor-not-allowed"
+                              : "text-red-600 hover:text-red-800"
+                              }`}
+                          >
+                            {isDeletingExisting ? (
+                              <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                            Remove
+                          </button>
+                        </div>
+
+                        {/* New Image Badge */}
+                        {isNewImage && (
+                          <div className="absolute top-1 right-1 bg-black text-white text-xs px-1.5 py-0.5 rounded">
+                            New
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="text-sm text-gray-500 mt-4">
+                Note: New uploaded images (marked with New badge) can be removed immediately.
+                To set a new image as thumbnail, you need to save the product first.
+              </p>
+            </div>
+          )}
+
+          {/* DESIGN NAMES SECTION - Only show when isDesign is true */}
+          {form.isDesign && (
+            <div className="bg-white p-6 rounded-md shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">Designs</h2>
+                <button
+                  onClick={addDesign}
+                  className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
+                >
+                  <Plus size={16} />
+                  Add Design
+                </button>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-6">
+                Enter names for your designs. The first design is default by default. Click the star to set a design as default.
+              </p>
+
+              {form.designs.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded">
+                  <p className="text-gray-500">No designs added yet. Click Add Design to start.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {form.designs.map((design, index) => (
+                    <div key={design.id || `new-${index}`} className="flex items-center gap-4 p-4 border rounded-lg">
+                      
+
+                      {/* Design Name Input */}
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">
+                          Design {index + 1} Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={design.name}
+                          onChange={(e) => updateDesignName(index, e.target.value)}
+                          className="w-full border border-black/20 rounded px-3 py-2"
+                          placeholder={`Enter design name ${index + 1}`}
                         />
                       </div>
 
-                      <div className="flex justify-between items-center p-2 text-xs">
-                        {/* Thumbnail Button */}
-                        {isThumbnail ? (
-                          <button
-                            disabled
-                            className="px-2 py-1 rounded bg-black text-white cursor-default flex items-center gap-1"
-                          >
-                            <Check size={12} />
-                            Thumbnail
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => isExistingImage && handleSetThumbnail(index)}
-                            disabled={isSettingThumbnailExisting || isDeletingExisting || isNewImage}
-                            className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              : isSettingThumbnailExisting
-                                ? "bg-gray-400 text-white cursor-not-allowed"
-                                : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                              }`}
-                            title={isNewImage ? "Save product first to set as thumbnail" : "Set as thumbnail"}
-                          >
-                            {isSettingThumbnailExisting && (
-                              <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-                            )}
-                            Set Thumbnail
-                          </button>
-                        )}
-
-                        {/* Remove Button */}
-                        <button
-                          onClick={() => handleDeleteImage(img.id, index)}
-                          disabled={isDeletingExisting || isSettingThumbnailExisting}
-                          className={`flex items-center gap-1 ${isDeletingExisting
-                            ? "text-red-400 cursor-not-allowed"
-                            : "text-red-600 hover:text-red-800"
-                            }`}
-                        >
-                          {isDeletingExisting ? (
-                            <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                          Remove
-                        </button>
-                      </div>
-
-                      {/* New Image Badge */}
-                      {isNewImage && (
-                        <div className="absolute top-1 right-1 bg-black text-white text-xs px-1.5 py-0.5 rounded">
-                          New
+                      {/* Design ID (for existing designs) */}
+                      {design.id && (
+                        <div className="text-xs text-gray-500">
+                          ID: {design.id}
                         </div>
                       )}
+
+                      {/* Remove Button - Can't remove default design */}
+                      <button
+                        onClick={() => removeDesign(index)}
+                        disabled={design.is_default}
+                        className={`mt-6 ${design.is_default 
+                          ? 'text-gray-400 cursor-not-allowed' 
+                          : 'text-red-600 hover:text-red-800'
+                        }`}
+                        title={design.is_default ? "Cannot remove default design" : "Remove design"}
+                      >
+                        <X size={20} />
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
 
-            <p className="text-sm text-gray-500 mt-4">
-              Note: New uploaded images (marked with yellow badge) can be removed immediately.
-              To set a new image as thumbnail, you need to save the product first.
-            </p>
-          </div>
+              
+            </div>
+          )}
 
+          {/* SEO */}
           <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
             <div>
               <label className="block text-[16px] font-medium mb-1">Meta Title</label>
@@ -1038,6 +1328,7 @@ const EditProduct = () => {
             </div>
           </div>
 
+          {/* SUBMIT BUTTON */}
           <div className="flex justify-end">
             <button
               onClick={handleUpdate}
