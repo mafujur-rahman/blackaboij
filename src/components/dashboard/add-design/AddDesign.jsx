@@ -122,20 +122,18 @@ const AddDesign = () => {
       const productColorIds = foundProduct.colors?.map((c) => c.id) || [];
       setSelectedColors(productColorIds);
 
-      
-
-      // Initialize designImages structure for selected colors and designs
+      // Initialize designImages structure with existing data
       const initialImages = {};
-      allColorsData.forEach((color) => {
-        if (productColorIds.includes(color.id)) {
-          initialImages[color.id] = {
-            front_image: null,
-            back_images: {}, // Will store SINGLE image per design
-          };
-        }
+      
+      // First, create entries for all product colors
+      productColorIds.forEach((colorId) => {
+        initialImages[colorId] = {
+          front_image: null,
+          back_images: {},
+        };
       });
-      setDesignImages(initialImages);
 
+      setDesignImages(initialImages);
 
       // If product already has uploaded images, populate them
       if (foundProduct.product_colors) {
@@ -216,8 +214,41 @@ const AddDesign = () => {
     return productColor && productColor.back_designs && productColor.back_designs.length > 0;
   };
 
-  // Toggle color selection with duplicate check
+  // Check if color has any existing images
+  const colorHasExistingImages = (colorId) => {
+    const colorData = designImages[colorId];
+    if (!colorData) return false;
+    
+    // Check if has existing front image
+    if (colorData.front_image?.existing) return true;
+    
+    // Check if has any existing back images
+    return Object.values(colorData.back_images || {}).some(img => img?.existing);
+  };
+
+  // Toggle color selection with protection for colors with existing images
   const toggleColorSelection = (colorId) => {
+    // Check if trying to uncheck a color that has existing images
+    if (selectedColors.includes(colorId) && colorHasExistingImages(colorId)) {
+      Swal.fire({
+        title: "Cannot Remove Color",
+        html: `
+          <div class="text-left">
+            <p class="mb-3">This color has existing images in the system.</p>
+            <p class="text-sm text-gray-600 mb-2">To remove this color:</p>
+            <ul class="list-disc pl-5 text-sm text-gray-600">
+              <li>First delete all existing images for this color</li>
+              <li>Then you can remove the color from selection</li>
+            </ul>
+          </div>
+        `,
+        icon: "warning",
+        confirmButtonColor: "#000000",
+        confirmButtonText: "OK"
+      });
+      return;
+    }
+
     // Check if trying to add a color that already has designs
     if (!selectedColors.includes(colorId) && colorHasExistingDesigns(colorId)) {
       Swal.fire({
@@ -248,18 +279,20 @@ const AddDesign = () => {
       return;
     }
 
-    // Normal toggle behavior
+    // Normal toggle behavior (only for colors without existing images)
     setSelectedColors((prev) => {
       if (prev.includes(colorId)) {
+        // Only allow unchecking if no existing images (already checked above)
         setDesignImages((prevImages) => {
           const updated = { ...prevImages };
           if (updated[colorId]) {
-            if (updated[colorId]?.front_image?.preview) {
+            // Clean up preview URLs for new images only
+            if (updated[colorId]?.front_image?.preview && !updated[colorId].front_image.existing) {
               URL.revokeObjectURL(updated[colorId].front_image.preview);
             }
 
             Object.values(updated[colorId]?.back_images || {}).forEach((img) => {
-              if (img?.preview) {
+              if (img?.preview && !img.existing) {
                 URL.revokeObjectURL(img.preview);
               }
             });
@@ -291,7 +324,7 @@ const AddDesign = () => {
           const updated = { ...prevImages };
           Object.keys(updated).forEach((colorId) => {
             const designImage = updated[colorId]?.back_images?.[designId];
-            if (designImage?.preview) {
+            if (designImage?.preview && !designImage.existing) {
               URL.revokeObjectURL(designImage.preview);
             }
 
@@ -323,7 +356,7 @@ const AddDesign = () => {
       Object.keys(updated).forEach((colorId) => {
         Object.keys(updated[colorId]?.back_images || {}).forEach((designId) => {
           const image = updated[colorId].back_images[designId];
-          if (image?.preview) {
+          if (image?.preview && !image.existing) {
             URL.revokeObjectURL(image.preview);
           }
         });
@@ -500,12 +533,11 @@ const AddDesign = () => {
   };
 
   const stripHtml = (html) => {
-  if (!html) return "";
-  const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = html;
-  return tempDiv.textContent || tempDiv.innerText || "";
-};
-
+    if (!html) return "";
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText || "";
+  };
 
   // ============== MAIN UPDATE FUNCTION - SUBMIT EVERYTHING TOGETHER ==============
   const handleUpdateAll = async () => {
@@ -770,8 +802,6 @@ const AddDesign = () => {
               />
             </div>
 
-           
-
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
@@ -873,7 +903,6 @@ const AddDesign = () => {
             onClearColorImages={clearColorImages}
             onToggleColor={toggleColorSelection}
             colorHasExistingDesigns={colorHasExistingDesigns}
-          // Removed onUpdateDesign and onDeleteDesign
           />
         ) : (
           <div className="bg-white p-6 rounded-md shadow-sm text-center py-12 border border-gray-200">
@@ -903,7 +932,7 @@ const AddDesign = () => {
 
         {/* ACTION BUTTONS - SINGLE UPDATE BUTTON */}
         {selectedColors.length > 0 && selectedDesigns.length > 0 && (
-          <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200  bottom-4">
+          <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="font-bold mb-1 text-black">Review Changes</h3>
@@ -925,8 +954,6 @@ const AddDesign = () => {
               </div>
 
               <div className="flex gap-3">
-               
-
                 <button
                   onClick={() => router.push("/dashboard/product-list")}
                   className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-black"
@@ -937,10 +964,11 @@ const AddDesign = () => {
                 <button
                   onClick={handleUpdateAll}
                   disabled={uploading || (!pendingChanges.fields && !pendingChanges.images)}
-                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${uploading || (!pendingChanges.fields && !pendingChanges.images)
+                  className={`px-6 py-2 rounded font-medium flex items-center gap-2 ${
+                    uploading || (!pendingChanges.fields && !pendingChanges.images)
                       ? "bg-gray-400 cursor-not-allowed text-gray-600"
                       : "bg-black text-white hover:bg-gray-800"
-                    }`}
+                  }`}
                 >
                   {uploading ? (
                     <>

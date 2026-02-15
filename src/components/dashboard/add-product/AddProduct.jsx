@@ -233,16 +233,22 @@ const AddProduct = () => {
     });
   };
 
-  // Handle image upload for regular products
+  // Handle image upload for regular products - FIXED for high quality
   const handleImagesUpload = (files) => {
     const fileArray = Array.from(files);
 
+    // REMOVED size restriction - allow any size
     const validFiles = fileArray.filter((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        Swal.fire("Error", `${file.name} exceeds 10MB`, "error");
-        return false;
+      // Optional: Add warning for very large files but don't block
+      if (file.size > 50 * 1024 * 1024) { // 50MB warning
+        Swal.fire({
+          icon: "warning",
+          title: "Large File",
+          text: `${file.name} is larger than 50MB. Upload may take longer.`,
+          showConfirmButton: true,
+        });
       }
-      return true;
+      return true; // Accept all files
     });
 
     const normalizedFiles = validFiles.map((file) => ({
@@ -292,21 +298,31 @@ const AddProduct = () => {
       meta_title: form.metaTitle || form.name,
       meta_description: form.metaDescription || form.description,
       hot_sale: form.hotSale,
-      is_design: form.isDesign,
       size_ids: form.sizes.map(id => Number(id)),
     };
+
+    // Only add is_design if it's true
+    if (form.isDesign) {
+      payload.is_design = true;
+    }
 
     // Only add colors for non-design products
     if (!form.isDesign && form.colors.length > 0) {
       payload.color_ids = form.colors.map(id => Number(id));
     }
 
-    // Add design names for design products
-    if (form.isDesign && form.designNames.length > 0) {
-      payload.design_names = form.designNames
-        .filter(name => name && name.trim() !== "")
-        .map(name => name.trim());
+    // For design products, add design_names
+    if (form.isDesign) {
+      if (form.designNames.length > 0) {
+        payload.design_names = form.designNames
+          .filter(name => name && name.trim() !== "")
+          .map(name => name.trim());
+      } else {
+        // If design mode but no names, send empty array
+        payload.design_names = [];
+      }
     }
+    // IMPORTANT: For non-design products, we DO NOT add is_design or design_names at all
 
     console.log("JSON Payload:", payload);
     return payload;
@@ -324,7 +340,11 @@ const AddProduct = () => {
     formData.append("meta_title", form.metaTitle || form.name);
     formData.append("meta_description", form.metaDescription || form.description);
     formData.append("hot_sale", form.hotSale ? "True" : "False");
-    formData.append("is_design", form.isDesign ? "True" : "False");
+
+    // Only add is_design if it's true
+    if (form.isDesign) {
+      formData.append("is_design", "True");
+    }
 
     form.sizes.forEach((id) => {
       formData.append("size_ids", id.toString());
@@ -336,10 +356,21 @@ const AddProduct = () => {
       });
     }
 
-    // Add images for regular products
+    // For design products only, add design_names
+    if (form.isDesign && form.designNames.length > 0) {
+      form.designNames.forEach((name) => {
+        if (name && name.trim() !== "") {
+          formData.append("design_names", name.trim());
+        }
+      });
+    }
+    // For non-design products, we DO NOT add is_design or design_names at all
+
+    // Add images for regular products - maintain original quality
     if (!form.isDesign && form.images.length > 0) {
       form.images.forEach((img, index) => {
         if (img.file) {
+          // Append with original file (maintains quality)
           formData.append("images", img.file);
           formData.append(
             "is_thumbnail",
@@ -443,6 +474,16 @@ const AddProduct = () => {
       console.log("Is Design:", form.isDesign);
       console.log("Using:", form.isDesign ? "JSON" : "FormData");
 
+      // Log the payload for debugging
+      if (!form.isDesign) {
+        console.log("FormData contents:");
+        for (let pair of payload.entries()) {
+          console.log(pair[0] + ': ' + pair[1]);
+        }
+      } else {
+        console.log("JSON Payload:", payload);
+      }
+
       let response;
       if (form.isDesign) {
         // Send JSON for design products
@@ -488,7 +529,17 @@ const AddProduct = () => {
     } catch (err) {
       console.error("Error creating product:", err);
       console.error("Error response:", err.response?.data);
-      Swal.fire("Error", err.response?.data?.message || "Product creation failed", "error");
+      
+      // Check if error is about design_names
+      if (err.response?.data?.error === "design_names is required") {
+        Swal.fire({
+          icon: "error",
+          title: "Server Configuration Error",
+          text: "The server is incorrectly requiring design_names for non-design products. Please check the backend validation.",
+        });
+      } else {
+        Swal.fire("Error", err.response?.data?.message || "Product creation failed", "error");
+      }
     } finally {
       setLoading(false);
     }
@@ -936,7 +987,7 @@ const AddProduct = () => {
             </label>
 
             <p className="text-sm text-gray-500 mt-2">
-              Upload multiple images. Select one as thumbnail. (Required for all products)
+              Upload multiple images. Select one as thumbnail. (Original quality preserved)
             </p>
 
             {/* Preview Grid */}

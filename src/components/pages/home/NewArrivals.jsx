@@ -36,7 +36,7 @@ const SeeMoreButton = ({ categoryName, onClick }) => {
     <div className="flex justify-center items-center md:mt-5 mb-12.5 ">
       <button
         onClick={onClick}
-        className="px-8 py-3 bg-black text-white font-semibold  cursor-pointer"
+        className="px-8 py-3 bg-black text-white font-semibold cursor-pointer"
       >
         See More {categoryName}
       </button>
@@ -56,6 +56,49 @@ const NewArrivals = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [displayedProducts, setDisplayedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  /* -------- FUNCTION TO ORGANIZE PRODUCTS BY TYPE -------- */
+  const organizeProductsByType = (products) => {
+    // Separate products by type
+    const tees = [];
+    const pants = [];
+    const hats = [];
+    const others = [];
+
+    products.forEach((product) => {
+      const subcategoryName = product.category?.name?.toLowerCase() || "";
+      
+      // Categorize based on subcategory name
+      if (subcategoryName.includes('tee') || 
+          subcategoryName.includes('t-shirt') || 
+          subcategoryName.includes('tshirt') || 
+          subcategoryName.includes('t shirt') ||
+          subcategoryName === 'tees') {
+        tees.push(product);
+      } else if (subcategoryName.includes('pant') || 
+                 subcategoryName.includes('pants') || 
+                 subcategoryName.includes('jeans') || 
+                 subcategoryName.includes('trouser')) {
+        pants.push(product);
+      } else if (subcategoryName.includes('hat') || 
+                 subcategoryName.includes('cap')) {
+        hats.push(product);
+      } else {
+        others.push(product);
+      }
+    });
+
+    // Sort each category by date (latest first)
+    const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+    
+    tees.sort(sortByDate);
+    pants.sort(sortByDate);
+    hats.sort(sortByDate);
+    others.sort(sortByDate);
+
+    // Combine in desired order: Tees -> Pants -> Hats -> Others
+    return [...tees, ...pants, ...hats, ...others];
+  };
 
   /* -------- FETCH PRODUCTS WITH CACHING -------- */
   useEffect(() => {
@@ -86,11 +129,6 @@ const NewArrivals = () => {
         const res = await api.get("/api/products/get-all-products/");
         let products = res.data.data || [];
 
-        // Sort products by created_at descending (latest first)
-        products.sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        );
-
         // Extract unique parent categories
         const categoryMap = new Map();
         products.forEach((product) => {
@@ -118,12 +156,14 @@ const NewArrivals = () => {
         const initialCategory = parentCategories[0]?.id || null;
         const initialCategoryName = parentCategories[0]?.name || "";
 
-        const initialFiltered = initialCategory
-          ? products
-              .filter((p) => p.category?.parent === initialCategory)
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        // Filter products by initial category
+        let initialFiltered = initialCategory
+          ? products.filter((p) => p.category?.parent === initialCategory)
           : products;
 
+        // Organize products by type (Tees first, then Pants, then Hats)
+        initialFiltered = organizeProductsByType(initialFiltered);
+        
         const initialDisplayed = initialFiltered.slice(0, MAX_PRODUCTS);
 
         setAllProducts(products);
@@ -165,9 +205,12 @@ const NewArrivals = () => {
       return;
     }
 
-    const filtered = allProducts
-      .filter((product) => product.category?.parent === activeCategory)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Filter products by selected parent category
+    let filtered = allProducts
+      .filter((product) => product.category?.parent === activeCategory);
+
+    // Organize products by type (Tees first, then Pants, then Hats)
+    filtered = organizeProductsByType(filtered);
 
     setFilteredProducts(filtered);
     setDisplayedProducts(filtered.slice(0, MAX_PRODUCTS));
@@ -230,7 +273,7 @@ const NewArrivals = () => {
           <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>
-            {/* All 8 products in one grid */}
+            {/* All products in one grid, organized by type */}
             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

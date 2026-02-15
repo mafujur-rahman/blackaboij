@@ -3,10 +3,11 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: BASE_URL,
-  // ✅ DO NOT set Content-Type globally
+  timeout: 1000 * 60 * 10, 
+  maxBodyLength: Infinity,
+  maxContentLength: Infinity,
 });
 
-// Attach token automatically
 api.interceptors.request.use((config) => {
   const token =
     localStorage.getItem("auth_token") ||

@@ -47,7 +47,9 @@ const EditProduct = () => {
     name: "",
     description: "",
     mainCategoryId: "",
+    mainCategoryName: "",
     subCategoryId: "",
+    subCategoryName: "",
     price: "",
     qty: "",
     sizes: [],
@@ -58,7 +60,7 @@ const EditProduct = () => {
     thumbnailIndex: 0,
     hotSale: false,
     isDesign: false,
-    designs: [], // Changed from designNames to designs array of objects
+    designNames: [], // Changed from designs array to designNames array
   });
 
   // Use a ref to track form state in callbacks
@@ -160,6 +162,11 @@ const EditProduct = () => {
           return;
         }
 
+        // Find the parent category name
+        const parentCategory = parents.data.data.find(
+          (cat) => cat.id === Number(product.category.parent)
+        );
+
         setParentCategoryId(product.category.parent);
 
         const images = product.images.map((img) => ({
@@ -175,7 +182,9 @@ const EditProduct = () => {
           name: product.name,
           description: product.description || "",
           mainCategoryId: product.category.parent,
+          mainCategoryName: parentCategory?.name || "",
           subCategoryId: product.category.id,
+          subCategoryName: product.category.name,
           price: product.unit_price,
           qty: product.quantity,
           sizes: product.sizes?.map(s => s.id) || [],
@@ -186,7 +195,7 @@ const EditProduct = () => {
           thumbnailIndex,
           hotSale: product.hot_sale || false,
           isDesign: product.is_design || false,
-          designs: product.designs || [], // Store the designs array as is
+          designNames: product.designs?.map(d => d.name) || [], // Convert designs array to designNames array
         });
 
         setDescriptionContent(product.description || "");
@@ -249,55 +258,32 @@ const EditProduct = () => {
       ...prev,
       isDesign: newIsDesign,
       colors: newIsDesign ? [] : prev.colors, // Clear colors when toggling to design
-      designs: newIsDesign ? prev.designs : [], // Keep designs when toggling to design, clear when toggling off
+      designNames: newIsDesign ? prev.designNames : [], // Keep designNames when toggling to design, clear when toggling off
     }));
   };
 
-  // Add a new design
-  const addDesign = () => {
+  // Add a new design name
+  const addDesignName = () => {
     setForm(prev => ({
       ...prev,
-      designs: [...prev.designs, { 
-        id: null, // New designs won't have an ID yet
-        name: "", 
-        is_default: prev.designs.length === 0 // First design is default
-      }]
+      designNames: [...prev.designNames, ""]
     }));
   };
 
   // Update design name
   const updateDesignName = (index, name) => {
     setForm(prev => {
-      const updated = [...prev.designs];
-      updated[index] = { ...updated[index], name };
-      return { ...prev, designs: updated };
+      const updated = [...prev.designNames];
+      updated[index] = name;
+      return { ...prev, designNames: updated };
     });
   };
 
-  // Set design as default
-  const setDefaultDesign = (index) => {
-    setForm(prev => {
-      const updated = prev.designs.map((design, i) => ({
-        ...design,
-        is_default: i === index
-      }));
-      return { ...prev, designs: updated };
-    });
-  };
-
-  // Remove a design with confirmation
-  const removeDesign = (index) => {
-    const design = form.designs[index];
-    
-    // Don't allow removing the default design
-    if (design.is_default) {
-      Swal.fire("Warning", "Cannot remove the default design. Set another design as default first.", "warning");
-      return;
-    }
-
+  // Remove a design name
+  const removeDesignName = (index) => {
     Swal.fire({
       title: "Remove Design?",
-      text: "This design will be removed.",
+      text: "This design name will be removed.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, remove it",
@@ -306,7 +292,7 @@ const EditProduct = () => {
       if (result.isConfirmed) {
         setForm(prev => ({
           ...prev,
-          designs: prev.designs.filter((_, i) => i !== index)
+          designNames: prev.designNames.filter((_, i) => i !== index)
         }));
       }
     });
@@ -315,12 +301,18 @@ const EditProduct = () => {
   const handleImagesUpload = (files) => {
     const fileArray = Array.from(files);
 
+    // REMOVED size restriction - allow any size (matches AddProduct)
     const validFiles = fileArray.filter((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        Swal.fire("Error", `${file.name} exceeds 10MB`, "error");
-        return false;
+      // Optional: Add warning for very large files but don't block
+      if (file.size > 50 * 1024 * 1024) { // 50MB warning
+        Swal.fire({
+          icon: "warning",
+          title: "Large File",
+          text: `${file.name} is larger than 50MB. Upload may take longer.`,
+          showConfirmButton: true,
+        });
       }
-      return true;
+      return true; // Accept all files
     });
 
     const normalizedFiles = validFiles.map((file) => ({
@@ -472,34 +464,31 @@ const EditProduct = () => {
       meta_title: form.metaTitle || form.name,
       meta_description: form.metaDescription || form.description,
       hot_sale: form.hotSale,
-      is_design: form.isDesign,
       size_ids: form.sizes.map(id => Number(id)),
     };
+
+    // Only add is_design if it's true
+    if (form.isDesign) {
+      payload.is_design = true;
+    }
 
     // Only add colors for non-design products
     if (!form.isDesign && form.colors.length > 0) {
       payload.color_ids = form.colors.map(id => Number(id));
     }
 
-    // Add designs for design products
-    if (form.isDesign && form.designs.length > 0) {
-      // Send design names for new designs (without IDs)
-      // Existing designs will be handled separately by the backend
-      payload.design_names = form.designs
-        .filter(design => !design.id) // Only new designs without IDs
-        .map(design => design.name.trim())
-        .filter(name => name !== "");
-      
-      // If there are existing designs, we might need to send their IDs
-      // This depends on your API design
-      const existingDesignIds = form.designs
-        .filter(design => design.id)
-        .map(design => design.id);
-      
-      if (existingDesignIds.length > 0) {
-        payload.design_ids = existingDesignIds;
+    // For design products, add design_names
+    if (form.isDesign) {
+      if (form.designNames.length > 0) {
+        payload.design_names = form.designNames
+          .filter(name => name && name.trim() !== "")
+          .map(name => name.trim());
+      } else {
+        // If design mode but no names, send empty array
+        payload.design_names = [];
       }
     }
+    // IMPORTANT: For non-design products, we DO NOT add is_design or design_names at all
 
     return payload;
   };
@@ -509,57 +498,38 @@ const EditProduct = () => {
     const formData = new FormData();
 
     formData.append("name", form.name);
-    formData.append("category_id", Number(form.subCategoryId));
     formData.append("description", form.description || "");
+    formData.append("category_id", Number(form.subCategoryId));
     formData.append("unit_price", Number(form.price));
     formData.append("quantity", Number(form.qty));
     formData.append("meta_title", form.metaTitle || form.name);
-    formData.append("meta_description", form.metaDescription || form.name);
-    
-    if (form.hotSale) {
-      formData.append("hot_sale", "true");
-    }
+    formData.append("meta_description", form.metaDescription || form.description);
+    formData.append("hot_sale", form.hotSale ? "True" : "False");
 
+    // Only add is_design if it's true
     if (form.isDesign) {
-      formData.append("is_design", "true");
+      formData.append("is_design", "True");
     }
 
-    form.sizes.forEach((sizeId) => {
-      formData.append("size_ids", sizeId);
+    form.sizes.forEach((id) => {
+      formData.append("size_ids", id.toString());
     });
-
+    
     if (!form.isDesign && form.colors.length > 0) {
-      form.colors.forEach((colorId) => {
-        formData.append("color_ids", colorId);
+      form.colors.forEach((id) => {
+        formData.append("color_ids", id.toString());
       });
     }
 
-    // Add designs for design products
-    if (form.isDesign && form.designs.length > 0) {
-      // Add new design names
-      form.designs
-        .filter(design => !design.id) // Only new designs without IDs
-        .forEach((design) => {
-          if (design.name && design.name.trim() !== "") {
-            formData.append("design_names", design.name.trim());
-          }
-        });
-      
-      // Add existing design IDs
-      const existingDesignIds = form.designs
-        .filter(design => design.id)
-        .map(design => design.id);
-      
-      existingDesignIds.forEach(id => {
-        formData.append("design_ids", id);
+    // For design products only, add design_names
+    if (form.isDesign && form.designNames.length > 0) {
+      form.designNames.forEach((name) => {
+        if (name && name.trim() !== "") {
+          formData.append("design_names", name.trim());
+        }
       });
-
-      // Add default design info
-      const defaultDesign = form.designs.find(d => d.is_default);
-      if (defaultDesign) {
-        formData.append("default_design_id", defaultDesign.id || "");
-      }
     }
+    // For non-design products, we DO NOT add is_design or design_names at all
 
     // Add new images only (those with file but no id)
     const newImages = form.images.filter(img => img.file && !img.id);
@@ -624,24 +594,17 @@ const EditProduct = () => {
       return false;
     }
 
-    // Validate designs if isDesign is true
+    // Validate design names if isDesign is true
     if (form.isDesign) {
-      if (form.designs.length === 0) {
-        Swal.fire("Warning", "Please add at least one design", "warning");
+      if (form.designNames.length === 0) {
+        Swal.fire("Warning", "Please add at least one design name", "warning");
         return false;
       }
 
       // Check if all design names are filled
-      const emptyNames = form.designs.filter(design => !design.name || design.name.trim() === "");
+      const emptyNames = form.designNames.filter(name => !name || name.trim() === "");
       if (emptyNames.length > 0) {
         Swal.fire("Warning", "Please enter names for all designs", "warning");
-        return false;
-      }
-
-      // Check if there's a default design
-      const hasDefault = form.designs.some(design => design.is_default);
-      if (!hasDefault) {
-        Swal.fire("Warning", "Please select a default design", "warning");
         return false;
       }
     }
@@ -697,7 +660,16 @@ const EditProduct = () => {
       console.log("=== UPDATING PRODUCT ===");
       console.log("Is Design:", form.isDesign);
       console.log("Using:", form.isDesign ? "JSON" : "FormData");
-      console.log("Payload:", payload);
+
+      // Log the payload for debugging
+      if (!form.isDesign) {
+        console.log("FormData contents:");
+        for (let pair of payload.entries()) {
+          console.log(pair[0] + ': ' + pair[1]);
+        }
+      } else {
+        console.log("JSON Payload:", payload);
+      }
 
       let response;
       if (form.isDesign) {
@@ -723,13 +695,23 @@ const EditProduct = () => {
       Swal.close();
       console.error("Update error:", error);
       console.error("Error response:", error.response?.data);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Update failed. Please try again.",
-        confirmButtonText: "OK",
-        confirmButtonColor: "#000"
-      });
+      
+      // Check if error is about design_names
+      if (error.response?.data?.error === "design_names is required") {
+        Swal.fire({
+          icon: "error",
+          title: "Server Configuration Error",
+          text: "The server is incorrectly requiring design_names for non-design products. Please check the backend validation.",
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.response?.data?.message || "Update failed. Please try again.",
+          confirmButtonText: "OK",
+          confirmButtonColor: "#000"
+        });
+      }
     } finally {
       setUpdating(false);
     }
@@ -811,6 +793,7 @@ const EditProduct = () => {
                     setForm((prev) => ({
                       ...prev,
                       mainCategoryId: e.target.value,
+                      mainCategoryName: selected?.name || "",
                     }));
                   }}
                   className="w-full border border-black/20 rounded px-3 py-2"
@@ -831,9 +814,13 @@ const EditProduct = () => {
                 <select
                   value={form.subCategoryId}
                   onChange={(e) => {
+                    const selected = subCategories.find(
+                      (sub) => sub.id === Number(e.target.value)
+                    );
                     setForm((prev) => ({
                       ...prev,
                       subCategoryId: e.target.value,
+                      subCategoryName: selected?.name || "",
                     }));
                   }}
                   className="w-full border border-black/20 rounded px-3 py-2"
@@ -857,6 +844,7 @@ const EditProduct = () => {
                   className="w-full border border-black/20 rounded px-3 py-2"
                   placeholder="0.00"
                   step="0.01"
+                  min="0"
                 />
               </div>
 
@@ -1239,60 +1227,43 @@ const EditProduct = () => {
           {form.isDesign && (
             <div className="bg-white p-6 rounded-md shadow-sm">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">Designs</h2>
+                <h2 className="text-xl font-bold">Design Names</h2>
                 <button
-                  onClick={addDesign}
+                  onClick={addDesignName}
                   className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded hover:bg-gray-800 transition"
                 >
                   <Plus size={16} />
-                  Add Design
+                  Add Design Name
                 </button>
               </div>
 
               <p className="text-sm text-gray-500 mb-6">
-                Enter names for your designs. The first design is default by default. Click the star to set a design as default.
+                Enter names for your designs. These names will be used to identify different design variations.
               </p>
 
-              {form.designs.length === 0 ? (
+              {form.designNames.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded">
-                  <p className="text-gray-500">No designs added yet. Click Add Design to start.</p>
+                  <p className="text-gray-500">No design names added yet. Click "Add Design Name" to start.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {form.designs.map((design, index) => (
-                    <div key={design.id || `new-${index}`} className="flex items-center gap-4 p-4 border rounded-lg">
-                      
-
-                      {/* Design Name Input */}
+                  {form.designNames.map((name, index) => (
+                    <div key={`design-${index}`} className="flex items-center gap-4 p-4 border rounded-lg">
                       <div className="flex-1">
                         <label className="block text-sm font-medium mb-1">
                           Design {index + 1} Name *
                         </label>
                         <input
                           type="text"
-                          value={design.name}
+                          value={name}
                           onChange={(e) => updateDesignName(index, e.target.value)}
                           className="w-full border border-black/20 rounded px-3 py-2"
                           placeholder={`Enter design name ${index + 1}`}
                         />
                       </div>
-
-                      {/* Design ID (for existing designs) */}
-                      {design.id && (
-                        <div className="text-xs text-gray-500">
-                          ID: {design.id}
-                        </div>
-                      )}
-
-                      {/* Remove Button - Can't remove default design */}
                       <button
-                        onClick={() => removeDesign(index)}
-                        disabled={design.is_default}
-                        className={`mt-6 ${design.is_default 
-                          ? 'text-gray-400 cursor-not-allowed' 
-                          : 'text-red-600 hover:text-red-800'
-                        }`}
-                        title={design.is_default ? "Cannot remove default design" : "Remove design"}
+                        onClick={() => removeDesignName(index)}
+                        className="text-red-600 hover:text-red-800 mt-6"
                       >
                         <X size={20} />
                       </button>
@@ -1300,8 +1271,6 @@ const EditProduct = () => {
                   ))}
                 </div>
               )}
-
-              
             </div>
           )}
 
