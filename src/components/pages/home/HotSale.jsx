@@ -44,6 +44,49 @@ const SeeMoreButton = ({ onClick, isLoading }) => {
   );
 };
 
+/* -------- FUNCTION TO ORGANIZE PRODUCTS BY TYPE -------- */
+const organizeProductsByType = (products) => {
+  // Separate products by type
+  const tees = [];
+  const hats = [];
+  const pants = [];
+  const others = [];
+
+  products.forEach((product) => {
+    const subcategoryName = product.category?.name?.toLowerCase() || "";
+    
+    // Categorize based on subcategory name
+    if (subcategoryName.includes('tee') || 
+        subcategoryName.includes('t-shirt') || 
+        subcategoryName.includes('tshirt') || 
+        subcategoryName.includes('t shirt') ||
+        subcategoryName === 'tees') {
+      tees.push(product);
+    } else if (subcategoryName.includes('hat') || 
+               subcategoryName.includes('cap')) {
+      hats.push(product);
+    } else if (subcategoryName.includes('pant') || 
+               subcategoryName.includes('pants') || 
+               subcategoryName.includes('jeans') || 
+               subcategoryName.includes('trouser')) {
+      pants.push(product);
+    } else {
+      others.push(product);
+    }
+  });
+
+  // Sort each category by date (latest first)
+  const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+  
+  tees.sort(sortByDate);
+  hats.sort(sortByDate);
+  pants.sort(sortByDate);
+  others.sort(sortByDate);
+
+  // Combine in desired order: Tees -> Hats -> Pants -> Others
+  return [...tees, ...hats, ...pants, ...others];
+};
+
 /* ------------------ MAIN COMPONENT ------------------ */
 const HotSale = () => {
   const PRODUCTS_PER_LOAD = 8;
@@ -111,10 +154,13 @@ const HotSale = () => {
         });
 
         const initialCategory = parentCategories[0]?.id || null;
-        const initialFiltered = initialCategory
+        let initialFiltered = initialCategory
           ? products.filter((p) => p.category?.parent === initialCategory)
           : products;
 
+        // Organize products by type (Tees first, then Hats, then Pants)
+        initialFiltered = organizeProductsByType(initialFiltered);
+        
         const initialDisplayed = initialFiltered.slice(0, INITIAL_DISPLAY_COUNT);
 
         setAllProducts(products);
@@ -150,9 +196,12 @@ const HotSale = () => {
   useEffect(() => {
     if (!activeCategory) return;
 
-    const filtered = allProducts.filter(
+    let filtered = allProducts.filter(
       (product) => product.category?.parent === activeCategory
     );
+    
+    // Organize products by type (Tees first, then Hats, then Pants)
+    filtered = organizeProductsByType(filtered);
     
     setFilteredProducts(filtered);
     setCurrentDisplayCount(INITIAL_DISPLAY_COUNT);
@@ -258,8 +307,6 @@ const HotSale = () => {
                 isLoading={loadingMore}
               />
             )}
-
-           
           </>
         )}
       </div>

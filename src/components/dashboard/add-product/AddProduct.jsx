@@ -322,9 +322,7 @@ const AddProduct = () => {
         payload.design_names = [];
       }
     }
-    // IMPORTANT: For non-design products, we DO NOT add is_design or design_names at all
 
-    console.log("JSON Payload:", payload);
     return payload;
   };
 
@@ -470,19 +468,8 @@ const AddProduct = () => {
         },
       });
 
-      console.log("=== SENDING PRODUCT ===");
-      console.log("Is Design:", form.isDesign);
-      console.log("Using:", form.isDesign ? "JSON" : "FormData");
 
-      // Log the payload for debugging
-      if (!form.isDesign) {
-        console.log("FormData contents:");
-        for (let pair of payload.entries()) {
-          console.log(pair[0] + ': ' + pair[1]);
-        }
-      } else {
-        console.log("JSON Payload:", payload);
-      }
+
 
       let response;
       if (form.isDesign) {
@@ -493,7 +480,6 @@ const AddProduct = () => {
         response = await api.post(endpoint, payload);
       }
 
-      console.log("Product creation response:", response);
 
       Swal.fire("Success", "Product added successfully!", "success");
 

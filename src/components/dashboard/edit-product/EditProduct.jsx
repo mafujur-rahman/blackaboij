@@ -60,7 +60,7 @@ const EditProduct = () => {
     thumbnailIndex: 0,
     hotSale: false,
     isDesign: false,
-    designNames: [], // Changed from designs array to designNames array
+    designNames: [], 
   });
 
   // Use a ref to track form state in callbacks
@@ -195,7 +195,7 @@ const EditProduct = () => {
           thumbnailIndex,
           hotSale: product.hot_sale || false,
           isDesign: product.is_design || false,
-          designNames: product.designs?.map(d => d.name) || [], // Convert designs array to designNames array
+          designNames: product.designs?.map(d => d.name) || [], 
         });
 
         setDescriptionContent(product.description || "");
@@ -257,8 +257,8 @@ const EditProduct = () => {
     setForm((prev) => ({
       ...prev,
       isDesign: newIsDesign,
-      colors: newIsDesign ? [] : prev.colors, // Clear colors when toggling to design
-      designNames: newIsDesign ? prev.designNames : [], // Keep designNames when toggling to design, clear when toggling off
+      colors: newIsDesign ? [] : prev.colors, 
+      designNames: newIsDesign ? prev.designNames : [], 
     }));
   };
 
@@ -657,19 +657,7 @@ const EditProduct = () => {
         }
       });
 
-      console.log("=== UPDATING PRODUCT ===");
-      console.log("Is Design:", form.isDesign);
-      console.log("Using:", form.isDesign ? "JSON" : "FormData");
 
-      // Log the payload for debugging
-      if (!form.isDesign) {
-        console.log("FormData contents:");
-        for (let pair of payload.entries()) {
-          console.log(pair[0] + ': ' + pair[1]);
-        }
-      } else {
-        console.log("JSON Payload:", payload);
-      }
 
       let response;
       if (form.isDesign) {

@@ -20,11 +20,10 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${
-        isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-      }`}
+        }`}
     >
       {formattedName}
     </button>
@@ -61,28 +60,28 @@ const NewArrivals = () => {
   const organizeProductsByType = (products) => {
     // Separate products by type
     const tees = [];
-    const pants = [];
     const hats = [];
+    const pants = [];
     const others = [];
 
     products.forEach((product) => {
       const subcategoryName = product.category?.name?.toLowerCase() || "";
-      
+
       // Categorize based on subcategory name
-      if (subcategoryName.includes('tee') || 
-          subcategoryName.includes('t-shirt') || 
-          subcategoryName.includes('tshirt') || 
-          subcategoryName.includes('t shirt') ||
-          subcategoryName === 'tees') {
+      if (subcategoryName.includes('tee') ||
+        subcategoryName.includes('t-shirt') ||
+        subcategoryName.includes('tshirt') ||
+        subcategoryName.includes('t shirt') ||
+        subcategoryName === 'tees') {
         tees.push(product);
-      } else if (subcategoryName.includes('pant') || 
-                 subcategoryName.includes('pants') || 
-                 subcategoryName.includes('jeans') || 
-                 subcategoryName.includes('trouser')) {
-        pants.push(product);
-      } else if (subcategoryName.includes('hat') || 
-                 subcategoryName.includes('cap')) {
+      } else if (subcategoryName.includes('hat') ||
+        subcategoryName.includes('cap')) {
         hats.push(product);
+      } else if (subcategoryName.includes('pant') ||
+        subcategoryName.includes('pants') ||
+        subcategoryName.includes('jeans') ||
+        subcategoryName.includes('trouser')) {
+        pants.push(product);
       } else {
         others.push(product);
       }
@@ -90,14 +89,14 @@ const NewArrivals = () => {
 
     // Sort each category by date (latest first)
     const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
-    
+
     tees.sort(sortByDate);
-    pants.sort(sortByDate);
     hats.sort(sortByDate);
+    pants.sort(sortByDate);
     others.sort(sortByDate);
 
-    // Combine in desired order: Tees -> Pants -> Hats -> Others
-    return [...tees, ...pants, ...hats, ...others];
+    // Combine in desired order: Tees -> Hats -> Pants -> Others
+    return [...tees, ...hats, ...pants, ...others];
   };
 
   /* -------- FETCH PRODUCTS WITH CACHING -------- */
@@ -163,7 +162,7 @@ const NewArrivals = () => {
 
         // Organize products by type (Tees first, then Pants, then Hats)
         initialFiltered = organizeProductsByType(initialFiltered);
-        
+
         const initialDisplayed = initialFiltered.slice(0, MAX_PRODUCTS);
 
         setAllProducts(products);
@@ -226,7 +225,7 @@ const NewArrivals = () => {
   const handleSeeMoreClick = () => {
     // Generate navigation path based on active category
     let categoryPath = "";
-    
+
     switch (activeCategoryName.toLowerCase()) {
       case "men":
         categoryPath = "/men/men-collection";
@@ -241,7 +240,7 @@ const NewArrivals = () => {
         // For other categories, create a slug from the category name
         categoryPath = `/products/${activeCategoryName.toLowerCase().replace(/\s+/g, "-")}`;
     }
-    
+
     router.push(categoryPath);
   };
 

@@ -591,7 +591,6 @@ const AddDesign = () => {
         if (colorData?.front_image?.isNew) {
           // For front image: front_image_{colorId}
           formData.append(`front_image_${colorId}`, colorData.front_image.file);
-          console.log(`Adding front image for color ${colorId}`);
         }
       });
 
@@ -603,20 +602,12 @@ const AddDesign = () => {
             if (imageData?.isNew) {
               // For back image: back_image_{colorId}_{designId}
               formData.append(`back_image_${colorId}_${designId}`, imageData.file);
-              console.log(`Adding back image for color ${colorId} and design ${designId}`);
             }
           });
         }
       });
 
-      // Log what we're sending
-      console.log("Sending PUT request with all data:");
-      console.log("- Product fields:", editableFields);
-      console.log("- Selected colors:", selectedColors);
-      console.log("- Selected designs:", selectedDesigns);
-      console.log("- New front images:", selectedColors.filter(c => designImages[c]?.front_image?.isNew).length);
-      console.log("- New back images:", selectedColors.reduce((count, c) =>
-        count + Object.values(designImages[c]?.back_images || {}).filter(img => img?.isNew).length, 0));
+
 
       Swal.fire({
         title: "Updating Product...",
