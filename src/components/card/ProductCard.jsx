@@ -194,7 +194,7 @@
 
 //                     </div>
 
-                    
+
 //                 </div>
 
 //                 <div className="mt-auto flex items-center justify-between">
@@ -346,81 +346,98 @@ const ProductCard = ({ product }) => {
     };
 
     const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
 
-    const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
+        const cart = JSON.parse(localStorage.getItem("cart_items")) || [];
 
-    const originalPrice = Number(product.original_price);
-    const discountPrice = Number(product.discounted_price);
-    const hasDiscount = discountPrice < originalPrice;
-    const price = hasDiscount ? discountPrice : Number(product.unit_price);
+        const originalPrice = Number(product.original_price);
+        const discountPrice = Number(product.discounted_price);
+        const hasDiscount = discountPrice < originalPrice;
+        const price = hasDiscount ? discountPrice : Number(product.unit_price);
 
-    if (product.is_design) {
-        const productColor = product.product_colors?.[0];
+        if (product.is_design) {
+            const productColor = product.product_colors?.[0];
 
-        cart.push({
-            id: `${product.id}-${Date.now()}`,
-            product_id: Number(product.id),
-            name: product.name,
-            price: price,
-            original_price: originalPrice,
-            discounted_price: discountPrice,
-            front_image: productColor?.front_image?.image || "",
-            back_image: productColor?.back_designs?.[0]?.image || "",
-            design_id: null,
-            design_name: "",
-            quantity: 1,
-            size: null,
-            size_id: null,
-            color_id: Number(productColor?.color) || null,
-            color_name: productColor?.color_name || "",
-            hex_code: productColor?.hex_code || "",
-            is_design: true
+            cart.push({
+                id: `${product.id}-${Date.now()}`,
+                product_id: Number(product.id),
+                name: product.name,
+                price: price,
+                original_price: originalPrice,
+                discounted_price: discountPrice,
+                front_image: productColor?.front_image?.image || "",
+                back_image: productColor?.back_designs?.[0]?.image || "",
+                design_id: null,
+                design_name: "",
+                quantity: 1,
+                size: null,
+                size_id: null,
+                color_id: Number(productColor?.color) || null,
+                color_name: productColor?.color_name || "",
+                hex_code: productColor?.hex_code || "",
+                is_design: true
+            });
+
+        } else {
+
+            const thumbnail =
+                product.images?.find(img => img.is_thumbnail)?.image || "";
+
+            cart.push({
+                id: `${product.id}-${Date.now()}`,
+                product_id: Number(product.id),
+                name: product.name,
+                price: price,
+                original_price: originalPrice,
+                discounted_price: discountPrice,
+                image: thumbnail,
+                quantity: 1,
+                size: null,
+                size_id: null,
+                color: null,
+                color_id: null,
+                is_design: false
+            });
+        }
+
+        localStorage.setItem("cart_items", JSON.stringify(cart));
+
+        window.dispatchEvent(new Event("cartUpdated"));
+
+        Swal.fire({
+            icon: "success",
+            title: "Added to Cart",
+            text: "Item added successfully",
+            showConfirmButton: false,
+            timer: 1500
         });
+    };
 
-    } else {
+    /* ===============================
+       HOVER SECOND IMAGE LOGIC
+    =============================== */
+    const getHoverImage = () => {
+        if (isDesignProduct) {
+            const firstColor = product.product_colors?.[0];
+            return firstColor?.back_designs?.[0]?.image || null;
+        }
 
-        const thumbnail =
-            product.images?.find(img => img.is_thumbnail)?.image || "";
+        const all = product.images || [];
+        const second = all.find(img => !img.is_thumbnail);
+        return second?.image || null;
+    };
 
-        cart.push({
-            id: `${product.id}-${Date.now()}`,
-            product_id: Number(product.id),
-            name: product.name,
-            price: price,
-            original_price: originalPrice,
-            discounted_price: discountPrice,
-            image: thumbnail,
-            quantity: 1,
-            size: null,
-            size_id: null,
-            color: null,
-            color_id: null,
-            is_design: false
-        });
-    }
+    const hoverImage = getHoverImage();
 
-    localStorage.setItem("cart_items", JSON.stringify(cart));
-
-    window.dispatchEvent(new Event("cartUpdated"));
-
-    Swal.fire({
-        icon: "success",
-        title: "Added to Cart",
-        text: "Item added successfully",
-        showConfirmButton: false,
-        timer: 1500
-    });
-};
 
 
 
     return (
-        <div className="group bg-white mb-8">
+        <div className=" bg-white mb-8">
 
             {/* IMAGE */}
-            <div className="relative overflow-hidden bg-gray-100">
+            <div className="relative overflow-hidden bg-gray-100 group">
 
                 {/* wishlist */}
                 <button
@@ -435,15 +452,35 @@ const ProductCard = ({ product }) => {
                 {/* IMAGE LINK */}
                 {!isOutOfStock ? (
                     <Link href={`/product/${product.slug || product.id}`}>
-                        <div className="relative aspect-[3/4] w-full cursor-pointer">
+                        <div className="relative aspect-[3/4] w-full cursor-pointer overflow-hidden">
+
+                            {/* MAIN IMAGE */}
                             {displayImage && (
                                 <Image
                                     src={getImageUrl(displayImage)}
                                     alt={product.name}
                                     fill
-                                    className="object-cover group-hover:scale-105 transition duration-500"
+                                    className={`
+                        object-cover transition duration-500
+                        ${hoverImage ? "group-hover:opacity-0 scale-105" : ""}
+                    `}
                                 />
                             )}
+
+                            {/* HOVER IMAGE */}
+                            {hoverImage && (
+                                <Image
+                                    src={getImageUrl(hoverImage)}
+                                    alt={product.name}
+                                    fill
+                                    className="
+                        object-cover opacity-0
+                        group-hover:opacity-100
+                        transition duration-500 scale-105
+                    "
+                                />
+                            )}
+
                         </div>
                     </Link>
                 ) : (
@@ -458,6 +495,7 @@ const ProductCard = ({ product }) => {
                         )}
                     </div>
                 )}
+
 
                 {/* HOVER ADD TO CART */}
                 {!isOutOfStock && (
@@ -484,14 +522,14 @@ const ProductCard = ({ product }) => {
 
             {/* INFO */}
             <div className="text-center mt-4 px-2 pb-2">
-                <h3 className="text-xl font-medium  line-clamp-2">
+                <h3 className="text-lg font-medium  line-clamp-2">
                     {product.name}
                 </h3>
 
                 <div className="mt-1">
                     {hasDiscount ? (
                         <div className="flex items-center justify-center gap-2">
-                            <span className="font-semibold text-gray-900">
+                            <span className="font-semibold text-lg">
                                 € {discountPrice}
                             </span>
                             <span className="text-gray-400 line-through text-sm">
@@ -499,7 +537,7 @@ const ProductCard = ({ product }) => {
                             </span>
                         </div>
                     ) : (
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-lg">
                             € {originalPrice}
                         </span>
                     )}
