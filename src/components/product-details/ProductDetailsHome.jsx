@@ -524,7 +524,7 @@ export default function ProductDetailsHome() {
                                 src={getImageUrl(mainImage)}
                                 alt={product.name}
                                 fill
-                                className="object-cover"
+                                className="object-scale-down"
                                 priority
                                 sizes="(max-width: 768px) 100vw, 50vw"
                             />
