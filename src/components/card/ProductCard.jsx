@@ -430,9 +430,6 @@ const ProductCard = ({ product }) => {
 
     const hoverImage = getHoverImage();
 
-
-
-
     return (
         <div className=" bg-white mb-8">
 
@@ -454,30 +451,29 @@ const ProductCard = ({ product }) => {
                     <Link href={`/product/${product.slug || product.id}`}>
                         <div className="relative aspect-[3/4] w-full cursor-pointer overflow-hidden">
 
-                            {/* MAIN IMAGE */}
+                            {/* MAIN IMAGE - SLIDES OUT TO LEFT */}
                             {displayImage && (
                                 <Image
                                     src={getImageUrl(displayImage)}
                                     alt={product.name}
                                     fill
                                     className={`
-                        object-cover transition duration-500
-                        ${hoverImage ? "group-hover:opacity-0 scale-105" : ""}
-                    `}
+                                        object-cover transition-all duration-500 ease-in-out
+                                        ${hoverImage ? "group-hover:-translate-x-full" : ""}
+                                    `}
                                 />
                             )}
 
-                            {/* HOVER IMAGE */}
+                            {/* HOVER IMAGE - SLIDES IN FROM RIGHT */}
                             {hoverImage && (
                                 <Image
                                     src={getImageUrl(hoverImage)}
                                     alt={product.name}
                                     fill
-                                    className="
-                        object-cover opacity-0
-                        group-hover:opacity-100
-                        transition duration-500 scale-105
-                    "
+                                    className={`
+                                        object-cover transition-all duration-500 ease-in-out
+                                        translate-x-full group-hover:translate-x-0
+                                    `}
                                 />
                             )}
 

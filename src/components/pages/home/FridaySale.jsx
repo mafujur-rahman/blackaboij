@@ -7,6 +7,7 @@ import Link from 'next/link';
 
 const SALE_IMAGES = [
   '/images/banner1.JPG',
+  '/images/bottom-slide.png',
   '/images/banner3.JPG',
 ];
 
