@@ -93,7 +93,7 @@ export default function UserDashboardShell({ children }) {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-100 px-4 lg:px-12">
+        <div className="flex min-h-screen bg-gray-100 px-4 lg:px-12 xl:px-24 2xl:px-48">
             {/* SIDEBAR */}
             {sidebarOpen && (
                 <aside className="w-[260px] bg-white text-black flex flex-col transition-all duration-300">

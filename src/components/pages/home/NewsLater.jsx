@@ -65,7 +65,7 @@ const Newsletter = () => {
         <section className="my-12.5 xl:mb-25 px-4 bg-[#e2e8f0] py-16">
             <div className="max-w-4xl mx-auto text-center">
 
-                <h2 className="text-[20px] md:text-[30px] font-bold text-black mb-4">
+                <h2 className="text-lg font-bold tracking-[0.2em] uppercase text-center  text-black mb-4">
                     Newsletter
                 </h2>
 

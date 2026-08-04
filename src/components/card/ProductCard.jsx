@@ -24,6 +24,10 @@ const ProductCard = ({ product }) => {
     const discountPrice = Number(product.discounted_price);
     const hasDiscount = discountPrice < originalPrice;
 
+    const discountPercent = hasDiscount
+        ? Math.round(((originalPrice - discountPrice) / originalPrice) * 100)
+        : 0;
+
     /* ===============================
        IMAGE LOGIC 
     =============================== */
@@ -191,6 +195,13 @@ const ProductCard = ({ product }) => {
             {/* IMAGE */}
             <div className="relative overflow-hidden bg-gray-100 group">
 
+                {/* SALE BADGE */}
+                {hasDiscount && (
+                    <div className="absolute top-0 right-0 z-20 bg-black text-white text-xs font-medium tracking-wider px-4 py-2.5">
+                        Sale -{discountPercent}%
+                    </div>
+                )}
+
                 {/* wishlist */}
                 <button
                     onClick={toggleWishlist}
@@ -206,28 +217,28 @@ const ProductCard = ({ product }) => {
                     <Link href={`/product/${product.slug || product.id}`}>
                         <div className="relative aspect-[3/4] w-full cursor-pointer overflow-hidden">
 
-                            {/* MAIN IMAGE - SLIDES OUT TO LEFT */}
+                            {/* MAIN IMAGE - FADES OUT */}
                             {displayImage && (
                                 <Image
                                     src={getImageUrl(displayImage)}
                                     alt={product.name}
                                     fill
                                     className={`
-                                        object-cover transition-all duration-500 ease-in-out
-                                        ${hoverImage ? "group-hover:-translate-x-full" : ""}
+                                        object-cover transition-opacity duration-500 ease-in-out
+                                        ${hoverImage ? "group-hover:opacity-0" : "opacity-100"}
                                     `}
                                 />
                             )}
 
-                            {/* HOVER IMAGE - SLIDES IN FROM RIGHT */}
+                            {/* HOVER IMAGE - FADES IN */}
                             {hoverImage && (
                                 <Image
                                     src={getImageUrl(hoverImage)}
                                     alt={product.name}
                                     fill
                                     className={`
-                                        object-cover transition-all duration-500 ease-in-out
-                                        translate-x-full group-hover:translate-x-0
+                                        object-cover transition-opacity duration-500 ease-in-out
+                                        opacity-0 group-hover:opacity-100
                                     `}
                                 />
                             )}
@@ -247,20 +258,6 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
 
-
-                {/* HOVER ADD TO CART */}
-                {/* {!isOutOfStock && (
-                    <div className="absolute bottom-0 left-0 w-full translate-y-full group-hover:translate-y-0 transition duration-300">
-                        <button
-                            onClick={handleAddToCart}
-                            className="w-full bg-gray-900 hover:bg-black text-white py-3 font-medium tracking-wide cursor-pointer"
-                        >
-                            Add to cart
-                        </button>
-                    </div>
-                )} */}
-
-
                 {/* OUT OF STOCK */}
                 {isOutOfStock && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -273,29 +270,45 @@ const ProductCard = ({ product }) => {
 
             {/* INFO */}
             <div className="text-center mt-4 px-2 pb-2">
-                <h3 className="text-lg font-medium  line-clamp-2">
+                <h3 className="text-lg font-medium tracking-[0.2em] uppercase line-clamp-2">
                     {product.name}
                 </h3>
 
-                <div className="mt-1">
+                <div className="mt-2">
                     {hasDiscount ? (
-                        <div className="flex items-center justify-center gap-2">
-                            <span className="font-semibold text-lg">
-                                € {discountPrice}
+                        <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
+                            <span className="text-gray-400 line-through">
+                                <PriceDisplay value={originalPrice} /> EUR
                             </span>
-                            <span className="text-gray-400 line-through text-sm">
-                                € {originalPrice}
+                            <span className="font-medium">
+                                <PriceDisplay value={discountPrice} /> EUR
+                            </span>
+                            <span className="text-red-500 text-xs">
+                                -{discountPercent}% promo
                             </span>
                         </div>
                     ) : (
-                        <span className="font-semibold text-lg">
-                            € {originalPrice}
+                        <span className="text-sm font-medium">
+                            <PriceDisplay value={originalPrice} /> EUR
                         </span>
                     )}
                 </div>
             </div>
 
         </div>
+    );
+};
+
+/* ===============================
+   PRICE DISPLAY (superscript cents)
+=============================== */
+const PriceDisplay = ({ value }) => {
+    const [whole, decimals] = value.toFixed(2).split(".");
+    return (
+        <span>
+            €{whole}
+            <sup className="text-[0.65em] align-super">{decimals}</sup>
+        </span>
     );
 };
 

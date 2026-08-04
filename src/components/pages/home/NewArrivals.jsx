@@ -20,10 +20,11 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
-          ? "border-b-2 border-black text-black font-bold"
-          : "text-gray-600 hover:text-black"
-        }`}
+      className={`pb-1 text-lg font-medium tracking-[0.2em] uppercase cursor-pointer`}
+      // className={`pb-1 text-lg md:text-xl transition-colors ${isActive
+      //     ? "border-b-2 border-black text-black font-bold"
+      //     : "text-gray-600 hover:text-black"
+      //   }`}
     >
       {formattedName}
     </button>
@@ -246,8 +247,8 @@ const NewArrivals = () => {
 
   return (
     <div className="mt-12 mb-12">
-      <div className="px-4 lg:px-12">
-        <h1 className="text-center text-3xl font-bold text-black">
+      <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
+        <h1 className="text-lg font-bold tracking-[0.2em] uppercase text-center  text-black">
           New Arrivals
         </h1>
 

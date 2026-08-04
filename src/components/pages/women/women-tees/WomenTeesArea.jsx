@@ -55,7 +55,7 @@ const WomenTeesArea = () => {
 
   return (
     <div className="my-12.5">
-      <div className="px-4 lg:px-12">
+      <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
         {loading ? (
           <div className="flex justify-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-black"></div>

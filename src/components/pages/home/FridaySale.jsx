@@ -206,12 +206,12 @@ const FridaySale = () => {
       {/* Content Container (Text and Button) */}
       <div className="relative z-10 text-center text-white p-4">
         {/* Subheader */}
-        <p className="text-xs xl:text-lg tracking-widest uppercase mb-2 sm:text-sm">
+        <p className="text-lg font-medium tracking-[0.2em] uppercase text-center   mb-2 ">
           Up to 60% OFF on selected items
         </p>
 
         {/* Main Headline */}
-        <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6">
+        <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6 tracking-[0.2em]">
           Black Friday Sale
         </h1>
 

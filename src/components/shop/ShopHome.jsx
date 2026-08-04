@@ -137,7 +137,7 @@ const ShopHome = () => {
 
   return (
     <div className="mt-12 mb-12">
-      <div className="px-4 lg:px-12">
+      <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
         <h1 className="text-center text-3xl font-bold text-black">
           Our Products
         </h1>

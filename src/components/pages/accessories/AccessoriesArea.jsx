@@ -135,7 +135,7 @@ const AccessoriesArea = () => {
 
   return (
     <div className="my-12.5">
-      <div className="px-4 lg:px-12">
+      <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
         <h1 className="text-center text-3xl font-bold text-black">
           Accessories
         </h1>

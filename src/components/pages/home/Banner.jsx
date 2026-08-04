@@ -95,7 +95,7 @@ const Banner = () => {
 
             {/* 🔥 Main Content */}
             <div className="relative z-10 flex h-full flex-col items-center justify-center p-4 text-white">
-                <h1 className="mb-8 md:mb-10 text-center text-2xl md:text-4xl xl:text-[80px] font-normal">
+                <h1 className="mb-8 md:mb-10 text-center text-2xl md:text-4xl xl:text-[80px] font-normal tracking-[0.2em]">
                     LIFE IS MADE OF CHOICE
                 </h1>
 

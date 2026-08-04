@@ -302,7 +302,7 @@ export default function Navbar() {
       <nav className="bg-black text-white top-0 z-50">
         {/* ===== TOP BAR ===== */}
         <div className="md:border-b md:border-white/50">
-          <div className="px-4 lg:px-12">
+          <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
             <div className="relative flex items-center h-20">
               {/* LEFT */}
               <div className="flex items-center w-1/3">
@@ -412,7 +412,7 @@ export default function Navbar() {
         {/* ===== DESKTOP NAV ===== */}
         <div className="hidden md:flex justify-center space-x-8 py-4">
           {navLinks.map((link) => (
-            <div key={link.name} className="relative group">
+            <div key={link.name} className="relative group uppercase tracking-[0.2em] text-sm">
               {link.href ? (
                 <Link href={link.href}>{link.name}</Link>
               ) : (
@@ -420,7 +420,7 @@ export default function Navbar() {
               )}
 
               {link.dropdown && (
-                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 w-56 bg-black opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-4 z-50">
+                <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 w-60 bg-black opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-4 z-50">
                   {link.dropdown.map((item) => (
                     <Link
                       key={item.name}

@@ -4,7 +4,7 @@ import { FiTruck, FiMapPin, FiMail, FiClock, FiGlobe, FiPackage, FiDollarSign, F
 const ShippingPolicyHome = () => {
     return (
         <div className='bg-gray-200 py-12.5'>
-            <div className="px-4 lg:px-12 py-12.5 bg-white shadow-xl rounded-lg">
+            <div className="px-4 lg:px-12 xl:px-24 2xl:px-48 py-12.5 bg-white shadow-xl rounded-lg">
                 <div className="space-y-10 text-gray-800 px-4 lg:px-8">
 
                     {/* Header */}

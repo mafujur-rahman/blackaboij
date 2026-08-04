@@ -44,7 +44,7 @@ function SearchContent() {
     }, [query]);
 
     return (
-        <div className="px-4 lg:px-12 py-12.5">
+        <div className="px-4 lg:px-12 xl:px-24 2xl:px-48 py-12.5">
             <h1 className="text-2xl font-semibold mb-6">
                 Search results for:{" "}
                 <span className="italic text-gray-600">{query}</span>
@@ -72,7 +72,7 @@ export default function SearchHome() {
     return (
         <Suspense
             fallback={
-                <div className="px-4 lg:px-12 py-12.5">
+                <div className="px-4 lg:px-12 xl:px-24 2xl:px-48 py-12.5">
                     <div className="flex justify-center min-h-[50vh] items-center">
                         <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-black"></div>
                     </div>
