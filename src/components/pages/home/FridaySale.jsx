@@ -211,7 +211,7 @@ const FridaySale = () => {
         </p>
 
         {/* Main Headline */}
-        <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6 tracking-[0.2em]">
+        <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6 ">
           Black Friday Sale
         </h1>
 

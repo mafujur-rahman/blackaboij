@@ -2,7 +2,7 @@ import React from 'react';
 
 const ContactForm = () => {
     return (
-        <section className=" bg-black text-white p-4 sm:p-8 md:p-12 lg:p-16">
+        <section className="bg-white text-black p-4 sm:p-8 md:p-12 lg:p-16">
 
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
 
@@ -17,7 +17,7 @@ const ContactForm = () => {
                         <h3 className="text-[20px] font-bold mb-2">
                             Our Address
                         </h3>
-                        <p className="text-[16px] text-gray-300">
+                        <p className="text-[16px] text-gray-700">
                             20 Allée des Piboules résidence les Belenos 13800 Istres
                         </p>
                     </div>
@@ -27,15 +27,15 @@ const ContactForm = () => {
                         <h3 className="text-[20px] font-bold mb-2">
                             Contact Information
                         </h3>
-                        <p className="text-[16px] text-gray-300">
+                        <p className="text-[16px] text-gray-700">
                             Email:
-                            <a href="mailto:info@blackaboli.com" className="text-white hover:text-gray-100 underline ml-1">
+                            <a href="mailto:info@blackaboli.com" className="text-black hover:text-gray-700 underline ml-1">
                                 info@blackaboij.com
                             </a>
                         </p>
-                        <p className="text-[16px] text-gray-300">
+                        <p className="text-[16px] text-gray-700">
                             Phone:
-                            <a href="tel:+33662023969" className="text-white hover:text-gray-100 underline ml-1">
+                            <a href="tel:+33662023969" className="text-black hover:text-gray-700 underline ml-1">
                                 +33662023969
                             </a>
                         </p>
@@ -51,13 +51,13 @@ const ContactForm = () => {
                             <input
                                 type="text"
                                 placeholder="Full Name"
-                                className="w-full bg-black border border-white/50 p-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 transition duration-150"
+                                className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Full Name"
                             />
                             <input
                                 type="email"
                                 placeholder="Email Address"
-                                className="w-full bg-black border border-white/50 p-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 transition duration-150"
+                                className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Email Address"
                             />
                         </div>
@@ -67,7 +67,7 @@ const ContactForm = () => {
                             <input
                                 type="text"
                                 placeholder="Subject"
-                                className="w-full bg-black border border-white/50 p-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 transition duration-150"
+                                className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Subject"
                             />
                         </div>
@@ -77,7 +77,7 @@ const ContactForm = () => {
                             <textarea
                                 placeholder="Your Message"
                                 rows="7"
-                                className="w-full bg-black border border-white/50 p-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 resize-none transition duration-150"
+                                className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 resize-none transition duration-150"
                                 aria-label="Your Message"
                             ></textarea>
                         </div>
@@ -85,7 +85,7 @@ const ContactForm = () => {
                         {/* Send Message Button */}
                         <button
                             type="submit"
-                            className="w-full bg-white text-black font-semibold py-4 px-6 uppercase tracking-wider hover:bg-gray-200 transition duration-200 focus:outline-none focus:ring-4 focus:ring-white focus:ring-opacity-50"
+                            className="w-full bg-black text-white font-semibold py-4 px-6 uppercase tracking-wider  cursor-pointer focus:outline-none focus:ring-4 focus:ring-black focus:ring-opacity-50"
                         >
                             Send Message
                         </button>
