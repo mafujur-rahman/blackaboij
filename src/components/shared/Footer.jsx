@@ -110,12 +110,69 @@
 
 // export default Footer;
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FaTwitter, FaPinterestP, FaInstagram } from "react-icons/fa";
+import Swal from 'sweetalert2';
+import api from '@/lib/axios';
 
 const Footer = () => {
+    const [email, setEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!email) return;
+
+        setIsSubmitting(true);
+
+        Swal.fire({
+            title: 'Subscribing...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            },
+        });
+
+        try {
+            const res = await api.post(
+                '/api/newsletter/create-newsletter/',
+                { email }
+            );
+
+            Swal.close();
+
+            if (res.data?.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Subscribed!',
+                    text: res.data.message || 'Thank you for subscribing!',
+                    confirmButtonColor: '#000',
+                });
+                setEmail('');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops!',
+                    text: res.data?.message || 'Something went wrong.',
+                });
+            }
+        } catch (error) {
+            Swal.close();
+            Swal.fire({
+                icon: 'error',
+                title: 'Failed',
+                text:
+                    error?.response?.data?.message ||
+                    'Failed to subscribe. Please try again.',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <footer className="bg-black text-white pt-10 pb-4 md:pt-16 w-full">
             <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
@@ -187,19 +244,24 @@ const Footer = () => {
                         </h3>
 
                         {/* Newsletter Form Box */}
-                        <div className="w-full max-w-[280px] border border-white/30 flex flex-col">
+                        <form onSubmit={handleSubmit} className="w-full max-w-[280px] border border-white/30 flex flex-col">
                             <input
                                 type="email"
                                 placeholder="NAME@EMAIL.COM"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                disabled={isSubmitting}
                                 className="w-full py-2.5 px-3 text-center text-sm tracking-[0.15em] placeholder-white/50 text-white bg-transparent focus:outline-none border-b border-white/30"
                             />
                             <button
-                                type="button"
-                                className="w-full py-2.5 text-center text-sm tracking-[0.2em] bg-white text-black cursor-pointer hover:bg-white/90 transition-colors duration-300"
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full py-2.5 text-center text-sm tracking-[0.2em] bg-white text-black cursor-pointer hover:bg-white/90 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                SUBSCRIBE
+                                {isSubmitting ? 'SUBSCRIBING...' : 'SUBSCRIBE'}
                             </button>
-                        </div>
+                        </form>
                     </div>
 
                     {/* Right Column: Navigation Links (Now Information) */}
