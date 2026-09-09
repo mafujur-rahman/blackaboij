@@ -145,16 +145,6 @@ const UserOrdersHome = () => {
     };
   };
 
-  if (loading) {
-    return (
-      <UserDashboardShell>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="h-12 w-12 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </UserDashboardShell>
-    );
-  }
-
   return (
     <UserDashboardShell>
       {/* TITLE */}

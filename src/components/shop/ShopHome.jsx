@@ -157,9 +157,7 @@ const ShopHome = () => {
         </nav>
 
         {/* PRODUCTS */}
-        {loading ? (
-          <Loader />
-        ) : paginatedProducts.length === 0 ? (
+        {paginatedProducts.length === 0 ? (
           <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>

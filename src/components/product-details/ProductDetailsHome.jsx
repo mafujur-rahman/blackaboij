@@ -415,13 +415,7 @@ export default function ProductDetailsHome() {
         router.push("/checkout");
     };
 
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="h-10 w-10 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
-    }
+    if (loading) return null;
 
     if (!product) {
         return (
@@ -787,25 +781,6 @@ export default function ProductDetailsHome() {
                         </div>
                     </div>
 
-                    {/* Vegan badge - using image with text below */}
-                    <div className="flex flex-col items-center mt-8">
-                        <div className="relative w-40 h-20">
-                            <Image
-                                src='/images/peta-approved_vegan_0.webp'
-                                alt="Vegan Approved"
-                                fill
-                                className="object-contain"
-                                priority
-                            />
-                        </div>
-                        
-                        {/* Two text lines below vegan image */}
-                        <div className="text-center mt-3 space-y-1">
-                            <p className="text-[12px] uppercase tracking-widest text-gray-600 font-medium">
-                                Streetwear company BLACKABOIJ © 2026
-                            </p>
-                        </div>
-                    </div>
                 </div>
             </div>
 

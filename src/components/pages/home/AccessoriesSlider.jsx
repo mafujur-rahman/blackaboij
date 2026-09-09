@@ -5,12 +5,13 @@ import gsap from "gsap";
 import AnimatedButton from '@/components/utils/AnimatedButton';
 import Link from 'next/link';
 
-const SALE_IMAGES = [
-  '/images/banner1.JPG',
-  '/images/banner3.JPG',
+const ACCESSORIES_IMAGES = [
+  '/images/accessories-1.JPG',
+  '/images/accessories-4.JPG',
+  '/images/accessories-3.JPG',
 ];
 
-const FridaySale = () => {
+const AccessoriesSlider = () => {
   const imgARef = useRef(null);
   const imgBRef = useRef(null);
   const indexRef = useRef(0);
@@ -20,25 +21,25 @@ const FridaySale = () => {
   // Initialize images on mount
   useEffect(() => {
     if (imgARef.current) {
-      imgARef.current.style.backgroundImage = `url(${SALE_IMAGES[0]})`;
+      imgARef.current.style.backgroundImage = `url(${ACCESSORIES_IMAGES[0]})`;
     }
   }, []);
 
   // Auto-slide effect
   useEffect(() => {
     const slide = () => {
-      if (isAnimating.current || SALE_IMAGES.length <= 1) return;
+      if (isAnimating.current || ACCESSORIES_IMAGES.length <= 1) return;
       isAnimating.current = true;
 
       const currentIndex = indexRef.current;
-      const nextIndex = (currentIndex + 1) % SALE_IMAGES.length;
+      const nextIndex = (currentIndex + 1) % ACCESSORIES_IMAGES.length;
 
       const imgA = imgARef.current;
       const imgB = imgBRef.current;
 
       // Set next image
       if (imgB) {
-        imgB.style.backgroundImage = `url(${SALE_IMAGES[nextIndex]})`;
+        imgB.style.backgroundImage = `url(${ACCESSORIES_IMAGES[nextIndex]})`;
       }
 
       gsap.set(imgB, { xPercent: 100 });
@@ -48,7 +49,7 @@ const FridaySale = () => {
         onComplete: () => {
           // Swap roles
           if (imgA) {
-            imgA.style.backgroundImage = `url(${SALE_IMAGES[nextIndex]})`;
+            imgA.style.backgroundImage = `url(${ACCESSORIES_IMAGES[nextIndex]})`;
           }
 
           gsap.set(imgA, { xPercent: 0 });
@@ -71,20 +72,19 @@ const FridaySale = () => {
 
   // Manual navigation functions
   const goToNextSlide = () => {
-    if (isAnimating.current || SALE_IMAGES.length <= 1) return;
+    if (isAnimating.current || ACCESSORIES_IMAGES.length <= 1) return;
     
-    // Trigger the slide function
     const slideFunction = () => {
       isAnimating.current = true;
 
       const currentIndex = indexRef.current;
-      const nextIndex = (currentIndex + 1) % SALE_IMAGES.length;
+      const nextIndex = (currentIndex + 1) % ACCESSORIES_IMAGES.length;
 
       const imgA = imgARef.current;
       const imgB = imgBRef.current;
 
       if (imgB) {
-        imgB.style.backgroundImage = `url(${SALE_IMAGES[nextIndex]})`;
+        imgB.style.backgroundImage = `url(${ACCESSORIES_IMAGES[nextIndex]})`;
       }
 
       gsap.set(imgB, { xPercent: 100 });
@@ -93,7 +93,7 @@ const FridaySale = () => {
         defaults: { duration: 1.4, ease: "power4.inOut" },
         onComplete: () => {
           if (imgA) {
-            imgA.style.backgroundImage = `url(${SALE_IMAGES[nextIndex]})`;
+            imgA.style.backgroundImage = `url(${ACCESSORIES_IMAGES[nextIndex]})`;
           }
 
           gsap.set(imgA, { xPercent: 0 });
@@ -112,18 +112,18 @@ const FridaySale = () => {
   };
 
   const goToPrevSlide = () => {
-    if (isAnimating.current || SALE_IMAGES.length <= 1) return;
+    if (isAnimating.current || ACCESSORIES_IMAGES.length <= 1) return;
     
     isAnimating.current = true;
 
     const currentIndex = indexRef.current;
-    const prevIndex = (currentIndex - 1 + SALE_IMAGES.length) % SALE_IMAGES.length;
+    const prevIndex = (currentIndex - 1 + ACCESSORIES_IMAGES.length) % ACCESSORIES_IMAGES.length;
 
     const imgA = imgARef.current;
     const imgB = imgBRef.current;
 
     if (imgB) {
-      imgB.style.backgroundImage = `url(${SALE_IMAGES[prevIndex]})`;
+      imgB.style.backgroundImage = `url(${ACCESSORIES_IMAGES[prevIndex]})`;
     }
 
     gsap.set(imgB, { xPercent: -100 });
@@ -132,7 +132,7 @@ const FridaySale = () => {
       defaults: { duration: 1.4, ease: "power4.inOut" },
       onComplete: () => {
         if (imgA) {
-          imgA.style.backgroundImage = `url(${SALE_IMAGES[prevIndex]})`;
+          imgA.style.backgroundImage = `url(${ACCESSORIES_IMAGES[prevIndex]})`;
         }
 
         gsap.set(imgA, { xPercent: 0 });
@@ -149,29 +149,29 @@ const FridaySale = () => {
 
   return (
     <div className="relative w-full  h-96 md:h-[800px] overflow-hidden bg-black flex items-center justify-center">
-      {/* Background Image Slider Container */}
+      {/* Background Image Slider Container - Fixed to remove white dotted line */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div
           ref={imgARef}
-          className="absolute inset-0 bg-cover bg-top bg-no-repeat opacity-70"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
-            backgroundImage: `url(${SALE_IMAGES[0]})`,
-            backgroundPosition: 'top center',
+            backgroundImage: `url(${ACCESSORIES_IMAGES[0]})`,
+            backgroundPosition: 'center top',
             backgroundSize: 'cover'
           }}
         />
         <div
           ref={imgBRef}
-          className="absolute inset-0 bg-cover bg-top bg-no-repeat opacity-70"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
-            backgroundPosition: 'top center',
+            backgroundPosition: 'center top',
             backgroundSize: 'cover'
           }}
         />
       </div>
 
       {/* Navigation Buttons for Slider */}
-      {SALE_IMAGES.length > 1 && (
+      {ACCESSORIES_IMAGES.length > 1 && (
         <>
           <button
             onClick={goToPrevSlide}
@@ -195,7 +195,7 @@ const FridaySale = () => {
           
           {/* Slide Indicators - Using state instead of ref for rendering */}
           <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 space-x-2">
-            {SALE_IMAGES.map((_, idx) => (
+            {ACCESSORIES_IMAGES.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => {
@@ -209,7 +209,7 @@ const FridaySale = () => {
                     }
                   }
                 }}
-               
+
                 aria-label={`Go to slide ${idx + 1}`}
               />
             ))}
@@ -217,22 +217,22 @@ const FridaySale = () => {
         </>
       )}
 
-      {/* Content Container (Text and Button) */}
+      {/* Content Container (Text and Button) - Using the SAME button as FridaySale */}
       <div className="relative z-10 text-center text-white p-4">
         {/* Subheader */}
         <p className="text-lg font-medium tracking-[0.2em] uppercase text-center mb-2">
-          Up to 60% OFF on selected items
+          Premium Accessories Collection
         </p>
 
         {/* Main Headline */}
         <h1 className="text-2xl md:text-4xl xl:text-[80px] font-normal mb-6">
-          Black Friday Sale
+          Accessories Sale
         </h1>
 
-        {/* Navigable Button */}
-        <Link href="/shop">
+        {/* Navigable Button - Using the SAME AnimatedButton component with Link to accessories */}
+        <Link href="/accessories">
           <AnimatedButton variant="black">
-            Shop Collections
+            Shop Accessories
           </AnimatedButton>
         </Link>
       </div>
@@ -240,4 +240,4 @@ const FridaySale = () => {
   );
 };
 
-export default FridaySale;
+export default AccessoriesSlider;

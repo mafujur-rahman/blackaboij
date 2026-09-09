@@ -56,26 +56,7 @@ const UserWishlistHome = () => {
         <h2 className="font-semibold text-lg">My Wishlist</h2>
       </div>
 
-      {/* LOADING STATE */}
-      {loading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white border border-black/10 p-4 animate-pulse flex justify-between"
-            >
-              <div className="flex gap-4">
-                <div className="w-20 h-20 bg-gray-200" />
-                <div className="space-y-2">
-                  <div className="w-40 h-4 bg-gray-200" />
-                  <div className="w-24 h-3 bg-gray-200" />
-                </div>
-              </div>
-              <div className="w-20 h-8 bg-gray-200" />
-            </div>
-          ))}
-        </div>
-      ) : (
+      {(
         /* REAL LIST */
         <div className="space-y-4">
           {wishlist.length > 0 ? (

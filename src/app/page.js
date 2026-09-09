@@ -1,5 +1,7 @@
+import AccessoriesSlider from "@/components/pages/home/AccessoriesSlider";
 import Available from "@/components/pages/home/Available";
 import Banner from "@/components/pages/home/Banner";
+import FashionIntro from "@/components/pages/home/FashionIntro";
 import FridaySale from "@/components/pages/home/FridaySale";
 import HotSale from "@/components/pages/home/HotSale";
 import NewArrivals from "@/components/pages/home/NewArrivals";
@@ -20,10 +22,12 @@ export default function Home() {
       </h1>
 
       <Banner />
-      <NewArrivals />
+      {/* <NewArrivals /> */}
+      <FashionIntro />
       <FridaySale />
-      <HotSale />
+      {/* <HotSale /> */}
       <Newsletter />
+      <AccessoriesSlider />
       <Available />
     </main>
   );

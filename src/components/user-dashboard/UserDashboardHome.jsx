@@ -54,9 +54,7 @@ export default function UserDashboardHome() {
       </div>
 
       {/* LOADING */}
-      {loading ? (
-        <p className="text-center mt-6">Loading dashboard stats...</p>
-      ) : (
+      {(
         /* STATS */
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatCard

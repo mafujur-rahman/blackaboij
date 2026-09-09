@@ -50,11 +50,7 @@ function SearchContent() {
                 <span className="italic text-gray-600">{query}</span>
             </h1>
 
-            {loading ? (
-                <div className="flex justify-center min-h-[50vh]">
-                    <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-black"></div>
-                </div>
-            ) : products.length === 0 ? (
+            {products.length === 0 ? (
                 <p className="text-gray-500">No products found.</p>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

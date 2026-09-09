@@ -26,15 +26,14 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   );
 };
 
-const SeeMoreButton = ({ onClick, isLoading }) => {
+const SeeMoreButton = ({ onClick }) => {
   return (
     <div className="flex justify-center md:mt-5">
       <button
         onClick={onClick}
-        disabled={isLoading}
         className="px-8 py-3 bg-black text-white font-semibold  "
       >
-        {isLoading ? "Loading..." : "See More"}
+        See More
       </button>
     </div>
   );
@@ -95,7 +94,6 @@ const HotSale = () => {
   const [displayedProducts, setDisplayedProducts] = useState([]);
   const [currentDisplayCount, setCurrentDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -225,31 +223,24 @@ const HotSale = () => {
 
   /* -------- HANDLE SEE MORE CLICK -------- */
   const handleSeeMoreClick = () => {
-    setLoadingMore(true);
-    
-    // Simulate loading delay for better UX
-    setTimeout(() => {
-      const newDisplayCount = currentDisplayCount + PRODUCTS_PER_LOAD;
-      const newDisplayedProducts = filteredProducts.slice(0, newDisplayCount);
-      
-      setCurrentDisplayCount(newDisplayCount);
-      setDisplayedProducts(newDisplayedProducts);
-      setLoadingMore(false);
-      
-      // Update cache
-      const cached = sessionStorage.getItem("hot_sale_products");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        sessionStorage.setItem(
-          "hot_sale_products",
-          JSON.stringify({
-            ...parsed,
-            displayedProducts: newDisplayedProducts,
-            currentDisplayCount: newDisplayCount,
-          })
-        );
-      }
-    }, 500); // 500ms delay for loading effect
+    const newDisplayCount = currentDisplayCount + PRODUCTS_PER_LOAD;
+    const newDisplayedProducts = filteredProducts.slice(0, newDisplayCount);
+
+    setCurrentDisplayCount(newDisplayCount);
+    setDisplayedProducts(newDisplayedProducts);
+
+    const cached = sessionStorage.getItem("hot_sale_products");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      sessionStorage.setItem(
+        "hot_sale_products",
+        JSON.stringify({
+          ...parsed,
+          displayedProducts: newDisplayedProducts,
+          currentDisplayCount: newDisplayCount,
+        })
+      );
+    }
   };
 
   /* -------- CHECK IF MORE PRODUCTS ARE AVAILABLE -------- */
@@ -284,9 +275,7 @@ const HotSale = () => {
         </nav>
 
         {/* PRODUCTS */}
-        {loading ? (
-          <Loader />
-        ) : displayedProducts.length === 0 ? (
+        {displayedProducts.length === 0 ? (
           <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>
@@ -300,7 +289,6 @@ const HotSale = () => {
             {hasMoreProducts && (
               <SeeMoreButton
                 onClick={handleSeeMoreClick}
-                isLoading={loadingMore}
               />
             )}
           </>

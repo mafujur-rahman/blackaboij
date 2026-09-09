@@ -102,7 +102,7 @@ const OrderHome = () => {
     };
 
 
-    if (loading) return <Loader />;
+    if (loading) return null;
     if (!product) return <p className="text-center py-20">Product not found</p>;
 
     return (

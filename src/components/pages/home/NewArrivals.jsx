@@ -267,9 +267,7 @@ const NewArrivals = () => {
         </nav>
 
         {/* PRODUCTS */}
-        {loading ? (
-          <Loader />
-        ) : displayedProducts.length === 0 ? (
+        {displayedProducts.length === 0 ? (
           <p className="text-center mt-12 text-gray-500">No products found</p>
         ) : (
           <>
