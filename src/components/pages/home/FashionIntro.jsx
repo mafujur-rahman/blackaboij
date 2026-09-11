@@ -2,13 +2,13 @@
 
 const imagePills = {
     black:
-        "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=500&q=80",
+        "/images/14.png",
 
     cream:
-        "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=500&q=80",
+        "/images/banner-5.JPG",
 
     formal:
-        "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=500&q=80",
+        "/images/15.png",
 };
 
 export default function FashionIntro() {
