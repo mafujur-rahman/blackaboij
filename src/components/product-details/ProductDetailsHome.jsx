@@ -38,7 +38,7 @@ export default function ProductDetailsHome() {
                 const res = await api.get("/api/products/get-all-products/");
                 const allData = res.data?.data || [];
                 setAllProducts(allData);
-                
+
                 const found = allData.find(
                     (p) => String(p.id) === String(id)
                 );
@@ -53,8 +53,8 @@ export default function ProductDetailsHome() {
                 // Fetch related products from the same category parent (men/women/accessories)
                 if (found.category?.parent_name) {
                     const related = allData.filter(
-                        (p) => 
-                            p.category?.parent_name?.toLowerCase() === found.category?.parent_name?.toLowerCase() && 
+                        (p) =>
+                            p.category?.parent_name?.toLowerCase() === found.category?.parent_name?.toLowerCase() &&
                             String(p.id) !== String(id)
                     );
                     setRelatedProducts(related || []);
@@ -133,10 +133,10 @@ export default function ProductDetailsHome() {
     /* ========================= GET ALL PRODUCT IMAGES FOR DISPLAY ========================= */
     const getAllProductImages = () => {
         if (!product) return [];
-        
+
         const images = [];
         const seenUrls = new Set(); // Prevent duplicates
-        
+
         // For design products - get all front images from all colors
         if (product.is_design && product.product_colors) {
             product.product_colors.forEach(pc => {
@@ -156,7 +156,7 @@ export default function ProductDetailsHome() {
                     }
                 }
             });
-            
+
             // Also add back images
             product.product_colors.forEach(pc => {
                 if (pc.back_designs && Array.isArray(pc.back_designs)) {
@@ -181,7 +181,7 @@ export default function ProductDetailsHome() {
                 }
             });
         }
-        
+
         // For regular products - get images from product.images
         if (!product.is_design && product.images && Array.isArray(product.images)) {
             product.images.forEach(img => {
@@ -200,7 +200,7 @@ export default function ProductDetailsHome() {
                 }
             });
         }
-        
+
         // If still no images, try to get from mainImage
         if (images.length === 0 && mainImage) {
             images.push({
@@ -210,7 +210,7 @@ export default function ProductDetailsHome() {
                 label: 'Main Image'
             });
         }
-        
+
         return images;
     };
 
@@ -460,13 +460,14 @@ export default function ProductDetailsHome() {
         <div className="px-4 lg:px-12 xl:px-24 2xl:px-48 py-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-stretch">
                 {/* ================= IMAGE SECTION ================= */}
-                <div className="relative w-full aspect-[4/5] lg:aspect-auto lg:h-full lg:min-h-[760px] bg-[#f7f7f7] overflow-hidden">
+                {/* ================= IMAGE SECTION ================= */}
+                <div className="relative w-full aspect-[3/4] bg-white overflow-hidden lg:sticky lg:top-10">
                     {mainImage ? (
                         <Image
                             src={getImageUrl(mainImage)}
                             alt={product.name}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             priority
                             sizes="(max-width: 768px) 100vw, 50vw"
                             onError={(e) => {
@@ -551,31 +552,30 @@ export default function ProductDetailsHome() {
                         <span className="text-[11px] uppercase tracking-wider font-semibold text-black">
                             Product Images
                         </span>
-                        
+
                         {/* ALL Product Images in circles */}
                         <div className="flex flex-wrap gap-3 mt-2">
                             {allProductImages.length > 0 ? (
                                 allProductImages.map((img) => {
                                     // Get the image URL properly
                                     const imageUrl = getImageUrl(img.image);
-                                    
+
                                     // Skip if no image URL
                                     if (!imageUrl) return null;
-                                    
+
                                     return (
                                         <button
                                             key={img.id}
                                             onClick={() => handleImageClick(img.image)}
                                             title={img.label || img.colorName || img.designName || 'Product image'}
-                                            className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all flex-shrink-0 ${
-                                                mainImage === img.image ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
-                                            }`}
+                                            className={`relative w-16 h-16 rounded-full overflow-hidden border-2 transition-all flex-shrink-0 ${mainImage === img.image ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
+                                                }`}
                                         >
-                                            <Image 
-                                                src={imageUrl} 
-                                                alt={img.label || img.colorName || img.designName || 'Product image'} 
-                                                fill 
-                                                className="object-cover" 
+                                            <Image
+                                                src={imageUrl}
+                                                alt={img.label || img.colorName || img.designName || 'Product image'}
+                                                fill
+                                                className="object-cover"
                                                 sizes="64px"
                                                 priority={allProductImages.indexOf(img) < 4}
                                                 onError={(e) => {
@@ -616,7 +616,7 @@ export default function ProductDetailsHome() {
                         <span className="text-[11px] uppercase tracking-wider font-semibold text-black">
                             Color{currentColorLabel ? ` — ${currentColorLabel}` : ''}
                         </span>
-                        
+
                         {product.is_design ? (
                             <>
                                 {/* Color swatches for design products */}
@@ -626,9 +626,8 @@ export default function ProductDetailsHome() {
                                             key={`color-${c.colorId}`}
                                             onClick={() => handleDesignColorSelect(c.colorId, c.frontImage)}
                                             title={c.colorName}
-                                            className={`w-10 h-10 rounded-full border-2 transition-all ${
-                                                c.isSelected ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
-                                            }`}
+                                            className={`w-10 h-10 rounded-full border-2 transition-all ${c.isSelected ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
+                                                }`}
                                             style={{ backgroundColor: c.hexCode || '#eee' }}
                                         />
                                     ))}
@@ -645,9 +644,8 @@ export default function ProductDetailsHome() {
                                                 key={color.id}
                                                 onClick={() => handleColorSelect(color)}
                                                 title={color.name}
-                                                className={`w-10 h-10 rounded-full border-2 transition-all ${
-                                                    isSelected ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
-                                                }`}
+                                                className={`w-10 h-10 rounded-full border-2 transition-all ${isSelected ? "border-black scale-110 shadow-lg" : "border-gray-200 hover:border-gray-400 hover:scale-105"
+                                                    }`}
                                                 style={{ backgroundColor: color.code || color.hex_code }}
                                             />
                                         );
@@ -667,11 +665,10 @@ export default function ProductDetailsHome() {
                                     <button
                                         key={size.id}
                                         onClick={() => handleSizeSelect(size)}
-                                        className={`min-w-[44px] h-10 px-2 text-sm bg-white transition-colors ${
-                                            isSelected
+                                        className={`min-w-[44px] h-10 px-2 text-sm bg-white transition-colors ${isSelected
                                                 ? 'border-2 border-black text-black font-semibold'
                                                 : 'border border-gray-300 text-gray-700 hover:border-black'
-                                        }`}
+                                            }`}
                                     >
                                         {size.name}
                                     </button>
@@ -701,13 +698,12 @@ export default function ProductDetailsHome() {
                                                     setMainImage(backImagesForDesign[0].image);
                                                 }
                                             }}
-                                            className={`px-3 h-9 text-xs border transition-colors ${
-                                                isSelected
+                                            className={`px-3 h-9 text-xs border transition-colors ${isSelected
                                                     ? 'border-black bg-black text-white'
                                                     : hasImages
                                                         ? 'border-gray-300 text-black hover:border-black'
                                                         : 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                            }`}
+                                                }`}
                                         >
                                             {design.name}
                                         </button>
@@ -727,11 +723,10 @@ export default function ProductDetailsHome() {
                     <button
                         onClick={handleAddToCart}
                         disabled={isCTADisabled || !inStock}
-                        className={`w-full h-12 text-xs uppercase tracking-[0.2em] font-semibold transition-colors cursor-pointer ${
-                            isCTADisabled || !inStock
+                        className={`w-full h-12 text-xs uppercase tracking-[0.2em] font-semibold transition-colors cursor-pointer ${isCTADisabled || !inStock
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                 : 'bg-black text-white hover:bg-gray-900'
-                        }`}
+                            }`}
                     >
                         Add to Cart
                     </button>
@@ -740,11 +735,10 @@ export default function ProductDetailsHome() {
                     <button
                         onClick={handleOrderNow}
                         disabled={isCTADisabled || !inStock}
-                        className={`w-full h-12 mt-2 text-xs uppercase tracking-[0.2em] font-semibold border transition-colors cursor-pointer ${
-                            isCTADisabled || !inStock
+                        className={`w-full h-12 mt-2 text-xs uppercase tracking-[0.2em] font-semibold border transition-colors cursor-pointer ${isCTADisabled || !inStock
                                 ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                                 : 'border-black text-black hover:bg-gray-50'
-                        }`}
+                            }`}
                     >
                         Buy Now
                     </button>
@@ -768,7 +762,7 @@ export default function ProductDetailsHome() {
                     )}
 
                     {/* Size measurements - ONLY IMAGE */}
-                    <div className="mt-6 pt-4 border-t border-gray-200">
+                    {/* <div className="mt-6 pt-4 border-t border-gray-200">
                         <div className="relative w-full border border-gray-300 rounded-lg overflow-hidden bg-white">
                             <Image
                                 src='/images/size-measurment.webp'
@@ -779,7 +773,7 @@ export default function ProductDetailsHome() {
                                 priority
                             />
                         </div>
-                    </div>
+                    </div> */}
 
                 </div>
             </div>
