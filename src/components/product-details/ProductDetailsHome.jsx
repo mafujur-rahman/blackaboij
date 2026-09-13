@@ -598,7 +598,7 @@ export default function ProductDetailsHome() {
                                                 </div>
                                             )}
                                             {img.type && (
-                                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] text-center py-0.5">
+                                                <div className="absolute bottom-0 left-0 right-0  text-white text-[8px] text-center py-0.5">
                                                     {img.type === 'front' ? 'Front' : img.type === 'back' ? 'Back' : ''}
                                                 </div>
                                             )}
