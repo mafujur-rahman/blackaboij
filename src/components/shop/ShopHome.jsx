@@ -4,6 +4,16 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "../card/ProductCard";
 
+const getProductCategories = (product) => [
+  ...(Array.isArray(product?.categories) ? product.categories : []),
+  product?.category,
+].filter(Boolean);
+
+const belongsToParentCategory = (product, parentId) =>
+  getProductCategories(product).some(
+    (category) => category.parent === parentId
+  );
+
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
   <div className="flex justify-center min-h-[60vh]">
@@ -45,13 +55,13 @@ const ShopHome = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       // Check sessionStorage cache
-      const cached = sessionStorage.getItem("shop_home_products");
+      const cached = sessionStorage.getItem("shop_home_products_v2");
       if (cached) {
         const parsed = JSON.parse(cached);
-        setAllProducts(parsed.allProducts);
-        setCategories(parsed.categories);
-        setActiveCategory(parsed.activeCategory);
-        setFilteredProducts(parsed.filteredProducts);
+        setAllProducts(parsed.allProducts || []);
+        setCategories(parsed.categories || []);
+        setActiveCategory(parsed.activeCategory || null);
+        setFilteredProducts(parsed.filteredProducts || []);
         setLoading(false);
         return; // Use cached data
       }
@@ -64,12 +74,14 @@ const ShopHome = () => {
         // Extract unique parent categories
         const categoryMap = new Map();
         products.forEach((product) => {
-          if (product.category?.parent) {
-            categoryMap.set(product.category.parent, {
-              id: product.category.parent,
-              name: product.category.parent_name,
-            });
-          }
+          getProductCategories(product).forEach((category) => {
+            if (category.parent) {
+              categoryMap.set(category.parent, {
+                id: category.parent,
+                name: category.parent_name,
+              });
+            }
+          });
         });
 
         let parentCategories = Array.from(categoryMap.values());
@@ -88,7 +100,9 @@ const ShopHome = () => {
         const initialCategory = parentCategories[0]?.id || null;
 
         const initialFiltered = initialCategory
-          ? products.filter((p) => p.category?.parent === initialCategory)
+          ? products.filter((product) =>
+              belongsToParentCategory(product, initialCategory)
+            )
           : products;
 
         setAllProducts(products);
@@ -98,7 +112,7 @@ const ShopHome = () => {
 
         // Save to sessionStorage
         sessionStorage.setItem(
-          "shop_home_products",
+          "shop_home_products_v2",
           JSON.stringify({
             allProducts: products,
             categories: parentCategories,
@@ -120,8 +134,8 @@ const ShopHome = () => {
   useEffect(() => {
     if (!activeCategory) return;
 
-    const filtered = allProducts.filter(
-      (product) => product.category?.parent === activeCategory
+    const filtered = allProducts.filter((product) =>
+      belongsToParentCategory(product, activeCategory)
     );
 
     setFilteredProducts(filtered);
