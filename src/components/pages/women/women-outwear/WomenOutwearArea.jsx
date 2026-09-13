@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const WomenOutwearArea = () => {
@@ -21,7 +22,7 @@ const fetchProducts = async () => {
 
     // Use cache only for client-side navigation
     if (!isHardReload) {
-      const cached = sessionStorage.getItem("women_outwear_products");
+      const cached = sessionStorage.getItem("women_outwear_products_v2");
       if (cached) {
         setProducts(JSON.parse(cached));
         setLoading(false);
@@ -30,17 +31,15 @@ const fetchProducts = async () => {
     }
 
     const res = await api.get("/api/products/get-all-products/");
-    const womenOutwears = res.data.data.filter(
-      (p) =>
-        p.category?.parent_name?.toLowerCase() === "women" &&
-        p.category?.name?.toLowerCase() === "outwears"
+    const womenOutwears = res.data.data.filter((product) =>
+      matchesProductCategory(product, "women", ["outwears", "outerwear"])
     );
 
     setProducts(womenOutwears);
 
     // Cache for client-side navigation
     sessionStorage.setItem(
-      "women_outwear_products",
+      "women_outwear_products_v2",
       JSON.stringify(womenOutwears)
     );
   } catch (error) {

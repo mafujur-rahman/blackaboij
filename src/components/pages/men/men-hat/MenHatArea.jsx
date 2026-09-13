@@ -7,6 +7,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import ProductCard from "@/components/card/ProductCard";
 import api from "@/lib/axios";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const MenHatArea = () => {
@@ -25,7 +26,7 @@ const MenHatArea = () => {
 
       // Use cache only for client-side navigation
       if (!isHardReload) {
-        const cached = sessionStorage.getItem("men_hat_products");
+        const cached = sessionStorage.getItem("men_hat_products_v2");
         if (cached) {
           setProducts(JSON.parse(cached));
           setLoading(false);
@@ -38,17 +39,15 @@ const MenHatArea = () => {
       );
 
       if (res.data?.success) {
-        const menHat = res.data.data.filter(
-          (p) =>
-            p.category?.parent_name?.toLowerCase() === "men" &&
-            p.category?.name?.toLowerCase() === "hat"
+        const menHat = res.data.data.filter((product) =>
+          matchesProductCategory(product, "men", "hat")
         );
 
         setProducts(menHat);
 
         // Cache for client-side navigation
         sessionStorage.setItem(
-          "men_hat_products",
+          "men_hat_products_v2",
           JSON.stringify(menHat)
         );
       } else {

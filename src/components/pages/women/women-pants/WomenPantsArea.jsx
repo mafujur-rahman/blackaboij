@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const WomenPantsArea = () => {
@@ -21,7 +22,7 @@ const WomenPantsArea = () => {
 
     // Use cache only for client-side navigation
     if (!isHardReload) {
-      const cached = sessionStorage.getItem("women_pants_products");
+      const cached = sessionStorage.getItem("women_pants_products_v2");
       if (cached) {
         setProducts(JSON.parse(cached));
         setLoading(false);
@@ -30,16 +31,14 @@ const WomenPantsArea = () => {
     }
 
     const res = await api.get("/api/products/get-all-products/");
-    const womenPants = res.data.data.filter(
-      (p) =>
-        p.category?.parent_name?.toLowerCase() === "women" &&
-        p.category?.name?.toLowerCase() === "pants"
+    const womenPants = res.data.data.filter((product) =>
+      matchesProductCategory(product, "women", ["pants", "pant"])
     );
 
     setProducts(womenPants);
 
     // Cache for client-side navigation
-    sessionStorage.setItem("women_pants_products", JSON.stringify(womenPants));
+    sessionStorage.setItem("women_pants_products_v2", JSON.stringify(womenPants));
   } catch (error) {
     console.error("API fetch error:", error);
     Swal.fire("Error", "Failed to load products", "error");

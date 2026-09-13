@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { isInProductBranch } from "@/components/utils/productCategory";
 
 /* -------- FUNCTION TO ORGANIZE PRODUCTS BY TYPE -------- */
 const organizeProductsByType = (products) => {
@@ -13,22 +14,23 @@ const organizeProductsByType = (products) => {
   const others = [];
 
   products.forEach((product) => {
-    const subcategoryName = product.category?.name?.toLowerCase() || "";
+    const categoryNames = [
+      ...(Array.isArray(product.categories) ? product.categories : []),
+      product.category,
+    ]
+      .filter(Boolean)
+      .map((category) => category.name?.toLowerCase() || "");
+
+    const matches = (keywords) =>
+      categoryNames.some((name) => keywords.some((keyword) => name.includes(keyword)));
     
     // Categorize based on subcategory name
-    if (subcategoryName.includes('tee') || 
-        subcategoryName.includes('t-shirt') || 
-        subcategoryName.includes('tshirt') || 
-        subcategoryName.includes('t shirt') ||
-        subcategoryName === 'tees') {
+    if (matches(["tee", "t-shirt", "tshirt", "t shirt"]) ||
+        categoryNames.includes("tees")) {
       tees.push(product);
-    } else if (subcategoryName.includes('hat') || 
-               subcategoryName.includes('cap')) {
+    } else if (matches(["hat", "cap"])) {
       hats.push(product);
-    } else if (subcategoryName.includes('pant') || 
-               subcategoryName.includes('pants') || 
-               subcategoryName.includes('jeans') || 
-               subcategoryName.includes('trouser')) {
+    } else if (matches(["pant", "jeans", "trouser"])) {
       pants.push(product);
     } else {
       others.push(product);
@@ -67,7 +69,7 @@ const WomenCollectionArea = () => {
 
       // Use cache only for client-side navigation
       if (!isHardReload) {
-        const cached = sessionStorage.getItem("women_products");
+        const cached = sessionStorage.getItem("women_products_v2");
         if (cached) {
           setProducts(JSON.parse(cached));
           setLoading(false);
@@ -76,8 +78,8 @@ const WomenCollectionArea = () => {
       }
 
       const res = await api.get("/api/products/get-all-products/");
-      let womenProducts = res.data.data
-        .filter((p) => p.category?.parent_name?.toLowerCase() === "women")
+      let womenProducts = (res.data?.data || [])
+        .filter((product) => isInProductBranch(product, "women"))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 20);
 
@@ -88,7 +90,7 @@ const WomenCollectionArea = () => {
 
       // Cache for client-side navigation
       sessionStorage.setItem(
-        "women_products",
+        "women_products_v2",
         JSON.stringify(womenProducts)
       );
     } catch (error) {

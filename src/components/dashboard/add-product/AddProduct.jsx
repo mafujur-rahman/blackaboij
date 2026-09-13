@@ -16,30 +16,31 @@ import {
   Redo,
   X,
   Plus,
+  Star,
 } from "lucide-react";
 import DashboardShell from "../DashboardShell";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 
-// Import TipTap
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import UnderlineExtension from '@tiptap/extension-underline';
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import UnderlineExtension from "@tiptap/extension-underline";
 
 const AddProduct = () => {
   const [parentCategories, setParentCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
-  const [parentCategoryId, setParentCategoryId] = useState("");
+  // Map of parentId -> sub_categories[]
+  const [subCategoriesByParent, setSubCategoriesByParent] = useState({});
+  // Array of selected parent category IDs (multi-select main category)
+  const [selectedParentIds, setSelectedParentIds] = useState([]);
 
   const [sizesList, setSizesList] = useState([]);
   const [colorsList, setColorsList] = useState([]);
+
   const [form, setForm] = useState({
     name: "",
     description: "",
-    mainCategoryId: "",
-    mainCategoryName: "",
-    subCategoryId: "",
-    subCategoryName: "",
+    categoryIds: [],          // FLAT list of all assigned category IDs (main + sub)
+    primaryCategoryId: "",    // must be inside categoryIds
     price: "",
     qty: "",
     sizes: [],
@@ -50,12 +51,13 @@ const AddProduct = () => {
     thumbnailIndex: 0,
     hotSale: false,
     isDesign: false,
-    designNames: [], 
+    designNames: [],
   });
 
   const [errors, setErrors] = useState({
     sizes: false,
     colors: false,
+    categories: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -63,46 +65,40 @@ const AddProduct = () => {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Use a ref to track form state in callbacks
   const formRef = useRef(form);
-
-  // Update the ref whenever form changes
   useEffect(() => {
     formRef.current = form;
   }, [form]);
 
-  // Initialize mounted state
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // TipTap Editor - Initialize only on client side
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      UnderlineExtension,
-    ],
-    content: form.description,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      setForm(prev => ({ ...prev, description: html }));
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] p-4',
+  const editor = useEditor(
+    {
+      extensions: [StarterKit, UnderlineExtension],
+      content: form.description,
+      onUpdate: ({ editor }) => {
+        const html = editor.getHTML();
+        setForm((prev) => ({ ...prev, description: html }));
       },
+      editorProps: {
+        attributes: {
+          class:
+            "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] p-4",
+        },
+      },
+      immediatelyRender: false,
     },
-    immediatelyRender: false,
-  }, [mounted]);
+    [mounted]
+  );
 
-  // Update editor content when form.description changes
   useEffect(() => {
     if (editor && form.description === "" && editor.getHTML() !== "<p></p>") {
       editor.commands.clearContent();
     }
   }, [form.description, editor]);
 
-  // Handle link insertion
   const handleAddLink = useCallback(() => {
     if (showLinkInput) {
       if (linkUrl) {
@@ -115,7 +111,6 @@ const AddProduct = () => {
     }
   }, [editor, linkUrl, showLinkInput]);
 
-  // Remove link
   const handleRemoveLink = useCallback(() => {
     editor?.chain().focus().unsetLink().run();
     setShowLinkInput(false);
@@ -142,28 +137,23 @@ const AddProduct = () => {
     fetchAll();
   }, []);
 
-  // Fetch subcategories when parent changes
+  // Fetch grouped sub-categories once
   useEffect(() => {
-    const fetchSubCategories = async () => {
-      if (!parentCategoryId) return;
+    const fetchGrouped = async () => {
       try {
         const res = await api.get("/api/categories/get-category-grouped/");
-        const parent = res.data.data.find(
-          (p) => p.id === Number(parentCategoryId)
-        );
-        setSubCategories(parent?.sub_categories || []);
-        setForm((prev) => ({
-          ...prev,
-          subCategoryId: "",
-          subCategoryName: "",
-        }));
+        const map = {};
+        (res.data.data || []).forEach((parent) => {
+          map[parent.id] = parent.sub_categories || [];
+        });
+        setSubCategoriesByParent(map);
       } catch (err) {
         console.error(err);
         Swal.fire("Error", "Failed to load sub-categories", "error");
       }
     };
-    fetchSubCategories();
-  }, [parentCategoryId]);
+    fetchGrouped();
+  }, []);
 
   // Toggle sizes/colors
   const toggleArray = (field, id) => {
@@ -171,50 +161,122 @@ const AddProduct = () => {
       ? form[field].filter((v) => v !== id)
       : [...form[field], id];
 
-    setForm((prev) => ({
-      ...prev,
-      [field]: newArray,
-    }));
+    setForm((prev) => ({ ...prev, [field]: newArray }));
 
-    // Clear error when selection is made
     if (newArray.length > 0) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: false,
-      }));
+      setErrors((prev) => ({ ...prev, [field]: false }));
     }
   };
 
-  // Handle design toggle
+  // Toggle a MAIN category (multi-select)
+  // Selecting a parent does NOT auto-assign it; it just reveals its subs.
+  // But we DO add the parent itself to categoryIds so it can be used as an assignment
+  // if the user wants. If user removes parent, remove it + its subs from categoryIds.
+  const toggleParentCategory = (parentId) => {
+    setSelectedParentIds((prev) => {
+      const isRemoving = prev.includes(parentId);
+      let newSelected;
+      let newCategoryIds = [...formRef.current.categoryIds];
+      let newPrimary = formRef.current.primaryCategoryId;
+
+      if (isRemoving) {
+        newSelected = prev.filter((id) => id !== parentId);
+
+        // Remove this parent AND all its sub-categories from categoryIds
+        const subsOfParent =
+          (subCategoriesByParent[parentId] || []).map((s) => s.id);
+        newCategoryIds = newCategoryIds.filter(
+          (id) => id !== parentId && !subsOfParent.includes(id)
+        );
+
+        if (!newCategoryIds.includes(newPrimary)) {
+          newPrimary = newCategoryIds.length > 0 ? newCategoryIds[0] : "";
+        }
+      } else {
+        newSelected = [...prev, parentId];
+        // Auto-add parent as an assigned category
+        if (!newCategoryIds.includes(parentId)) {
+          newCategoryIds.push(parentId);
+        }
+        if (!newPrimary) newPrimary = parentId;
+      }
+
+      setForm((f) => ({
+        ...f,
+        categoryIds: newCategoryIds,
+        primaryCategoryId: newPrimary,
+      }));
+
+      return newSelected;
+    });
+
+    setErrors((prev) => ({ ...prev, categories: false }));
+  };
+
+  // Toggle any category (main or sub) in the flat categoryIds list
+  const toggleCategory = (id) => {
+    setForm((prev) => {
+      const isSelected = prev.categoryIds.includes(id);
+      const newIds = isSelected
+        ? prev.categoryIds.filter((c) => c !== id)
+        : [...prev.categoryIds, id];
+
+      let newPrimary = prev.primaryCategoryId;
+      if (isSelected && prev.primaryCategoryId === id) {
+        newPrimary = newIds.length > 0 ? newIds[0] : "";
+      }
+      if (!newPrimary && newIds.length > 0) {
+        newPrimary = newIds[0];
+      }
+      if (newIds.length === 0) newPrimary = "";
+
+      return { ...prev, categoryIds: newIds, primaryCategoryId: newPrimary };
+    });
+
+    setErrors((prev) => ({ ...prev, categories: false }));
+  };
+
+  const setPrimaryCategory = (id) => {
+    if (!form.categoryIds.includes(id)) return;
+    setForm((prev) => ({ ...prev, primaryCategoryId: id }));
+  };
+
+  // Look up a category's display name by id (searches parents + subs)
+  const getCategoryName = (id) => {
+    const parent = parentCategories.find((p) => p.id === id);
+    if (parent) return parent.name;
+    for (const pid of Object.keys(subCategoriesByParent)) {
+      const sub = (subCategoriesByParent[pid] || []).find((s) => s.id === id);
+      if (sub) return sub.name;
+    }
+    return String(id);
+  };
+
   const handleDesignToggle = () => {
     const newIsDesign = !form.isDesign;
-
     setForm((prev) => ({
       ...prev,
       isDesign: newIsDesign,
       colors: newIsDesign ? [] : prev.colors,
-      designNames: newIsDesign ? [] : [], // Reset design names when toggling
+      designNames: newIsDesign ? [] : [],
     }));
   };
 
-  // Add a new design name
   const addDesignName = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      designNames: [...prev.designNames, ""]
+      designNames: [...prev.designNames, ""],
     }));
   };
 
-  // Update design name
   const updateDesignName = (index, name) => {
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...prev.designNames];
       updated[index] = name;
       return { ...prev, designNames: updated };
     });
   };
 
-  // Remove a design name
   const removeDesignName = (index) => {
     Swal.fire({
       title: "Remove Design?",
@@ -225,22 +287,19 @@ const AddProduct = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
-          designNames: prev.designNames.filter((_, i) => i !== index)
+          designNames: prev.designNames.filter((_, i) => i !== index),
         }));
       }
     });
   };
 
-  // Handle image upload for regular products - FIXED for high quality
   const handleImagesUpload = (files) => {
     const fileArray = Array.from(files);
 
-    // REMOVED size restriction - allow any size
     const validFiles = fileArray.filter((file) => {
-      // Optional: Add warning for very large files but don't block
-      if (file.size > 50 * 1024 * 1024) { // 50MB warning
+      if (file.size > 50 * 1024 * 1024) {
         Swal.fire({
           icon: "warning",
           title: "Large File",
@@ -248,7 +307,7 @@ const AddProduct = () => {
           showConfirmButton: true,
         });
       }
-      return true; // Accept all files
+      return true;
     });
 
     const normalizedFiles = validFiles.map((file) => ({
@@ -259,8 +318,7 @@ const AddProduct = () => {
     setForm((prev) => ({
       ...prev,
       images: [...prev.images, ...normalizedFiles],
-      thumbnailIndex:
-        prev.images.length === 0 ? 0 : prev.thumbnailIndex,
+      thumbnailIndex: prev.images.length === 0 ? 0 : prev.thumbnailIndex,
     }));
   };
 
@@ -276,70 +334,70 @@ const AddProduct = () => {
   };
 
   const setThumbnail = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      thumbnailIndex: index,
-    }));
+    setForm((prev) => ({ ...prev, thumbnailIndex: index }));
   };
 
-  // Handle hot sale toggle
   const handleHotSaleToggle = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Create JSON payload for design products
   const createJsonPayload = () => {
     const payload = {
       name: form.name,
       description: form.description || "",
-      category_id: Number(form.subCategoryId),
+      category_ids: form.categoryIds.map((id) => Number(id)),
+      category_id: Number(form.primaryCategoryId),
       unit_price: Number(form.price),
       quantity: Number(form.qty),
       meta_title: form.metaTitle || form.name,
       meta_description: form.metaDescription || form.description,
       hot_sale: form.hotSale,
-      size_ids: form.sizes.map(id => Number(id)),
+      size_ids: form.sizes.map((id) => Number(id)),
     };
 
-    // Only add is_design if it's true
     if (form.isDesign) {
       payload.is_design = true;
     }
 
-    // Only add colors for non-design products
     if (!form.isDesign && form.colors.length > 0) {
-      payload.color_ids = form.colors.map(id => Number(id));
+      payload.color_ids = form.colors.map((id) => Number(id));
     }
 
-    // For design products, add design_names
     if (form.isDesign) {
-      if (form.designNames.length > 0) {
-        payload.design_names = form.designNames
-          .filter(name => name && name.trim() !== "")
-          .map(name => name.trim());
-      } else {
-        // If design mode but no names, send empty array
-        payload.design_names = [];
-      }
+      payload.design_names =
+        form.designNames.length > 0
+          ? form.designNames
+              .filter((name) => name && name.trim() !== "")
+              .map((name) => name.trim())
+          : [];
     }
 
     return payload;
   };
 
-  // Create FormData payload for regular products with images
   const createFormDataPayload = () => {
     const formData = new FormData();
 
     formData.append("name", form.name);
     formData.append("description", form.description || "");
-    formData.append("category_id", Number(form.subCategoryId));
+
+    form.categoryIds.forEach((id) => {
+      formData.append("category_ids", String(id));
+    });
+
+    if (form.primaryCategoryId != null && form.primaryCategoryId !== "") {
+      formData.append("category_id", String(form.primaryCategoryId));
+    }
+
     formData.append("unit_price", Number(form.price));
     formData.append("quantity", Number(form.qty));
     formData.append("meta_title", form.metaTitle || form.name);
-    formData.append("meta_description", form.metaDescription || form.description);
+    formData.append(
+      "meta_description",
+      form.metaDescription || form.description
+    );
     formData.append("hot_sale", form.hotSale ? "True" : "False");
 
-    // Only add is_design if it's true
     if (form.isDesign) {
       formData.append("is_design", "True");
     }
@@ -347,14 +405,13 @@ const AddProduct = () => {
     form.sizes.forEach((id) => {
       formData.append("size_ids", id.toString());
     });
-    
+
     if (!form.isDesign && form.colors.length > 0) {
       form.colors.forEach((id) => {
         formData.append("color_ids", id.toString());
       });
     }
 
-    // For design products only, add design_names
     if (form.isDesign && form.designNames.length > 0) {
       form.designNames.forEach((name) => {
         if (name && name.trim() !== "") {
@@ -362,17 +419,14 @@ const AddProduct = () => {
         }
       });
     }
-    // For non-design products, we DO NOT add is_design or design_names at all
 
-    // Add images for regular products - maintain original quality
     if (!form.isDesign && form.images.length > 0) {
       form.images.forEach((img, index) => {
         if (img.file) {
-          // Append with original file (maintains quality)
           formData.append("images", img.file);
           formData.append(
             "is_thumbnail",
-            (index === form.thumbnailIndex) ? "True" : "False"
+            index === form.thumbnailIndex ? "True" : "False"
           );
         }
       });
@@ -381,53 +435,76 @@ const AddProduct = () => {
     return formData;
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {
       sizes: form.sizes.length === 0,
-      colors: form.colors.length === 0,
+      colors: !form.isDesign && form.colors.length === 0,
+      categories: form.categoryIds.length === 0 || !form.primaryCategoryId,
     };
 
     setErrors(newErrors);
 
-    if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
+    if (!form.name || !form.price || !form.qty) {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
 
-    // Regular images are required only if not in design mode
-    if (!form.isDesign && form.images.length === 0) {
-      Swal.fire("Warning", "Please upload at least one image for regular products", "warning");
+    if (form.categoryIds.length === 0) {
+      Swal.fire("Warning", "Please select at least one category", "warning");
       return false;
     }
 
-    // Thumbnail check only for non-design mode
+    if (!form.primaryCategoryId) {
+      Swal.fire("Warning", "Please set a primary category", "warning");
+      return false;
+    }
+
+    if (!form.categoryIds.includes(Number(form.primaryCategoryId))) {
+      Swal.fire(
+        "Warning",
+        "Primary category must be one of the selected categories",
+        "warning"
+      );
+      return false;
+    }
+
+    if (!form.isDesign && form.images.length === 0) {
+      Swal.fire(
+        "Warning",
+        "Please upload at least one image for regular products",
+        "warning"
+      );
+      return false;
+    }
+
     if (!form.isDesign && !form.images[form.thumbnailIndex]) {
       Swal.fire("Warning", "Please select a thumbnail image", "warning");
       return false;
     }
 
-    // Size validation
     if (newErrors.sizes) {
       Swal.fire("Warning", "Please select at least one size", "warning");
       return false;
     }
 
-    // Color validation only for non-design mode
     if (!form.isDesign && newErrors.colors) {
       Swal.fire("Warning", "Please select at least one color", "warning");
       return false;
     }
 
-    // Validate design names if isDesign is true
     if (form.isDesign) {
       if (form.designNames.length === 0) {
-        Swal.fire("Warning", "Please add at least one design name", "warning");
+        Swal.fire(
+          "Warning",
+          "Please add at least one design name",
+          "warning"
+        );
         return false;
       }
 
-      // Check if all design names are filled
-      const emptyNames = form.designNames.filter(name => !name || name.trim() === "");
+      const emptyNames = form.designNames.filter(
+        (name) => !name || name.trim() === ""
+      );
       if (emptyNames.length > 0) {
         Swal.fire("Warning", "Please enter names for all designs", "warning");
         return false;
@@ -437,7 +514,6 @@ const AddProduct = () => {
     return true;
   };
 
-  // Submit product
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
@@ -446,17 +522,13 @@ const AddProduct = () => {
     try {
       let payload;
       let headers = {};
-      let endpoint = "/api/product/create-product/";
+      const endpoint = "/api/product/create-product/";
 
-      // DECISION: Use JSON for design products, FormData for regular products
       if (form.isDesign) {
-        // Design product - send as JSON
         payload = createJsonPayload();
-        headers['Content-Type'] = 'application/json';
+        headers["Content-Type"] = "application/json";
       } else {
-        // Regular product with images - send as FormData
         payload = createFormDataPayload();
-        // Don't set Content-Type header for FormData - browser will set it with boundary
       }
 
       Swal.fire({
@@ -468,29 +540,19 @@ const AddProduct = () => {
         },
       });
 
-
-
-
-      let response;
       if (form.isDesign) {
-        // Send JSON for design products
-        response = await api.post(endpoint, payload, { headers });
+        await api.post(endpoint, payload, { headers });
       } else {
-        // Send FormData for regular products
-        response = await api.post(endpoint, payload);
+        await api.post(endpoint, payload);
       }
-
 
       Swal.fire("Success", "Product added successfully!", "success");
 
-      // Reset form
       setForm({
         name: "",
         description: "",
-        mainCategoryId: "",
-        mainCategoryName: "",
-        subCategoryId: "",
-        subCategoryName: "",
+        categoryIds: [],
+        primaryCategoryId: "",
         price: "",
         qty: "",
         sizes: [],
@@ -504,19 +566,14 @@ const AddProduct = () => {
         designNames: [],
       });
 
-      // Clear editor
-      if (editor) {
-        editor.commands.clearContent();
-      }
+      if (editor) editor.commands.clearContent();
 
-      setParentCategoryId("");
-      setErrors({ sizes: false, colors: false });
-
+      setSelectedParentIds([]);
+      setErrors({ sizes: false, colors: false, categories: false });
     } catch (err) {
       console.error("Error creating product:", err);
       console.error("Error response:", err.response?.data);
-      
-      // Check if error is about design_names
+
       if (err.response?.data?.error === "design_names is required") {
         Swal.fire({
           icon: "error",
@@ -524,19 +581,21 @@ const AddProduct = () => {
           text: "The server is incorrectly requiring design_names for non-design products. Please check the backend validation.",
         });
       } else {
-        Swal.fire("Error", err.response?.data?.message || "Product creation failed", "error");
+        Swal.fire(
+          "Error",
+          err.response?.data?.message || "Product creation failed",
+          "error"
+        );
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Don't render editor until mounted (client-side)
   if (!mounted || !editor) {
     return (
       <DashboardShell>
         <div className="min-h-screen space-y-6">
-          {/* HEADER */}
           <div className="bg-white rounded-md px-6 py-4 flex justify-between items-center shadow-sm">
             <h1 className="text-xl font-bold">Add Product</h1>
             <div className="flex items-center space-x-2 text-[16px]">
@@ -588,62 +647,8 @@ const AddProduct = () => {
 
             <div>
               <label className="block text-[16px] font-medium mb-1">
-                Main Category *
+                Unit Price *
               </label>
-              <select
-                value={parentCategoryId}
-                onChange={(e) => {
-                  const selected = parentCategories.find(
-                    (cat) => cat.id === Number(e.target.value)
-                  );
-                  setParentCategoryId(e.target.value);
-                  setForm((prev) => ({
-                    ...prev,
-                    mainCategoryId: e.target.value,
-                    mainCategoryName: selected?.name || "",
-                  }));
-                }}
-                className="w-full border border-black/20 rounded px-3 py-2"
-              >
-                <option value="">Select Main Category</option>
-                {parentCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[16px] font-medium mb-1">
-                Sub Category *
-              </label>
-              <select
-                value={form.subCategoryId}
-                onChange={(e) => {
-                  const selected = subCategories.find(
-                    (sub) => sub.id === Number(e.target.value)
-                  );
-                  setForm((prev) => ({
-                    ...prev,
-                    subCategoryId: e.target.value,
-                    subCategoryName: selected?.name || "",
-                  }));
-                }}
-                className="w-full border border-black/20 rounded px-3 py-2"
-                disabled={!parentCategoryId}
-              >
-                <option value="">Select Sub Category</option>
-                {subCategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[16px] font-medium mb-1">Unit Price *</label>
               <input
                 type="number"
                 value={form.price}
@@ -656,7 +661,9 @@ const AddProduct = () => {
             </div>
 
             <div>
-              <label className="block text-[16px] font-medium mb-1">Quantity *</label>
+              <label className="block text-[16px] font-medium mb-1">
+                Quantity *
+              </label>
               <input
                 type="number"
                 value={form.qty}
@@ -667,7 +674,6 @@ const AddProduct = () => {
               />
             </div>
 
-            {/* hot sale and design fields */}
             <div className="flex items-center gap-10">
               <div className="flex items-center space-x-3">
                 <input
@@ -682,7 +688,6 @@ const AddProduct = () => {
                 </label>
               </div>
 
-              {/* Design Field */}
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -697,100 +702,289 @@ const AddProduct = () => {
               </div>
             </div>
 
+            {/* ===== MULTI MAIN CATEGORY + SUBCATEGORIES ===== */}
             <div className="col-span-2">
-              <label className="block text-[16px] font-medium mb-1">Description</label>
+              <label className="block text-[16px] font-medium mb-2">
+                Main Categories *
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  (select one or more — sub-categories will appear below)
+                </span>
+                {errors.categories && (
+                  <span className="text-red-500 ml-2 text-sm">
+                    (Select at least one category and pick a primary)
+                  </span>
+                )}
+              </label>
+
+              {/* Main category chips (multi-select) */}
+              <div className="flex flex-wrap gap-3 mb-4">
+                {parentCategories.map((cat) => {
+                  const selected = selectedParentIds.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => toggleParentCategory(cat.id)}
+                      className={`px-4 py-2 rounded border transition text-sm font-medium ${
+                        selected
+                          ? "bg-black text-white border-black"
+                          : errors.categories
+                          ? "border-red-500 hover:border-red-600"
+                          : "border-black/20 hover:border-black"
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sub-categories grouped per selected main category */}
+              {selectedParentIds.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Select one or more Main Categories above to load their
+                  sub-categories.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {selectedParentIds.map((pid) => {
+                    const parent = parentCategories.find((p) => p.id === pid);
+                    const subs = subCategoriesByParent[pid] || [];
+                    return (
+                      <div
+                        key={pid}
+                        className="border border-black/10 rounded p-3 bg-gray-50"
+                      >
+                        <p className="text-sm font-semibold mb-2">
+                          {parent?.name} — sub-categories
+                        </p>
+                        {subs.length === 0 ? (
+                          <p className="text-xs text-gray-500">
+                            No sub-categories under this main category. The
+                            main category itself is already assigned.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {subs.map((sub) => {
+                              const selected = form.categoryIds.includes(sub.id);
+                              const isPrimary =
+                                Number(form.primaryCategoryId) === sub.id;
+                              return (
+                                <div
+                                  key={sub.id}
+                                  className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${
+                                    selected
+                                      ? "bg-black text-white border-black"
+                                      : "border-black/20 bg-white hover:border-black"
+                                  }`}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleCategory(sub.id)}
+                                    className="font-medium"
+                                  >
+                                    {sub.name}
+                                  </button>
+                                  {selected && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPrimaryCategory(sub.id)}
+                                      title="Set as primary category"
+                                      className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${
+                                        isPrimary
+                                          ? "bg-yellow-400 text-black"
+                                          : "bg-white/20 text-white hover:bg-white/30"
+                                      }`}
+                                    >
+                                      <Star
+                                        size={10}
+                                        fill={isPrimary ? "currentColor" : "none"}
+                                      />
+                                      {isPrimary ? "Primary" : "Set Primary"}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Summary of all selected categories (main + sub) */}
+              {form.categoryIds.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-50 rounded border border-black/10">
+                  <p className="text-sm font-medium mb-2">Selected categories:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {form.categoryIds.map((id) => {
+                      const isPrimary =
+                        Number(form.primaryCategoryId) === Number(id);
+                      return (
+                        <span
+                          key={id}
+                          className={`text-xs px-2 py-1 rounded border ${
+                            isPrimary
+                              ? "bg-yellow-100 border-yellow-400 font-semibold"
+                              : "bg-white border-black/20"
+                          }`}
+                        >
+                          {getCategoryName(id)}
+                          {isPrimary && " ★"}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-[16px] font-medium mb-1">
+                Description
+              </label>
               <div className="border border-black/20 rounded">
-                {/* Toolbar */}
                 <div className="flex flex-wrap gap-2 border-b bg-gray-50 px-4 py-3">
-                  {/* Headings */}
                   <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                     <button
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                      className={`p-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleHeading({ level: 1 }).run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("heading", { level: 1 })
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Heading 1"
                     >
                       <Heading size={16} />
                     </button>
                     <button
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                      className={`p-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleHeading({ level: 2 }).run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("heading", { level: 2 })
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Heading 2"
                     >
                       H2
                     </button>
                     <button
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                      className={`p-1 rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleHeading({ level: 3 }).run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("heading", { level: 3 })
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Heading 3"
                     >
                       H3
                     </button>
                   </div>
 
-                  {/* Text formatting */}
                   <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                     <button
                       onClick={() => editor.chain().focus().toggleBold().run()}
-                      className={`p-1 rounded ${editor.isActive('bold') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      className={`p-1 rounded ${
+                        editor.isActive("bold")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Bold"
                     >
                       <Bold size={16} />
                     </button>
                     <button
                       onClick={() => editor.chain().focus().toggleItalic().run()}
-                      className={`p-1 rounded ${editor.isActive('italic') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      className={`p-1 rounded ${
+                        editor.isActive("italic")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Italic"
                     >
                       <Italic size={16} />
                     </button>
                     <button
-                      onClick={() => editor.chain().focus().toggleUnderline().run()}
-                      className={`p-1 rounded ${editor.isActive('underline') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleUnderline().run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("underline")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Underline"
                     >
                       <Underline size={16} />
                     </button>
                   </div>
 
-                  {/* Lists */}
                   <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                     <button
-                      onClick={() => editor.chain().focus().toggleBulletList().run()}
-                      className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleBulletList().run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("bulletList")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Bullet List"
                     >
                       <List size={16} />
                     </button>
                     <button
-                      onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                      className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleOrderedList().run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("orderedList")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Numbered List"
                     >
                       1.
                     </button>
                   </div>
 
-                  {/* Blockquote */}
                   <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                     <button
-                      onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                      className={`p-1 rounded ${editor.isActive('blockquote') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      onClick={() =>
+                        editor.chain().focus().toggleBlockquote().run()
+                      }
+                      className={`p-1 rounded ${
+                        editor.isActive("blockquote")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Blockquote"
                     >
                       <Quote size={16} />
                     </button>
                   </div>
 
-                  {/* Links */}
                   <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                     <button
                       onClick={handleAddLink}
-                      className={`p-1 rounded ${editor.isActive('link') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                      className={`p-1 rounded ${
+                        editor.isActive("link")
+                          ? "bg-gray-200 text-black"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Add Link"
                     >
                       <Link size={16} />
                     </button>
-                    {editor.isActive('link') && (
+                    {editor.isActive("link") && (
                       <button
                         onClick={handleRemoveLink}
                         className="p-1 rounded text-red-600 hover:text-red-800"
@@ -801,12 +995,15 @@ const AddProduct = () => {
                     )}
                   </div>
 
-                  {/* History */}
                   <div className="flex items-center space-x-1">
                     <button
                       onClick={() => editor.chain().focus().undo().run()}
                       disabled={!editor.can().undo()}
-                      className={`p-1 rounded ${!editor.can().undo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                      className={`p-1 rounded ${
+                        !editor.can().undo()
+                          ? "text-gray-400"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Undo"
                     >
                       <Undo size={16} />
@@ -814,7 +1011,11 @@ const AddProduct = () => {
                     <button
                       onClick={() => editor.chain().focus().redo().run()}
                       disabled={!editor.can().redo()}
-                      className={`p-1 rounded ${!editor.can().redo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                      className={`p-1 rounded ${
+                        !editor.can().redo()
+                          ? "text-gray-400"
+                          : "text-gray-600 hover:text-black"
+                      }`}
                       title="Redo"
                     >
                       <Redo size={16} />
@@ -822,7 +1023,6 @@ const AddProduct = () => {
                   </div>
                 </div>
 
-                {/* Link Input */}
                 {showLinkInput && (
                   <div className="border-b bg-gray-50 px-4 py-3">
                     <div className="flex items-center space-x-2">
@@ -833,10 +1033,8 @@ const AddProduct = () => {
                         placeholder="Enter URL"
                         className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddLink();
-                          }
-                          if (e.key === 'Escape') {
+                          if (e.key === "Enter") handleAddLink();
+                          if (e.key === "Escape") {
                             setShowLinkInput(false);
                             setLinkUrl("");
                           }
@@ -861,13 +1059,13 @@ const AddProduct = () => {
                   </div>
                 )}
 
-                {/* Editor Content */}
                 <div className="min-h-[200px] max-h-[400px] overflow-y-auto">
                   <EditorContent editor={editor} />
                 </div>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                Use the toolbar to format text. All formatting will be preserved when displayed.
+                Use the toolbar to format text. All formatting will be preserved
+                when displayed.
               </p>
             </div>
           </div>
@@ -877,7 +1075,11 @@ const AddProduct = () => {
         <div className="bg-white p-6 rounded-md shadow-sm">
           <label className="block text-[16px] font-medium mb-2">
             Sizes *
-            {errors.sizes && <span className="text-red-500 ml-2">(Please select at least one size)</span>}
+            {errors.sizes && (
+              <span className="text-red-500 ml-2">
+                (Please select at least one size)
+              </span>
+            )}
           </label>
           <div className="flex gap-3 flex-wrap">
             {sizesList.map((size) => (
@@ -885,12 +1087,13 @@ const AddProduct = () => {
                 key={size.id}
                 type="button"
                 onClick={() => toggleArray("sizes", size.id)}
-                className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
-                  ? "bg-black text-white border-black"
-                  : errors.sizes
+                className={`px-4 py-2 rounded border transition ${
+                  form.sizes.includes(size.id)
+                    ? "bg-black text-white border-black"
+                    : errors.sizes
                     ? "border-red-500 hover:border-red-600"
                     : "border-black/20 hover:border-black"
-                  }`}
+                }`}
               >
                 {size.name}
               </button>
@@ -902,19 +1105,28 @@ const AddProduct = () => {
             </p>
           )}
           <p className="text-sm text-gray-500 mt-2">
-            Selected sizes: {form.sizes.length > 0 ? form.sizes.map(id => {
-              const size = sizesList.find(s => s.id === id);
-              return size ? size.name : id;
-            }).join(", ") : "None"}
+            Selected sizes:{" "}
+            {form.sizes.length > 0
+              ? form.sizes
+                  .map((id) => {
+                    const size = sizesList.find((s) => s.id === id);
+                    return size ? size.name : id;
+                  })
+                  .join(", ")
+              : "None"}
           </p>
         </div>
 
-        {/* COLORS - Only show when NOT in design mode */}
+        {/* COLORS */}
         {!form.isDesign && (
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-2">
               Colors *
-              {errors.colors && <span className="text-red-500 ml-2">(Please select at least one color)</span>}
+              {errors.colors && (
+                <span className="text-red-500 ml-2">
+                  (Please select at least one color)
+                </span>
+              )}
             </label>
             <div className="flex gap-6 flex-wrap">
               {colorsList.map((c) => (
@@ -924,17 +1136,24 @@ const AddProduct = () => {
                   className="cursor-pointer text-center group"
                 >
                   <div
-                    className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id)
-                      ? "border-black scale-110 shadow"
-                      : errors.colors
+                    className={`w-12 h-12 rounded-full border-2 mx-auto transition ${
+                      form.colors.includes(c.id)
+                        ? "border-black scale-110 shadow"
+                        : errors.colors
                         ? "border-red-500 group-hover:border-red-600"
                         : "border-black/20 group-hover:border-black/60"
-                      }`}
-                    style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
+                    }`}
+                    style={{
+                      backgroundColor: c.hex_code || c.code || "#cccccc",
+                    }}
                   />
-                  <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
+                  <span className="text-[14px] mt-2 block font-medium">
+                    {c.name}
+                  </span>
                   {c.hex_code && (
-                    <span className="text-[12px] text-gray-500 block">{c.hex_code}</span>
+                    <span className="text-[12px] text-gray-500 block">
+                      {c.hex_code}
+                    </span>
                   )}
                 </div>
               ))}
@@ -945,15 +1164,20 @@ const AddProduct = () => {
               </p>
             )}
             <p className="text-sm text-gray-500 mt-2">
-              Selected colors: {form.colors.length > 0 ? form.colors.map(id => {
-                const color = colorsList.find(c => c.id === id);
-                return color ? color.name : id;
-              }).join(", ") : "None"}
+              Selected colors:{" "}
+              {form.colors.length > 0
+                ? form.colors
+                    .map((id) => {
+                      const color = colorsList.find((c) => c.id === id);
+                      return color ? color.name : id;
+                    })
+                    .join(", ")
+                : "None"}
             </p>
           </div>
         )}
 
-        {/* REGULAR MEDIA UPLOAD - Only show when NOT in design mode */}
+        {/* IMAGES */}
         {!form.isDesign && (
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-3">
@@ -973,19 +1197,20 @@ const AddProduct = () => {
             </label>
 
             <p className="text-sm text-gray-500 mt-2">
-              Upload multiple images. Select one as thumbnail. (Original quality preserved)
+              Upload multiple images. Select one as thumbnail. (Original quality
+              preserved)
             </p>
 
-            {/* Preview Grid */}
             {form.images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 {form.images.map((img, index) => (
                   <div
                     key={index}
-                    className={`relative border rounded overflow-hidden ${index === form.thumbnailIndex
-                      ? "border-black ring-2 ring-black"
-                      : "border-black/20"
-                      }`}
+                    className={`relative border rounded overflow-hidden ${
+                      index === form.thumbnailIndex
+                        ? "border-black ring-2 ring-black"
+                        : "border-black/20"
+                    }`}
                   >
                     <div className="w-full h-32 relative">
                       <img
@@ -995,7 +1220,6 @@ const AddProduct = () => {
                       />
                     </div>
 
-                    {/* Controls */}
                     <div className="flex justify-between items-center p-2 text-xs">
                       {index === form.thumbnailIndex && (
                         <button
@@ -1029,7 +1253,7 @@ const AddProduct = () => {
           </div>
         )}
 
-        {/* DESIGN NAMES SECTION - Only show when isDesign is true */}
+        {/* DESIGN NAMES */}
         {form.isDesign && (
           <div className="bg-white p-6 rounded-md shadow-sm">
             <div className="flex justify-between items-center mb-6">
@@ -1044,17 +1268,23 @@ const AddProduct = () => {
             </div>
 
             <p className="text-sm text-gray-500 mb-6">
-              Enter names for your designs. These names will be used to identify different design variations.
+              Enter names for your designs. These names will be used to identify
+              different design variations.
             </p>
 
             {form.designNames.length === 0 ? (
               <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded">
-                <p className="text-gray-500">No design names added yet. Click "Add Design Name" to start.</p>
+                <p className="text-gray-500">
+                  No design names added yet. Click "Add Design Name" to start.
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {form.designNames.map((name, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 p-4 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <label className="block text-sm font-medium mb-1">
                         Design {index + 1} Name *
@@ -1083,35 +1313,44 @@ const AddProduct = () => {
         {/* SEO */}
         <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
           <div>
-            <label className="block text-[16px] font-medium mb-1">Meta Title</label>
+            <label className="block text-[16px] font-medium mb-1">
+              Meta Title
+            </label>
             <input
               value={form.metaTitle}
-              onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, metaTitle: e.target.value })
+              }
               className="w-full border border-black/20 rounded px-3 py-2"
               placeholder="SEO title for search engines"
             />
           </div>
           <div>
-            <label className="block text-[16px] font-medium mb-1">Meta Description</label>
+            <label className="block text-[16px] font-medium mb-1">
+              Meta Description
+            </label>
             <textarea
               value={form.metaDescription}
-              onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, metaDescription: e.target.value })
+              }
               rows={3}
               className="w-full border border-black/20 rounded px-3 py-2"
-              placeholder="SEO description for search engineers"
+              placeholder="SEO description for search engines"
             />
           </div>
         </div>
 
-        {/* SUBMIT BUTTON */}
+        {/* SUBMIT */}
         <div className="flex justify-end">
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${loading
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-black text-white hover:bg-gray-800 cursor-pointer"
-              }`}
+            className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 ${
+              loading
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-black text-white hover:bg-gray-800 cursor-pointer"
+            }`}
           >
             {loading ? (
               <>

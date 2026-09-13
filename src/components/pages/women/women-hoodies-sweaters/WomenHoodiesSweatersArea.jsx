@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const WomenHoodiesSweatersArea = () => {
@@ -23,7 +24,7 @@ const WomenHoodiesSweatersArea = () => {
 
     // Use cache only for client-side navigation
     if (!isHardReload) {
-      const cached = sessionStorage.getItem("women_hoodies_products");
+      const cached = sessionStorage.getItem("women_hoodies_products_v2");
       if (cached) {
         setProducts(JSON.parse(cached));
         setLoading(false);
@@ -32,17 +33,15 @@ const WomenHoodiesSweatersArea = () => {
     }
 
     const res = await api.get("/api/products/get-all-products/");
-    const womenHoodies = res.data.data.filter(
-      (p) =>
-        p.category?.parent_name?.toLowerCase() === "women" &&
-        p.category?.name?.toLowerCase() === "hoodies & sweaters"
+    const womenHoodies = res.data.data.filter((product) =>
+      matchesProductCategory(product, "women", "hoodies & sweaters")
     );
 
     setProducts(womenHoodies);
 
     // Cache for client-side navigation
     sessionStorage.setItem(
-      "women_hoodies_products",
+      "women_hoodies_products_v2",
       JSON.stringify(womenHoodies)
     );
   } catch (error) {

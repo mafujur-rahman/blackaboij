@@ -6,6 +6,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import ProductCard from "@/components/card/ProductCard";
 import api from "@/lib/axios";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const MenHoodiesSweatersArea = () => {
@@ -24,7 +25,7 @@ const MenHoodiesSweatersArea = () => {
 
       // Use cache only for client-side navigation
       if (!isHardReload) {
-        const cached = sessionStorage.getItem("men_hoodies_products");
+        const cached = sessionStorage.getItem("men_hoodies_products_v2");
         if (cached) {
           setProducts(JSON.parse(cached));
           setLoading(false);
@@ -37,17 +38,15 @@ const MenHoodiesSweatersArea = () => {
       );
 
       if (res.data?.success) {
-        const menHoodies = res.data.data.filter(
-          (p) =>
-            p.category?.parent_name?.toLowerCase() === "men" &&
-            p.category?.name?.toLowerCase() === "hoodies & sweaters"
+        const menHoodies = res.data.data.filter((product) =>
+          matchesProductCategory(product, "men", "hoodies & sweaters")
         );
 
         setProducts(menHoodies);
 
         // Cache for client-side navigation
         sessionStorage.setItem(
-          "men_hoodies_products",
+          "men_hoodies_products_v2",
           JSON.stringify(menHoodies)
         );
       } else {

@@ -6,6 +6,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { matchesProductCategory } from "@/components/utils/productCategory";
 
 /* ------------------ MAIN COMPONENT ------------------ */
 const WomenHatArea = () => {
@@ -24,7 +25,7 @@ const WomenHatArea = () => {
 
     // Use cache only for client-side navigation
     if (!isHardReload) {
-      const cached = sessionStorage.getItem("women_hat_products");
+      const cached = sessionStorage.getItem("women_hat_products_v2");
       if (cached) {
         setProducts(JSON.parse(cached));
         setLoading(false);
@@ -33,16 +34,14 @@ const WomenHatArea = () => {
     }
 
     const res = await api.get("/api/products/get-all-products/");
-    const womenHat = res.data.data.filter(
-      (p) =>
-        p.category?.parent_name?.toLowerCase() === "women" &&
-        p.category?.name?.toLowerCase() === "hat"
+    const womenHat = res.data.data.filter((product) =>
+      matchesProductCategory(product, "women", "hat")
     );
 
     setProducts(womenHat);
 
     // Cache for client-side navigation
-    sessionStorage.setItem("women_hat_products", JSON.stringify(womenHat));
+    sessionStorage.setItem("women_hat_products_v2", JSON.stringify(womenHat));
   } catch (error) {
     console.error("API fetch error:", error);
     Swal.fire("Error", "Failed to load products", "error");

@@ -3,6 +3,12 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
+import { isInProductBranch } from "@/components/utils/productCategory";
+
+const getProductCategories = (product) => [
+  ...(Array.isArray(product?.categories) ? product.categories : []),
+  product?.category,
+].filter(Boolean);
 
 /* ------------------ UI COMPONENTS ------------------ */
 const Loader = () => (
@@ -51,7 +57,7 @@ const AccessoriesArea = () => {
 
         // Use cache only for client-side navigation
         if (!isHardReload) {
-          const cached = sessionStorage.getItem("accessories_products");
+          const cached = sessionStorage.getItem("accessories_products_v2");
           if (cached) {
             const parsed = JSON.parse(cached);
             setAllProducts(parsed.allProducts || []);
@@ -67,26 +73,37 @@ const AccessoriesArea = () => {
         const products = res.data.data || [];
 
         // Filter accessories products
-        const accessoriesProducts = products.filter(
-          (p) => p.category?.parent_name?.toLowerCase() === "accessories"
+        const accessoriesProducts = products.filter((product) =>
+          isInProductBranch(product, "accessories")
         );
 
         // Get unique categories inside accessories
         const categoryMap = new Map();
-        accessoriesProducts.forEach((p) => {
-          if (p.category?.id) {
-            categoryMap.set(p.category.id, {
-              id: p.category.id,
-              name: p.category.name || p.category.parent_name,
+        accessoriesProducts.forEach((product) => {
+          getProductCategories(product)
+            .filter(
+              (category) =>
+                category.parent_name?.toLowerCase() === "accessories"
+            )
+            .forEach((category) => {
+              if (category.id) {
+                categoryMap.set(category.id, {
+                  id: category.id,
+                  name: category.name || category.parent_name,
+                });
+              }
             });
-          }
         });
 
         const parentCategories = Array.from(categoryMap.values());
         const initialCategory = parentCategories[0]?.id || null;
 
         const initialFiltered = initialCategory
-          ? accessoriesProducts.filter((p) => p.category?.id === initialCategory)
+          ? accessoriesProducts.filter((product) =>
+              getProductCategories(product).some(
+                (category) => category.id === initialCategory
+              )
+            )
           : accessoriesProducts;
 
         setAllProducts(accessoriesProducts);
@@ -96,7 +113,7 @@ const AccessoriesArea = () => {
 
         // Cache for client-side navigation
         sessionStorage.setItem(
-          "accessories_products",
+          "accessories_products_v2",
           JSON.stringify({
             allProducts: accessoriesProducts,
             categories: parentCategories,
@@ -118,8 +135,10 @@ const AccessoriesArea = () => {
   // Filter products by active category
   useEffect(() => {
     if (!activeCategory) return;
-    const filtered = allProducts.filter(
-      (p) => p.category?.id === activeCategory
+    const filtered = allProducts.filter((product) =>
+      getProductCategories(product).some(
+        (category) => category.id === activeCategory
+      )
     );
     setFilteredProducts(filtered || []);
     setCurrentPage(1);

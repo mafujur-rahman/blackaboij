@@ -18,6 +18,7 @@ import {
   Check,
   Plus,
   X,
+  Star,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -25,9 +26,9 @@ import Image from "next/image";
 import api from "@/lib/axios";
 import DashboardShell from "../DashboardShell";
 import { getImageUrl } from "@/components/utils/get-image-url";
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import UnderlineExtension from '@tiptap/extension-underline';
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import UnderlineExtension from "@tiptap/extension-underline";
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -37,19 +38,24 @@ const EditProduct = () => {
   const [updating, setUpdating] = useState(false);
   const [deletingImage, setDeletingImage] = useState(null);
   const [settingThumbnail, setSettingThumbnail] = useState(null);
-  const [parentCategoryId, setParentCategoryId] = useState("");
   const [mounted, setMounted] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [descriptionContent, setDescriptionContent] = useState("");
 
+  // Multi-category state
+  const [selectedParentIds, setSelectedParentIds] = useState([]);
+  const [subCategoriesByParent, setSubCategoriesByParent] = useState({});
+
+  const [parentCategories, setParentCategories] = useState([]);
+  const [sizesList, setSizesList] = useState([]);
+  const [colorsList, setColorsList] = useState([]);
+
   const [form, setForm] = useState({
     name: "",
     description: "",
-    mainCategoryId: "",
-    mainCategoryName: "",
-    subCategoryId: "",
-    subCategoryName: "",
+    categoryIds: [],          // flat list of all assigned category IDs (main + sub)
+    primaryCategoryId: "",    // must be inside categoryIds
     price: "",
     qty: "",
     sizes: [],
@@ -60,46 +66,43 @@ const EditProduct = () => {
     thumbnailIndex: 0,
     hotSale: false,
     isDesign: false,
-    designNames: [], 
+    designNames: [],
   });
 
-  // Use a ref to track form state in callbacks
   const formRef = useRef(form);
-
-  // Update the ref whenever form changes
   useEffect(() => {
     formRef.current = form;
   }, [form]);
 
-  const [parentCategories, setParentCategories] = useState([]);
-  const [subCategories, setSubCategories] = useState([]);
-  const [sizesList, setSizesList] = useState([]);
-  const [colorsList, setColorsList] = useState([]);
-
   const [errors, setErrors] = useState({
     sizes: false,
     colors: false,
+    categories: false,
   });
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const editor = useEditor({
-    extensions: [StarterKit, UnderlineExtension],
-    content: descriptionContent,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      setForm(prev => ({ ...prev, description: html }));
-      setDescriptionContent(html);
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] p-4',
+  const editor = useEditor(
+    {
+      extensions: [StarterKit, UnderlineExtension],
+      content: descriptionContent,
+      onUpdate: ({ editor }) => {
+        const html = editor.getHTML();
+        setForm((prev) => ({ ...prev, description: html }));
+        setDescriptionContent(html);
       },
+      editorProps: {
+        attributes: {
+          class:
+            "prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] p-4",
+        },
+      },
+      immediatelyRender: false,
     },
-    immediatelyRender: false,
-  }, [mounted]);
+    [mounted]
+  );
 
   useEffect(() => {
     if (editor && descriptionContent && editor.isEmpty) {
@@ -133,26 +136,34 @@ const EditProduct = () => {
     } else {
       document.body.style.cursor = "default";
     }
-
     return () => {
       document.body.style.cursor = "default";
     };
   }, [loading]);
 
+  // Fetch initial data + product
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [parents, sizes, colors, products] = await Promise.all([
+        const [parents, sizes, colors, products, grouped] = await Promise.all([
           api.get("/api/categories/get-all-parent-categories/"),
           api.get("/api/sizes/get-all-sizes/"),
           api.get("/api/colors/get-all-colors/"),
           api.get("/api/products/get-all-products/"),
+          api.get("/api/categories/get-category-grouped/"),
         ]);
 
         setParentCategories(parents.data.data || []);
         setSizesList(sizes.data.data || []);
         setColorsList(colors.data.data || []);
+
+        // Build map of parentId -> sub_categories
+        const subMap = {};
+        (grouped.data.data || []).forEach((parent) => {
+          subMap[parent.id] = parent.sub_categories || [];
+        });
+        setSubCategoriesByParent(subMap);
 
         const product = products.data.data.find((p) => p.id === Number(id));
 
@@ -162,44 +173,66 @@ const EditProduct = () => {
           return;
         }
 
-        // Find the parent category name
-        const parentCategory = parents.data.data.find(
-          (cat) => cat.id === Number(product.category.parent)
-        );
+        // ---- MULTI-CATEGORY INITIALIZATION ----
+        // Prefer `product.categories` (new array), fall back to `product.category`
+        const selectedCategoryIds =
+          product.categories?.map((c) => c.id) ??
+          (product.category ? [product.category.id] : []);
 
-        setParentCategoryId(product.category.parent);
+        const primaryCategoryId = product.category?.id ?? null;
 
-        const images = product.images.map((img) => ({
+        // Determine which MAIN (parent) categories should be pre-selected:
+        // 1. Any category in selectedCategoryIds that IS a top-level parent → select it
+        // 2. Any category whose ancestor (via subMap) is a parent → select that parent
+        const parentIds = new Set();
+
+        (parents.data.data || []).forEach((parent) => {
+          // If the parent itself is assigned
+          if (selectedCategoryIds.includes(parent.id)) {
+            parentIds.add(parent.id);
+          }
+          // If any of its subs are assigned
+          const subs = subMap[parent.id] || [];
+          if (subs.some((s) => selectedCategoryIds.includes(s.id))) {
+            parentIds.add(parent.id);
+          }
+        });
+
+        setSelectedParentIds(Array.from(parentIds));
+
+        const images = (product.images || []).map((img) => ({
           id: img.id,
           url: img.image,
           file: null,
           is_thumbnail: img.is_thumbnail,
         }));
 
-        const thumbnailIndex = images.findIndex(img => img.is_thumbnail) || 0;
+        const thumbnailIndex =
+          images.findIndex((img) => img.is_thumbnail) >= 0
+            ? images.findIndex((img) => img.is_thumbnail)
+            : 0;
 
         setForm({
           name: product.name,
           description: product.description || "",
-          mainCategoryId: product.category.parent,
-          mainCategoryName: parentCategory?.name || "",
-          subCategoryId: product.category.id,
-          subCategoryName: product.category.name,
+          categoryIds: selectedCategoryIds,
+          primaryCategoryId: primaryCategoryId ?? "",
           price: product.unit_price,
           qty: product.quantity,
-          sizes: product.sizes?.map(s => s.id) || [],
-          colors: product.colors?.map(c => c.id) || [],
+          sizes: product.sizes?.map((s) => s.id) || [],
+          colors: product.colors?.map((c) => c.id) || [],
           metaTitle: product.meta_title || "",
           metaDescription: product.meta_description || "",
           images,
           thumbnailIndex,
           hotSale: product.hot_sale || false,
           isDesign: product.is_design || false,
-          designNames: product.designs?.map(d => d.name) || [], 
+          designNames: product.designs?.map((d) => d.name) || [],
         });
 
         setDescriptionContent(product.description || "");
-      } catch {
+      } catch (err) {
+        console.error(err);
         Swal.fire("Error", "Failed to load product data", "error");
         router.push("/dashboard/product-list");
       } finally {
@@ -210,32 +243,12 @@ const EditProduct = () => {
     fetchAll();
   }, [id, router]);
 
-  useEffect(() => {
-    if (!parentCategoryId) return;
-
-    const fetchSubs = async () => {
-      try {
-        const res = await api.get("/api/categories/get-category-grouped/");
-        const parent = res.data.data.find((p) => p.id === Number(parentCategoryId));
-        setSubCategories(parent?.sub_categories || []);
-
-      } catch {
-        Swal.fire("Error", "Failed to load sub-categories", "error");
-      }
-    };
-
-    fetchSubs();
-  }, [parentCategoryId]);
-
   const toggleArray = (key, value) => {
     const newArray = form[key].includes(value)
       ? form[key].filter((v) => v !== value)
       : [...form[key], value];
 
-    setForm((prev) => ({
-      ...prev,
-      [key]: newArray,
-    }));
+    setForm((prev) => ({ ...prev, [key]: newArray }));
 
     if (newArray.length > 0) {
       setErrors((prev) => ({
@@ -245,41 +258,122 @@ const EditProduct = () => {
     }
   };
 
-  // Handle hot sale toggle
+  // --- MULTI-CATEGORY HANDLERS ---
+
+  // Toggle a MAIN category (multi-select). Selecting it also auto-assigns the parent ID.
+  // Removing it also removes all its sub-categories from categoryIds.
+  const toggleParentCategory = (parentId) => {
+    setSelectedParentIds((prevSelected) => {
+      const isRemoving = prevSelected.includes(parentId);
+      let newSelected;
+      let newCategoryIds = [...formRef.current.categoryIds];
+      let newPrimary = formRef.current.primaryCategoryId;
+
+      if (isRemoving) {
+        newSelected = prevSelected.filter((id) => id !== parentId);
+
+        // Remove this parent AND all its sub-categories
+        const subsOfParent = (subCategoriesByParent[parentId] || []).map(
+          (s) => s.id
+        );
+        newCategoryIds = newCategoryIds.filter(
+          (id) => id !== parentId && !subsOfParent.includes(id)
+        );
+
+        if (!newCategoryIds.includes(Number(newPrimary))) {
+          newPrimary = newCategoryIds.length > 0 ? newCategoryIds[0] : "";
+        }
+      } else {
+        newSelected = [...prevSelected, parentId];
+        // Auto-add parent as an assigned category
+        if (!newCategoryIds.includes(parentId)) {
+          newCategoryIds.push(parentId);
+        }
+        if (!newPrimary) newPrimary = parentId;
+      }
+
+      setForm((f) => ({
+        ...f,
+        categoryIds: newCategoryIds,
+        primaryCategoryId: newPrimary,
+      }));
+
+      return newSelected;
+    });
+
+    setErrors((prev) => ({ ...prev, categories: false }));
+  };
+
+  // Toggle any individual category (main or sub) in the flat categoryIds list
+  const toggleCategory = (id) => {
+    setForm((prev) => {
+      const isSelected = prev.categoryIds.includes(id);
+      const newIds = isSelected
+        ? prev.categoryIds.filter((c) => c !== id)
+        : [...prev.categoryIds, id];
+
+      let newPrimary = prev.primaryCategoryId;
+      if (isSelected && Number(prev.primaryCategoryId) === id) {
+        newPrimary = newIds.length > 0 ? newIds[0] : "";
+      }
+      if (!newPrimary && newIds.length > 0) {
+        newPrimary = newIds[0];
+      }
+      if (newIds.length === 0) newPrimary = "";
+
+      return { ...prev, categoryIds: newIds, primaryCategoryId: newPrimary };
+    });
+
+    setErrors((prev) => ({ ...prev, categories: false }));
+  };
+
+  const setPrimaryCategory = (id) => {
+    if (!form.categoryIds.includes(id)) return;
+    setForm((prev) => ({ ...prev, primaryCategoryId: id }));
+  };
+
+  // Lookup a category's display name (searches parents + subs)
+  const getCategoryName = (id) => {
+    const parent = parentCategories.find((p) => p.id === id);
+    if (parent) return parent.name;
+    for (const pid of Object.keys(subCategoriesByParent)) {
+      const sub = (subCategoriesByParent[pid] || []).find((s) => s.id === id);
+      if (sub) return sub.name;
+    }
+    return String(id);
+  };
+
+  // --- END MULTI-CATEGORY HANDLERS ---
+
   const handleHotSaleToggle = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
   };
 
-  // Handle design toggle - matches AddProduct behavior
   const handleDesignToggle = () => {
     const newIsDesign = !form.isDesign;
-
     setForm((prev) => ({
       ...prev,
       isDesign: newIsDesign,
-      colors: newIsDesign ? [] : prev.colors, 
-      designNames: newIsDesign ? prev.designNames : [], 
+      colors: newIsDesign ? [] : prev.colors,
+      designNames: newIsDesign ? prev.designNames : [],
     }));
   };
 
-  // Add a new design name
   const addDesignName = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      designNames: [...prev.designNames, ""]
+      designNames: [...prev.designNames, ""],
     }));
   };
 
-  // Update design name
   const updateDesignName = (index, name) => {
-    setForm(prev => {
+    setForm((prev) => {
       const updated = [...prev.designNames];
       updated[index] = name;
       return { ...prev, designNames: updated };
     });
   };
 
-  // Remove a design name
   const removeDesignName = (index) => {
     Swal.fire({
       title: "Remove Design?",
@@ -290,9 +384,9 @@ const EditProduct = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        setForm(prev => ({
+        setForm((prev) => ({
           ...prev,
-          designNames: prev.designNames.filter((_, i) => i !== index)
+          designNames: prev.designNames.filter((_, i) => i !== index),
         }));
       }
     });
@@ -301,10 +395,8 @@ const EditProduct = () => {
   const handleImagesUpload = (files) => {
     const fileArray = Array.from(files);
 
-    // REMOVED size restriction - allow any size (matches AddProduct)
     const validFiles = fileArray.filter((file) => {
-      // Optional: Add warning for very large files but don't block
-      if (file.size > 50 * 1024 * 1024) { // 50MB warning
+      if (file.size > 50 * 1024 * 1024) {
         Swal.fire({
           icon: "warning",
           title: "Large File",
@@ -312,7 +404,7 @@ const EditProduct = () => {
           showConfirmButton: true,
         });
       }
-      return true; // Accept all files
+      return true;
     });
 
     const normalizedFiles = validFiles.map((file) => ({
@@ -333,22 +425,12 @@ const EditProduct = () => {
       const updatedImages = prev.images.filter((_, i) => i !== index);
 
       let newThumbnailIndex = prev.thumbnailIndex;
-
-      if (index === prev.thumbnailIndex) {
-        newThumbnailIndex = 0;
-      }
-
-      if (index < prev.thumbnailIndex) {
-        newThumbnailIndex = prev.thumbnailIndex - 1;
-      }
-
+      if (index === prev.thumbnailIndex) newThumbnailIndex = 0;
+      if (index < prev.thumbnailIndex) newThumbnailIndex = prev.thumbnailIndex - 1;
       if (newThumbnailIndex >= updatedImages.length && updatedImages.length > 0) {
         newThumbnailIndex = updatedImages.length - 1;
       }
-
-      if (updatedImages.length === 0) {
-        newThumbnailIndex = 0;
-      }
+      if (updatedImages.length === 0) newThumbnailIndex = 0;
 
       return {
         ...prev,
@@ -361,13 +443,11 @@ const EditProduct = () => {
   const handleDeleteImage = async (imageId, index) => {
     const image = form.images[index];
 
-    // If it's a new image (has no ID), just remove it from the UI immediately
     if (!image.id) {
       removeImage(index);
       return;
     }
 
-    // For existing images with ID, show confirmation and call API
     const confirm = await Swal.fire({
       title: "Delete Image?",
       text: "Are you sure you want to delete this image?",
@@ -409,28 +489,23 @@ const EditProduct = () => {
   const handleSetThumbnail = async (index) => {
     const image = form.images[index];
 
-    // If it's a new image (has no ID), just update the UI state
-    if (!image.id) {
-      // New images can't be set as thumbnail until saved
-      return;
-    }
+    if (!image.id) return;
 
-    // For existing images, call API to set thumbnail
     setSettingThumbnail(image.id);
 
     try {
       await api.patch(`/api/product/${id}/set-product-thumbnail/${image.id}/`);
 
-      setForm(prev => {
+      setForm((prev) => {
         const updatedImages = prev.images.map((img, i) => ({
           ...img,
-          is_thumbnail: i === index
+          is_thumbnail: i === index,
         }));
 
         return {
           ...prev,
           images: updatedImages,
-          thumbnailIndex: index
+          thumbnailIndex: index,
         };
       });
 
@@ -453,60 +528,67 @@ const EditProduct = () => {
     }
   };
 
-  // Create JSON payload for design products
+  // JSON payload (design products)
   const createJsonPayload = () => {
     const payload = {
       name: form.name,
       description: form.description || "",
-      category_id: Number(form.subCategoryId),
+      category_ids: form.categoryIds.map((id) => Number(id)), // full replace
+      category_id: Number(form.primaryCategoryId),
       unit_price: Number(form.price),
       quantity: Number(form.qty),
       meta_title: form.metaTitle || form.name,
       meta_description: form.metaDescription || form.description,
       hot_sale: form.hotSale,
-      size_ids: form.sizes.map(id => Number(id)),
+      size_ids: form.sizes.map((id) => Number(id)),
     };
 
-    // Only add is_design if it's true
     if (form.isDesign) {
       payload.is_design = true;
     }
 
-    // Only add colors for non-design products
     if (!form.isDesign && form.colors.length > 0) {
-      payload.color_ids = form.colors.map(id => Number(id));
+      payload.color_ids = form.colors.map((id) => Number(id));
     }
 
-    // For design products, add design_names
     if (form.isDesign) {
-      if (form.designNames.length > 0) {
-        payload.design_names = form.designNames
-          .filter(name => name && name.trim() !== "")
-          .map(name => name.trim());
-      } else {
-        // If design mode but no names, send empty array
-        payload.design_names = [];
-      }
+      payload.design_names =
+        form.designNames.length > 0
+          ? form.designNames
+              .filter((name) => name && name.trim() !== "")
+              .map((name) => name.trim())
+          : [];
     }
-    // IMPORTANT: For non-design products, we DO NOT add is_design or design_names at all
 
     return payload;
   };
 
-  // Create FormData payload for regular products with images
+  // FormData payload (regular products with images)
   const createFormDataPayload = () => {
     const formData = new FormData();
 
     formData.append("name", form.name);
     formData.append("description", form.description || "");
-    formData.append("category_id", Number(form.subCategoryId));
+
+    // Multi-category — append each ID separately (per backend spec)
+    form.categoryIds.forEach((id) => {
+      formData.append("category_ids", String(id));
+    });
+
+    // Primary category (must be inside category_ids)
+    if (form.primaryCategoryId != null && form.primaryCategoryId !== "") {
+      formData.append("category_id", String(form.primaryCategoryId));
+    }
+
     formData.append("unit_price", Number(form.price));
     formData.append("quantity", Number(form.qty));
     formData.append("meta_title", form.metaTitle || form.name);
-    formData.append("meta_description", form.metaDescription || form.description);
+    formData.append(
+      "meta_description",
+      form.metaDescription || form.description
+    );
     formData.append("hot_sale", form.hotSale ? "True" : "False");
 
-    // Only add is_design if it's true
     if (form.isDesign) {
       formData.append("is_design", "True");
     }
@@ -514,14 +596,13 @@ const EditProduct = () => {
     form.sizes.forEach((id) => {
       formData.append("size_ids", id.toString());
     });
-    
+
     if (!form.isDesign && form.colors.length > 0) {
       form.colors.forEach((id) => {
         formData.append("color_ids", id.toString());
       });
     }
 
-    // For design products only, add design_names
     if (form.isDesign && form.designNames.length > 0) {
       form.designNames.forEach((name) => {
         if (name && name.trim() !== "") {
@@ -529,19 +610,18 @@ const EditProduct = () => {
         }
       });
     }
-    // For non-design products, we DO NOT add is_design or design_names at all
 
-    // Add new images only (those with file but no id)
-    const newImages = form.images.filter(img => img.file && !img.id);
+    // New images only (file present, no id)
+    const newImages = form.images.filter((img) => img.file && !img.id);
     newImages.forEach((img) => {
       formData.append("images", img.file);
     });
 
-    // Set thumbnail for new images
+    // Thumbnail handling
     const thumbnailImage = form.images[form.thumbnailIndex];
     if (thumbnailImage && thumbnailImage.file && !thumbnailImage.id) {
-      const newImageIndex = newImages.findIndex(img =>
-        img.file === thumbnailImage.file
+      const newImageIndex = newImages.findIndex(
+        (img) => img.file === thumbnailImage.file
       );
       formData.append("thumbnail_index", newImageIndex);
     } else if (thumbnailImage && thumbnailImage.id) {
@@ -554,55 +634,81 @@ const EditProduct = () => {
   const validateForm = () => {
     const newErrors = {
       sizes: form.sizes.length === 0,
-      colors: form.colors.length === 0,
+      colors: !form.isDesign && form.colors.length === 0,
+      categories: form.categoryIds.length === 0 || !form.primaryCategoryId,
     };
 
     setErrors(newErrors);
 
-    if (!form.name || !form.subCategoryId || !form.price || !form.qty) {
+    if (!form.name || !form.price || !form.qty) {
       Swal.fire("Warning", "Please fill all required fields", "warning");
       return false;
     }
 
-    // Regular images are required only if not in design mode
-    if (!form.isDesign && form.images.length === 0) {
-      Swal.fire("Warning", "Please upload at least one image for regular products", "warning");
+    if (form.categoryIds.length === 0) {
+      Swal.fire("Warning", "Please select at least one category", "warning");
       return false;
     }
 
-    // Thumbnail check only for non-design mode
+    if (!form.primaryCategoryId) {
+      Swal.fire("Warning", "Please set a primary category", "warning");
+      return false;
+    }
+
+    if (!form.categoryIds.includes(Number(form.primaryCategoryId))) {
+      Swal.fire(
+        "Warning",
+        "Primary category must be one of the selected categories",
+        "warning"
+      );
+      return false;
+    }
+
+    if (!form.isDesign && form.images.length === 0) {
+      Swal.fire(
+        "Warning",
+        "Please upload at least one image for regular products",
+        "warning"
+      );
+      return false;
+    }
+
     if (!form.isDesign && !form.images[form.thumbnailIndex]) {
       Swal.fire("Warning", "Please select a thumbnail image", "warning");
       return false;
     }
 
-    // Check if thumbnail is a new image (can't be thumbnail until saved) - only for non-design
     if (!form.isDesign && !form.images[form.thumbnailIndex]?.id) {
-      Swal.fire("Warning", "Thumbnail must be an existing saved image. Please save the product first or select an existing image as thumbnail.", "warning");
+      Swal.fire(
+        "Warning",
+        "Thumbnail must be an existing saved image. Please save the product first or select an existing image as thumbnail.",
+        "warning"
+      );
       return false;
     }
 
-    // Size validation
     if (newErrors.sizes) {
       Swal.fire("Warning", "Please select at least one size", "warning");
       return false;
     }
 
-    // Color validation only for non-design mode
     if (!form.isDesign && newErrors.colors) {
       Swal.fire("Warning", "Please select at least one color", "warning");
       return false;
     }
 
-    // Validate design names if isDesign is true
     if (form.isDesign) {
       if (form.designNames.length === 0) {
-        Swal.fire("Warning", "Please add at least one design name", "warning");
+        Swal.fire(
+          "Warning",
+          "Please add at least one design name",
+          "warning"
+        );
         return false;
       }
-
-      // Check if all design names are filled
-      const emptyNames = form.designNames.filter(name => !name || name.trim() === "");
+      const emptyNames = form.designNames.filter(
+        (name) => !name || name.trim() === ""
+      );
       if (emptyNames.length > 0) {
         Swal.fire("Warning", "Please enter names for all designs", "warning");
         return false;
@@ -613,9 +719,7 @@ const EditProduct = () => {
   };
 
   const handleUpdate = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     const confirm = await Swal.fire({
       title: "Update Product?",
@@ -633,39 +737,30 @@ const EditProduct = () => {
 
     try {
       let payload;
-      let headers = {};
-      let endpoint = `/api/product/update-product/${id}/`;
+      const headers = {};
+      const endpoint = `/api/product/update-product/${id}/`;
 
-      // DECISION: Use JSON for design products, FormData for regular products
       if (form.isDesign) {
-        // Design product - send as JSON
         payload = createJsonPayload();
-        headers['Content-Type'] = 'application/json';
+        headers["Content-Type"] = "application/json";
       } else {
-        // Regular product with images - send as FormData
         payload = createFormDataPayload();
-        // Don't set Content-Type header for FormData - browser will set it with boundary
       }
 
       Swal.fire({
-        title: 'Updating Product...',
-        text: 'Please wait while we update your product',
+        title: "Updating Product...",
+        text: "Please wait while we update your product",
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
           Swal.showLoading();
-        }
+        },
       });
 
-
-
-      let response;
       if (form.isDesign) {
-        // Send JSON for design products
-        response = await api.put(endpoint, payload, { headers });
+        await api.put(endpoint, payload, { headers });
       } else {
-        // Send FormData for regular products
-        response = await api.put(endpoint, payload);
+        await api.put(endpoint, payload);
       }
 
       Swal.close();
@@ -675,7 +770,7 @@ const EditProduct = () => {
         text: "Product has been updated",
         confirmButtonText: "OK",
         confirmButtonColor: "#000",
-        timer: 3000
+        timer: 3000,
       }).then(() => {
         router.push("/dashboard/product-list");
       });
@@ -683,8 +778,7 @@ const EditProduct = () => {
       Swal.close();
       console.error("Update error:", error);
       console.error("Error response:", error.response?.data);
-      
-      // Check if error is about design_names
+
       if (error.response?.data?.error === "design_names is required") {
         Swal.fire({
           icon: "error",
@@ -695,9 +789,11 @@ const EditProduct = () => {
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: error.response?.data?.message || "Update failed. Please try again.",
+          text:
+            error.response?.data?.message ||
+            "Update failed. Please try again.",
           confirmButtonText: "OK",
-          confirmButtonColor: "#000"
+          confirmButtonColor: "#000",
         });
       }
     } finally {
@@ -769,62 +865,8 @@ const EditProduct = () => {
 
               <div>
                 <label className="block text-[16px] font-medium mb-1">
-                  Main Category *
+                  Unit Price *
                 </label>
-                <select
-                  value={parentCategoryId}
-                  onChange={(e) => {
-                    const selected = parentCategories.find(
-                      (cat) => cat.id === Number(e.target.value)
-                    );
-                    setParentCategoryId(e.target.value);
-                    setForm((prev) => ({
-                      ...prev,
-                      mainCategoryId: e.target.value,
-                      mainCategoryName: selected?.name || "",
-                    }));
-                  }}
-                  className="w-full border border-black/20 rounded px-3 py-2"
-                >
-                  <option value="">Select Main Category</option>
-                  {parentCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[16px] font-medium mb-1">
-                  Sub Category *
-                </label>
-                <select
-                  value={form.subCategoryId}
-                  onChange={(e) => {
-                    const selected = subCategories.find(
-                      (sub) => sub.id === Number(e.target.value)
-                    );
-                    setForm((prev) => ({
-                      ...prev,
-                      subCategoryId: e.target.value,
-                      subCategoryName: selected?.name || "",
-                    }));
-                  }}
-                  className="w-full border border-black/20 rounded px-3 py-2"
-                  disabled={!parentCategoryId}
-                >
-                  <option value="">Select Sub Category</option>
-                  {subCategories.map((sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[16px] font-medium mb-1">Unit Price *</label>
                 <input
                   type="number"
                   value={form.price}
@@ -837,7 +879,9 @@ const EditProduct = () => {
               </div>
 
               <div>
-                <label className="block text-[16px] font-medium mb-1">Quantity *</label>
+                <label className="block text-[16px] font-medium mb-1">
+                  Quantity *
+                </label>
                 <input
                   type="number"
                   value={form.qty}
@@ -848,9 +892,7 @@ const EditProduct = () => {
                 />
               </div>
 
-              {/* hot sale and design field */}
               <div className="flex items-center gap-10">
-                {/* Hot Sale Field */}
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
@@ -864,7 +906,6 @@ const EditProduct = () => {
                   </label>
                 </div>
 
-                {/* Design Field */}
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
@@ -879,26 +920,205 @@ const EditProduct = () => {
                 </div>
               </div>
 
+              {/* ===== MULTI MAIN CATEGORY + SUBCATEGORIES ===== */}
               <div className="col-span-2">
-                <label className="block text-[16px] font-medium mb-1">Description</label>
+                <label className="block text-[16px] font-medium mb-2">
+                  Main Categories *
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    (select one or more — sub-categories will appear below)
+                  </span>
+                  {errors.categories && (
+                    <span className="text-red-500 ml-2 text-sm">
+                      (Select at least one category and pick a primary)
+                    </span>
+                  )}
+                </label>
+
+                {/* Main category chips (multi-select) */}
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {parentCategories.map((cat) => {
+                    const selected = selectedParentIds.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => toggleParentCategory(cat.id)}
+                        className={`px-4 py-2 rounded border transition text-sm font-medium ${
+                          selected
+                            ? "bg-black text-white border-black"
+                            : errors.categories
+                            ? "border-red-500 hover:border-red-600"
+                            : "border-black/20 hover:border-black"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Sub-categories grouped per selected main category */}
+                {selectedParentIds.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Select one or more Main Categories above to load their
+                    sub-categories.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedParentIds.map((pid) => {
+                      const parent = parentCategories.find((p) => p.id === pid);
+                      const subs = subCategoriesByParent[pid] || [];
+                      return (
+                        <div
+                          key={pid}
+                          className="border border-black/10 rounded p-3 bg-gray-50"
+                        >
+                          <p className="text-sm font-semibold mb-2">
+                            {parent?.name} — sub-categories
+                          </p>
+                          {subs.length === 0 ? (
+                            <p className="text-xs text-gray-500">
+                              No sub-categories under this main category. The
+                              main category itself is already assigned.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {subs.map((sub) => {
+                                const selected = form.categoryIds.includes(
+                                  sub.id
+                                );
+                                const isPrimary =
+                                  Number(form.primaryCategoryId) === sub.id;
+                                return (
+                                  <div
+                                    key={sub.id}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${
+                                      selected
+                                        ? "bg-black text-white border-black"
+                                        : "border-black/20 bg-white hover:border-black"
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleCategory(sub.id)}
+                                      className="font-medium"
+                                    >
+                                      {sub.name}
+                                    </button>
+                                    {selected && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setPrimaryCategory(sub.id)
+                                        }
+                                        title="Set as primary category"
+                                        className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${
+                                          isPrimary
+                                            ? "bg-yellow-400 text-black"
+                                            : "bg-white/20 text-white hover:bg-white/30"
+                                        }`}
+                                      >
+                                        <Star
+                                          size={10}
+                                          fill={
+                                            isPrimary ? "currentColor" : "none"
+                                          }
+                                        />
+                                        {isPrimary ? "Primary" : "Set Primary"}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Summary of all selected categories */}
+                {form.categoryIds.length > 0 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded border border-black/10">
+                    <p className="text-sm font-medium mb-2">
+                      Selected categories:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {form.categoryIds.map((cid) => {
+                        const isPrimary =
+                          Number(form.primaryCategoryId) === Number(cid);
+                        return (
+                          <span
+                            key={cid}
+                            className={`text-xs px-2 py-1 rounded border ${
+                              isPrimary
+                                ? "bg-yellow-100 border-yellow-400 font-semibold"
+                                : "bg-white border-black/20"
+                            }`}
+                          >
+                            {getCategoryName(cid)}
+                            {isPrimary && " ★"}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-[16px] font-medium mb-1">
+                  Description
+                </label>
                 <div className="border border-black/20 rounded">
                   <div className="flex flex-wrap gap-2 border-b bg-gray-50 px-4 py-3">
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                        className={`p-1 rounded ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor
+                            .chain()
+                            .focus()
+                            .toggleHeading({ level: 1 })
+                            .run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 1 })
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Heading size={16} />
                       </button>
                       <button
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                        className={`p-1 rounded ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor
+                            .chain()
+                            .focus()
+                            .toggleHeading({ level: 2 })
+                            .run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 2 })
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         H2
                       </button>
                       <button
-                        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                        className={`p-1 rounded ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor
+                            .chain()
+                            .focus()
+                            .toggleHeading({ level: 3 })
+                            .run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 3 })
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         H3
                       </button>
@@ -907,19 +1127,35 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBold().run()}
-                        className={`p-1 rounded ${editor.isActive('bold') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        className={`p-1 rounded ${
+                          editor.isActive("bold")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Bold size={16} />
                       </button>
                       <button
-                        onClick={() => editor.chain().focus().toggleItalic().run()}
-                        className={`p-1 rounded ${editor.isActive('italic') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor.chain().focus().toggleItalic().run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("italic")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Italic size={16} />
                       </button>
                       <button
-                        onClick={() => editor.chain().focus().toggleUnderline().run()}
-                        className={`p-1 rounded ${editor.isActive('underline') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor.chain().focus().toggleUnderline().run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("underline")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Underline size={16} />
                       </button>
@@ -927,14 +1163,26 @@ const EditProduct = () => {
 
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
-                        onClick={() => editor.chain().focus().toggleBulletList().run()}
-                        className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor.chain().focus().toggleBulletList().run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("bulletList")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <List size={16} />
                       </button>
                       <button
-                        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                        className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor.chain().focus().toggleOrderedList().run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("orderedList")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         1.
                       </button>
@@ -942,8 +1190,14 @@ const EditProduct = () => {
 
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
-                        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                        className={`p-1 rounded ${editor.isActive('blockquote') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        onClick={() =>
+                          editor.chain().focus().toggleBlockquote().run()
+                        }
+                        className={`p-1 rounded ${
+                          editor.isActive("blockquote")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Quote size={16} />
                       </button>
@@ -952,11 +1206,15 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={handleAddLink}
-                        className={`p-1 rounded ${editor.isActive('link') ? 'bg-gray-200 text-black' : 'text-gray-600 hover:text-black'}`}
+                        className={`p-1 rounded ${
+                          editor.isActive("link")
+                            ? "bg-gray-200 text-black"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Link size={16} />
                       </button>
-                      {editor.isActive('link') && (
+                      {editor.isActive("link") && (
                         <button
                           onClick={handleRemoveLink}
                           className="p-1 rounded text-red-600 hover:text-red-800"
@@ -970,14 +1228,22 @@ const EditProduct = () => {
                       <button
                         onClick={() => editor.chain().focus().undo().run()}
                         disabled={!editor.can().undo()}
-                        className={`p-1 rounded ${!editor.can().undo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                        className={`p-1 rounded ${
+                          !editor.can().undo()
+                            ? "text-gray-400"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Undo size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().redo().run()}
                         disabled={!editor.can().redo()}
-                        className={`p-1 rounded ${!editor.can().redo() ? 'text-gray-400' : 'text-gray-600 hover:text-black'}`}
+                        className={`p-1 rounded ${
+                          !editor.can().redo()
+                            ? "text-gray-400"
+                            : "text-gray-600 hover:text-black"
+                        }`}
                       >
                         <Redo size={16} />
                       </button>
@@ -994,10 +1260,8 @@ const EditProduct = () => {
                           placeholder="Enter URL"
                           className="flex-1 border border-gray-300 rounded px-3 py-1 text-sm"
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleAddLink();
-                            }
-                            if (e.key === 'Escape') {
+                            if (e.key === "Enter") handleAddLink();
+                            if (e.key === "Escape") {
                               setShowLinkInput(false);
                               setLinkUrl("");
                             }
@@ -1027,7 +1291,8 @@ const EditProduct = () => {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  Use the toolbar to format text. All formatting will be preserved when displayed.
+                  Use the toolbar to format text. All formatting will be
+                  preserved when displayed.
                 </p>
               </div>
             </div>
@@ -1037,7 +1302,11 @@ const EditProduct = () => {
           <div className="bg-white p-6 rounded-md shadow-sm">
             <label className="block text-[16px] font-medium mb-2">
               Sizes *
-              {errors.sizes && <span className="text-red-500 ml-2">(Please select at least one size)</span>}
+              {errors.sizes && (
+                <span className="text-red-500 ml-2">
+                  (Please select at least one size)
+                </span>
+              )}
             </label>
             <div className="flex gap-3 flex-wrap">
               {sizesList.map((size) => (
@@ -1045,12 +1314,13 @@ const EditProduct = () => {
                   key={size.id}
                   type="button"
                   onClick={() => toggleArray("sizes", size.id)}
-                  className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
-                    ? "bg-black text-white border-black"
-                    : errors.sizes
+                  className={`px-4 py-2 rounded border transition ${
+                    form.sizes.includes(size.id)
+                      ? "bg-black text-white border-black"
+                      : errors.sizes
                       ? "border-red-500 hover:border-red-600"
                       : "border-black/20 hover:border-black"
-                    }`}
+                  }`}
                 >
                   {size.name}
                 </button>
@@ -1063,12 +1333,16 @@ const EditProduct = () => {
             )}
           </div>
 
-          {/* COLORS - Only show when NOT in design mode */}
+          {/* COLORS */}
           {!form.isDesign && (
             <div className="bg-white p-6 rounded-md shadow-sm">
               <label className="block text-[16px] font-medium mb-2">
                 Colors *
-                {errors.colors && <span className="text-red-500 ml-2">(Please select at least one color)</span>}
+                {errors.colors && (
+                  <span className="text-red-500 ml-2">
+                    (Please select at least one color)
+                  </span>
+                )}
               </label>
               <div className="flex gap-6 flex-wrap">
                 {colorsList.map((c) => (
@@ -1078,17 +1352,24 @@ const EditProduct = () => {
                     className="cursor-pointer text-center group"
                   >
                     <div
-                      className={`w-12 h-12 rounded-full border-2 mx-auto transition ${form.colors.includes(c.id)
-                        ? "border-black scale-110 shadow"
-                        : errors.colors
+                      className={`w-12 h-12 rounded-full border-2 mx-auto transition ${
+                        form.colors.includes(c.id)
+                          ? "border-black scale-110 shadow"
+                          : errors.colors
                           ? "border-red-500 group-hover:border-red-600"
                           : "border-black/20 group-hover:border-black/60"
-                        }`}
-                      style={{ backgroundColor: c.hex_code || c.code || '#cccccc' }}
+                      }`}
+                      style={{
+                        backgroundColor: c.hex_code || c.code || "#cccccc",
+                      }}
                     />
-                    <span className="text-[14px] mt-2 block font-medium">{c.name}</span>
+                    <span className="text-[14px] mt-2 block font-medium">
+                      {c.name}
+                    </span>
                     {c.hex_code && (
-                      <span className="text-[12px] text-gray-500 block">{c.hex_code}</span>
+                      <span className="text-[12px] text-gray-500 block">
+                        {c.hex_code}
+                      </span>
                     )}
                   </div>
                 ))}
@@ -1101,7 +1382,7 @@ const EditProduct = () => {
             </div>
           )}
 
-          {/* REGULAR MEDIA UPLOAD - Only show when NOT in design mode */}
+          {/* IMAGES */}
           {!form.isDesign && (
             <div className="bg-white p-6 rounded-md shadow-sm">
               <h2 className="text-xl font-bold mb-4">Product Images</h2>
@@ -1124,16 +1405,23 @@ const EditProduct = () => {
                     const isNewImage = img.file && !img.id;
                     const isExistingImage = img.id;
                     const isThumbnail = index === form.thumbnailIndex;
-                    const isSettingThumbnailExisting = isExistingImage && settingThumbnail === img.id;
-                    const isDeletingExisting = isExistingImage && deletingImage === img.id;
+                    const isSettingThumbnailExisting =
+                      isExistingImage && settingThumbnail === img.id;
+                    const isDeletingExisting =
+                      isExistingImage && deletingImage === img.id;
 
                     return (
                       <div
-                        key={img.id ? `existing-${img.id}` : `new-${index}-${img.file?.name}`}
-                        className={`relative border rounded ${isThumbnail
-                          ? "border-black ring-2 ring-black"
-                          : "border-black/20"
-                          }`}
+                        key={
+                          img.id
+                            ? `existing-${img.id}`
+                            : `new-${index}-${img.file?.name}`
+                        }
+                        className={`relative border rounded ${
+                          isThumbnail
+                            ? "border-black ring-2 ring-black"
+                            : "border-black/20"
+                        }`}
                       >
                         <div className="w-full h-32 relative">
                           <Image
@@ -1146,7 +1434,6 @@ const EditProduct = () => {
                         </div>
 
                         <div className="flex justify-between items-center p-2 text-xs">
-                          {/* Thumbnail Button */}
                           {isThumbnail ? (
                             <button
                               disabled
@@ -1157,15 +1444,26 @@ const EditProduct = () => {
                             </button>
                           ) : (
                             <button
-                              onClick={() => isExistingImage && handleSetThumbnail(index)}
-                              disabled={isSettingThumbnailExisting || isDeletingExisting || isNewImage}
-                              className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : isSettingThumbnailExisting
+                              onClick={() =>
+                                isExistingImage && handleSetThumbnail(index)
+                              }
+                              disabled={
+                                isSettingThumbnailExisting ||
+                                isDeletingExisting ||
+                                isNewImage
+                              }
+                              className={`px-2 py-1 rounded flex items-center gap-1 ${
+                                isNewImage
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : isSettingThumbnailExisting
                                   ? "bg-gray-400 text-white cursor-not-allowed"
                                   : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                                }`}
-                              title={isNewImage ? "Save product first to set as thumbnail" : "Set as thumbnail"}
+                              }`}
+                              title={
+                                isNewImage
+                                  ? "Save product first to set as thumbnail"
+                                  : "Set as thumbnail"
+                              }
                             >
                               {isSettingThumbnailExisting && (
                                 <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
@@ -1174,14 +1472,16 @@ const EditProduct = () => {
                             </button>
                           )}
 
-                          {/* Remove Button */}
                           <button
                             onClick={() => handleDeleteImage(img.id, index)}
-                            disabled={isDeletingExisting || isSettingThumbnailExisting}
-                            className={`flex items-center gap-1 ${isDeletingExisting
-                              ? "text-red-400 cursor-not-allowed"
-                              : "text-red-600 hover:text-red-800"
-                              }`}
+                            disabled={
+                              isDeletingExisting || isSettingThumbnailExisting
+                            }
+                            className={`flex items-center gap-1 ${
+                              isDeletingExisting
+                                ? "text-red-400 cursor-not-allowed"
+                                : "text-red-600 hover:text-red-800"
+                            }`}
                           >
                             {isDeletingExisting ? (
                               <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
@@ -1192,7 +1492,6 @@ const EditProduct = () => {
                           </button>
                         </div>
 
-                        {/* New Image Badge */}
                         {isNewImage && (
                           <div className="absolute top-1 right-1 bg-black text-white text-xs px-1.5 py-0.5 rounded">
                             New
@@ -1205,13 +1504,14 @@ const EditProduct = () => {
               )}
 
               <p className="text-sm text-gray-500 mt-4">
-                Note: New uploaded images (marked with New badge) can be removed immediately.
-                To set a new image as thumbnail, you need to save the product first.
+                Note: New uploaded images (marked with New badge) can be removed
+                immediately. To set a new image as thumbnail, you need to save
+                the product first.
               </p>
             </div>
           )}
 
-          {/* DESIGN NAMES SECTION - Only show when isDesign is true */}
+          {/* DESIGN NAMES */}
           {form.isDesign && (
             <div className="bg-white p-6 rounded-md shadow-sm">
               <div className="flex justify-between items-center mb-6">
@@ -1226,17 +1526,23 @@ const EditProduct = () => {
               </div>
 
               <p className="text-sm text-gray-500 mb-6">
-                Enter names for your designs. These names will be used to identify different design variations.
+                Enter names for your designs. These names will be used to
+                identify different design variations.
               </p>
 
               {form.designNames.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded">
-                  <p className="text-gray-500">No design names added yet. Click "Add Design Name" to start.</p>
+                  <p className="text-gray-500">
+                    No design names added yet. Click "Add Design Name" to start.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {form.designNames.map((name, index) => (
-                    <div key={`design-${index}`} className="flex items-center gap-4 p-4 border rounded-lg">
+                    <div
+                      key={`design-${index}`}
+                      className="flex items-center gap-4 p-4 border rounded-lg"
+                    >
                       <div className="flex-1">
                         <label className="block text-sm font-medium mb-1">
                           Design {index + 1} Name *
@@ -1244,7 +1550,9 @@ const EditProduct = () => {
                         <input
                           type="text"
                           value={name}
-                          onChange={(e) => updateDesignName(index, e.target.value)}
+                          onChange={(e) =>
+                            updateDesignName(index, e.target.value)
+                          }
                           className="w-full border border-black/20 rounded px-3 py-2"
                           placeholder={`Enter design name ${index + 1}`}
                         />
@@ -1265,19 +1573,27 @@ const EditProduct = () => {
           {/* SEO */}
           <div className="bg-white p-6 rounded-md shadow-sm grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-[16px] font-medium mb-1">Meta Title</label>
+              <label className="block text-[16px] font-medium mb-1">
+                Meta Title
+              </label>
               <input
                 value={form.metaTitle}
-                onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, metaTitle: e.target.value })
+                }
                 className="w-full border border-black/20 rounded px-3 py-2"
                 placeholder="SEO title for search engines"
               />
             </div>
             <div>
-              <label className="block text-[16px] font-medium mb-1">Meta Description</label>
+              <label className="block text-[16px] font-medium mb-1">
+                Meta Description
+              </label>
               <textarea
                 value={form.metaDescription}
-                onChange={(e) => setForm({ ...form, metaDescription: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, metaDescription: e.target.value })
+                }
                 rows={3}
                 className="w-full border border-black/20 rounded px-3 py-2"
                 placeholder="SEO description for search engines"
@@ -1285,15 +1601,16 @@ const EditProduct = () => {
             </div>
           </div>
 
-          {/* SUBMIT BUTTON */}
+          {/* SUBMIT */}
           <div className="flex justify-end">
             <button
               onClick={handleUpdate}
               disabled={updating || loading}
-              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${updating || loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-black text-white hover:bg-gray-900"
-                }`}
+              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${
+                updating || loading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-black text-white hover:bg-gray-900"
+              }`}
             >
               {updating ? (
                 <>
