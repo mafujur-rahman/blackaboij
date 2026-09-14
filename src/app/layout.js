@@ -1,3 +1,4 @@
+import Chatbot from "@/components/pages/home/Chatbot";
 import "./globals.css";
 import ClientLayout from "@/components/layout/ClientLayout";
 
@@ -70,7 +71,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased">
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout>{children}
+          <Chatbot />
+        </ClientLayout>
       </body>
     </html>
   );

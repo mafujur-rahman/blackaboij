@@ -6,6 +6,7 @@ import AnimatedButton from '@/components/utils/AnimatedButton';
 import Link from 'next/link';
 
 const SALE_IMAGES = [
+  '/images/friday-slide.png',
   '/images/banner1.JPG',
   '/images/banner3.JPG',
 ];
