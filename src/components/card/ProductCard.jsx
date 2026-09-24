@@ -278,10 +278,10 @@ const ProductCard = ({ product }) => {
                     {hasDiscount ? (
                         <div className="flex items-center justify-center gap-2 flex-wrap text-sm">
                             <span className="text-gray-400 line-through">
-                                <PriceDisplay value={originalPrice} /> EUR
+                                €{originalPrice.toFixed(2)} EUR
                             </span>
                             <span className="font-medium">
-                                <PriceDisplay value={discountPrice} /> EUR
+                                €{discountPrice.toFixed(2)} EUR
                             </span>
                             <span className="text-red-500 text-xs">
                                 -{discountPercent}% promo
@@ -289,26 +289,13 @@ const ProductCard = ({ product }) => {
                         </div>
                     ) : (
                         <span className="text-sm font-medium">
-                            <PriceDisplay value={originalPrice} /> EUR
+                            €{originalPrice.toFixed(2)} EUR
                         </span>
                     )}
                 </div>
             </div>
 
         </div>
-    );
-};
-
-/* ===============================
-   PRICE DISPLAY (superscript cents)
-=============================== */
-const PriceDisplay = ({ value }) => {
-    const [whole, decimals] = value.toFixed(2).split(".");
-    return (
-        <span>
-            €{whole}
-            <sup className="text-[0.65em] align-super">{decimals}</sup>
-        </span>
     );
 };
 

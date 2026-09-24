@@ -555,8 +555,8 @@ const EditProduct = () => {
       payload.design_names =
         form.designNames.length > 0
           ? form.designNames
-              .filter((name) => name && name.trim() !== "")
-              .map((name) => name.trim())
+            .filter((name) => name && name.trim() !== "")
+            .map((name) => name.trim())
           : [];
     }
 
@@ -943,13 +943,12 @@ const EditProduct = () => {
                         key={cat.id}
                         type="button"
                         onClick={() => toggleParentCategory(cat.id)}
-                        className={`px-4 py-2 rounded border transition text-sm font-medium ${
-                          selected
+                        className={`px-4 py-2 rounded border transition text-sm font-medium ${selected
                             ? "bg-black text-white border-black"
                             : errors.categories
-                            ? "border-red-500 hover:border-red-600"
-                            : "border-black/20 hover:border-black"
-                        }`}
+                              ? "border-red-500 hover:border-red-600"
+                              : "border-black/20 hover:border-black"
+                          }`}
                       >
                         {cat.name}
                       </button>
@@ -992,11 +991,10 @@ const EditProduct = () => {
                                 return (
                                   <div
                                     key={sub.id}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${
-                                      selected
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${selected
                                         ? "bg-black text-white border-black"
                                         : "border-black/20 bg-white hover:border-black"
-                                    }`}
+                                      }`}
                                   >
                                     <button
                                       type="button"
@@ -1012,11 +1010,10 @@ const EditProduct = () => {
                                           setPrimaryCategory(sub.id)
                                         }
                                         title="Set as primary category"
-                                        className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${
-                                          isPrimary
+                                        className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${isPrimary
                                             ? "bg-yellow-400 text-black"
                                             : "bg-white/20 text-white hover:bg-white/30"
-                                        }`}
+                                          }`}
                                       >
                                         <Star
                                           size={10}
@@ -1051,11 +1048,10 @@ const EditProduct = () => {
                         return (
                           <span
                             key={cid}
-                            className={`text-xs px-2 py-1 rounded border ${
-                              isPrimary
+                            className={`text-xs px-2 py-1 rounded border ${isPrimary
                                 ? "bg-yellow-100 border-yellow-400 font-semibold"
                                 : "bg-white border-black/20"
-                            }`}
+                              }`}
                           >
                             {getCategoryName(cid)}
                             {isPrimary && " ★"}
@@ -1082,11 +1078,10 @@ const EditProduct = () => {
                             .toggleHeading({ level: 1 })
                             .run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("heading", { level: 1 })
+                        className={`p-1 rounded ${editor.isActive("heading", { level: 1 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Heading size={16} />
                       </button>
@@ -1098,11 +1093,10 @@ const EditProduct = () => {
                             .toggleHeading({ level: 2 })
                             .run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("heading", { level: 2 })
+                        className={`p-1 rounded ${editor.isActive("heading", { level: 2 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         H2
                       </button>
@@ -1114,11 +1108,10 @@ const EditProduct = () => {
                             .toggleHeading({ level: 3 })
                             .run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("heading", { level: 3 })
+                        className={`p-1 rounded ${editor.isActive("heading", { level: 3 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         H3
                       </button>
@@ -1127,11 +1120,10 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBold().run()}
-                        className={`p-1 rounded ${
-                          editor.isActive("bold")
+                        className={`p-1 rounded ${editor.isActive("bold")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Bold size={16} />
                       </button>
@@ -1139,11 +1131,10 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleItalic().run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("italic")
+                        className={`p-1 rounded ${editor.isActive("italic")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Italic size={16} />
                       </button>
@@ -1151,11 +1142,10 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleUnderline().run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("underline")
+                        className={`p-1 rounded ${editor.isActive("underline")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Underline size={16} />
                       </button>
@@ -1166,11 +1156,10 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleBulletList().run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("bulletList")
+                        className={`p-1 rounded ${editor.isActive("bulletList")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <List size={16} />
                       </button>
@@ -1178,11 +1167,10 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleOrderedList().run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("orderedList")
+                        className={`p-1 rounded ${editor.isActive("orderedList")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         1.
                       </button>
@@ -1193,11 +1181,10 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleBlockquote().run()
                         }
-                        className={`p-1 rounded ${
-                          editor.isActive("blockquote")
+                        className={`p-1 rounded ${editor.isActive("blockquote")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Quote size={16} />
                       </button>
@@ -1206,11 +1193,10 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={handleAddLink}
-                        className={`p-1 rounded ${
-                          editor.isActive("link")
+                        className={`p-1 rounded ${editor.isActive("link")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Link size={16} />
                       </button>
@@ -1228,22 +1214,20 @@ const EditProduct = () => {
                       <button
                         onClick={() => editor.chain().focus().undo().run()}
                         disabled={!editor.can().undo()}
-                        className={`p-1 rounded ${
-                          !editor.can().undo()
+                        className={`p-1 rounded ${!editor.can().undo()
                             ? "text-gray-400"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Undo size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().redo().run()}
                         disabled={!editor.can().redo()}
-                        className={`p-1 rounded ${
-                          !editor.can().redo()
+                        className={`p-1 rounded ${!editor.can().redo()
                             ? "text-gray-400"
                             : "text-gray-600 hover:text-black"
-                        }`}
+                          }`}
                       >
                         <Redo size={16} />
                       </button>
@@ -1314,13 +1298,12 @@ const EditProduct = () => {
                   key={size.id}
                   type="button"
                   onClick={() => toggleArray("sizes", size.id)}
-                  className={`px-4 py-2 rounded border transition ${
-                    form.sizes.includes(size.id)
+                  className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
                       ? "bg-black text-white border-black"
                       : errors.sizes
-                      ? "border-red-500 hover:border-red-600"
-                      : "border-black/20 hover:border-black"
-                  }`}
+                        ? "border-red-500 hover:border-red-600"
+                        : "border-black/20 hover:border-black"
+                    }`}
                 >
                   {size.name}
                 </button>
@@ -1352,17 +1335,22 @@ const EditProduct = () => {
                     className="cursor-pointer text-center group"
                   >
                     <div
-                      className={`w-12 h-12 rounded-full border-2 mx-auto transition ${
-                        form.colors.includes(c.id)
+                      className={`relative w-12 h-12 rounded-full border-2 mx-auto transition overflow-hidden ${form.colors.includes(c.id)
                           ? "border-black scale-110 shadow"
                           : errors.colors
-                          ? "border-red-500 group-hover:border-red-600"
-                          : "border-black/20 group-hover:border-black/60"
-                      }`}
+                            ? "border-red-500 group-hover:border-red-600"
+                            : "border-black/20 group-hover:border-black/60"
+                        }`}
                       style={{
                         backgroundColor: c.hex_code || c.code || "#cccccc",
                       }}
-                    />
+                    >
+                      {form.colors.includes(c.id) && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Check size={20} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
                     <span className="text-[14px] mt-2 block font-medium">
                       {c.name}
                     </span>
@@ -1417,11 +1405,10 @@ const EditProduct = () => {
                             ? `existing-${img.id}`
                             : `new-${index}-${img.file?.name}`
                         }
-                        className={`relative border rounded ${
-                          isThumbnail
+                        className={`relative border rounded ${isThumbnail
                             ? "border-black ring-2 ring-black"
                             : "border-black/20"
-                        }`}
+                          }`}
                       >
                         <div className="w-full h-32 relative">
                           <Image
@@ -1452,13 +1439,12 @@ const EditProduct = () => {
                                 isDeletingExisting ||
                                 isNewImage
                               }
-                              className={`px-2 py-1 rounded flex items-center gap-1 ${
-                                isNewImage
+                              className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
                                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                                   : isSettingThumbnailExisting
-                                  ? "bg-gray-400 text-white cursor-not-allowed"
-                                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                              }`}
+                                    ? "bg-gray-400 text-white cursor-not-allowed"
+                                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                                }`}
                               title={
                                 isNewImage
                                   ? "Save product first to set as thumbnail"
@@ -1477,11 +1463,10 @@ const EditProduct = () => {
                             disabled={
                               isDeletingExisting || isSettingThumbnailExisting
                             }
-                            className={`flex items-center gap-1 ${
-                              isDeletingExisting
+                            className={`flex items-center gap-1 ${isDeletingExisting
                                 ? "text-red-400 cursor-not-allowed"
                                 : "text-red-600 hover:text-red-800"
-                            }`}
+                              }`}
                           >
                             {isDeletingExisting ? (
                               <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
@@ -1533,7 +1518,7 @@ const EditProduct = () => {
               {form.designNames.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded">
                   <p className="text-gray-500">
-                    No design names added yet. Click "Add Design Name" to start.
+                    No design names added yet. Click Add Design Name to start.
                   </p>
                 </div>
               ) : (
@@ -1606,11 +1591,10 @@ const EditProduct = () => {
             <button
               onClick={handleUpdate}
               disabled={updating || loading}
-              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${
-                updating || loading
+              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${updating || loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-black text-white hover:bg-gray-900"
-              }`}
+                }`}
             >
               {updating ? (
                 <>
