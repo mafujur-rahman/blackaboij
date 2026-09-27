@@ -1,6 +1,32 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import emailjs from '@emailjs/browser';
 
 const ContactForm = () => {
+    const form = useRef();
+
+    const sendEmail = (e) => {
+        e.preventDefault();
+
+        emailjs
+            .sendForm(
+                'service_gcir5du',
+                'template_opbg8c4',
+                form.current,
+                'jagOtaVpcfoeFf8Ow'
+            )
+            .then(
+                (result) => {
+                    console.log(result.text);
+                    alert('Message sent successfully!');
+                    form.current.reset();
+                },
+                (error) => {
+                    console.log(error.text);
+                    alert('Failed to send the message, please try again.');
+                }
+            );
+    };
+
     return (
         <section className="bg-white text-black p-4 sm:p-8 md:p-12 lg:p-16">
 
@@ -44,21 +70,25 @@ const ContactForm = () => {
 
                 {/* === RIGHT COLUMN: Contact Form === */}
                 <div className="flex flex-col space-y-6">
-                    <form className="w-full">
+                    <form ref={form} onSubmit={sendEmail} className="w-full">
 
                         {/* Full Name and Email Address (Side-by-side on large screens) */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                             <input
                                 type="text"
+                                name="user_name"
                                 placeholder="Full Name"
                                 className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Full Name"
+                                required
                             />
                             <input
                                 type="email"
+                                name="user_email"
                                 placeholder="Email Address"
                                 className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Email Address"
+                                required
                             />
                         </div>
 
@@ -66,19 +96,23 @@ const ContactForm = () => {
                         <div className="mb-6">
                             <input
                                 type="text"
+                                name="subject"
                                 placeholder="Subject"
                                 className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 transition duration-150"
                                 aria-label="Subject"
+                                required
                             />
                         </div>
 
                         {/* Your Message */}
                         <div className="mb-8">
                             <textarea
+                                name="message"
                                 placeholder="Your Message"
                                 rows="7"
                                 className="w-full bg-white border border-gray-300 p-3 text-black placeholder-gray-600 focus:outline-none focus:border-gray-500 resize-none transition duration-150"
                                 aria-label="Your Message"
+                                required
                             ></textarea>
                         </div>
 

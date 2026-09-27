@@ -54,8 +54,8 @@ const EditProduct = () => {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    categoryIds: [],          // flat list of all assigned category IDs (main + sub)
-    primaryCategoryId: "",    // must be inside categoryIds
+    categoryIds: [],
+    primaryCategoryId: "",
     price: "",
     qty: "",
     sizes: [],
@@ -158,7 +158,6 @@ const EditProduct = () => {
         setSizesList(sizes.data.data || []);
         setColorsList(colors.data.data || []);
 
-        // Build map of parentId -> sub_categories
         const subMap = {};
         (grouped.data.data || []).forEach((parent) => {
           subMap[parent.id] = parent.sub_categories || [];
@@ -173,25 +172,18 @@ const EditProduct = () => {
           return;
         }
 
-        // ---- MULTI-CATEGORY INITIALIZATION ----
-        // Prefer `product.categories` (new array), fall back to `product.category`
         const selectedCategoryIds =
           product.categories?.map((c) => c.id) ??
           (product.category ? [product.category.id] : []);
 
         const primaryCategoryId = product.category?.id ?? null;
 
-        // Determine which MAIN (parent) categories should be pre-selected:
-        // 1. Any category in selectedCategoryIds that IS a top-level parent → select it
-        // 2. Any category whose ancestor (via subMap) is a parent → select that parent
         const parentIds = new Set();
 
         (parents.data.data || []).forEach((parent) => {
-          // If the parent itself is assigned
           if (selectedCategoryIds.includes(parent.id)) {
             parentIds.add(parent.id);
           }
-          // If any of its subs are assigned
           const subs = subMap[parent.id] || [];
           if (subs.some((s) => selectedCategoryIds.includes(s.id))) {
             parentIds.add(parent.id);
@@ -258,10 +250,6 @@ const EditProduct = () => {
     }
   };
 
-  // --- MULTI-CATEGORY HANDLERS ---
-
-  // Toggle a MAIN category (multi-select). Selecting it also auto-assigns the parent ID.
-  // Removing it also removes all its sub-categories from categoryIds.
   const toggleParentCategory = (parentId) => {
     setSelectedParentIds((prevSelected) => {
       const isRemoving = prevSelected.includes(parentId);
@@ -272,7 +260,6 @@ const EditProduct = () => {
       if (isRemoving) {
         newSelected = prevSelected.filter((id) => id !== parentId);
 
-        // Remove this parent AND all its sub-categories
         const subsOfParent = (subCategoriesByParent[parentId] || []).map(
           (s) => s.id
         );
@@ -285,7 +272,6 @@ const EditProduct = () => {
         }
       } else {
         newSelected = [...prevSelected, parentId];
-        // Auto-add parent as an assigned category
         if (!newCategoryIds.includes(parentId)) {
           newCategoryIds.push(parentId);
         }
@@ -304,7 +290,6 @@ const EditProduct = () => {
     setErrors((prev) => ({ ...prev, categories: false }));
   };
 
-  // Toggle any individual category (main or sub) in the flat categoryIds list
   const toggleCategory = (id) => {
     setForm((prev) => {
       const isSelected = prev.categoryIds.includes(id);
@@ -332,7 +317,6 @@ const EditProduct = () => {
     setForm((prev) => ({ ...prev, primaryCategoryId: id }));
   };
 
-  // Lookup a category's display name (searches parents + subs)
   const getCategoryName = (id) => {
     const parent = parentCategories.find((p) => p.id === id);
     if (parent) return parent.name;
@@ -342,8 +326,6 @@ const EditProduct = () => {
     }
     return String(id);
   };
-
-  // --- END MULTI-CATEGORY HANDLERS ---
 
   const handleHotSaleToggle = () => {
     setForm((prev) => ({ ...prev, hotSale: !prev.hotSale }));
@@ -420,21 +402,45 @@ const EditProduct = () => {
     }));
   };
 
+  // Helper: find best thumbnail index from a list of images
+  const findBestThumbnailIndex = (images) => {
+    // Prefer an existing saved image (has id)
+    const existingIdx = images.findIndex((img) => img.id);
+    if (existingIdx !== -1) return existingIdx;
+    // Fall back to any image (new upload)
+    return 0;
+  };
+
   const removeImage = (index) => {
     setForm((prev) => {
       const updatedImages = prev.images.filter((_, i) => i !== index);
 
-      let newThumbnailIndex = prev.thumbnailIndex;
-      if (index === prev.thumbnailIndex) newThumbnailIndex = 0;
-      if (index < prev.thumbnailIndex) newThumbnailIndex = prev.thumbnailIndex - 1;
-      if (newThumbnailIndex >= updatedImages.length && updatedImages.length > 0) {
-        newThumbnailIndex = updatedImages.length - 1;
+      if (updatedImages.length === 0) {
+        return { ...prev, images: [], thumbnailIndex: 0 };
       }
-      if (updatedImages.length === 0) newThumbnailIndex = 0;
+
+      const removedWasThumbnail = index === prev.thumbnailIndex;
+      let newThumbnailIndex = prev.thumbnailIndex;
+
+      if (removedWasThumbnail) {
+        newThumbnailIndex = findBestThumbnailIndex(updatedImages);
+      } else {
+        if (index < prev.thumbnailIndex) {
+          newThumbnailIndex = prev.thumbnailIndex - 1;
+        }
+        if (newThumbnailIndex >= updatedImages.length) {
+          newThumbnailIndex = findBestThumbnailIndex(updatedImages);
+        }
+      }
+
+      const updatedWithFlags = updatedImages.map((img, i) => ({
+        ...img,
+        is_thumbnail: i === newThumbnailIndex,
+      }));
 
       return {
         ...prev,
-        images: updatedImages,
+        images: updatedWithFlags,
         thumbnailIndex: newThumbnailIndex,
       };
     });
@@ -465,7 +471,43 @@ const EditProduct = () => {
 
     try {
       await api.delete(`/api/product/delete-product-image/${imageId}/`);
+
+      // Check if we're deleting the current thumbnail
+      const wasThumbnail = index === form.thumbnailIndex;
+
+      // Get remaining images (before state update)
+      const remainingImages = form.images.filter((_, i) => i !== index);
+
+      // Update local state
       removeImage(index);
+
+      // If the deleted image was the thumbnail, we need to set a new thumbnail via API
+      if (wasThumbnail && remainingImages.length > 0) {
+        // Find the best candidate (prefer existing saved image)
+        const bestIdx = findBestThumbnailIndex(remainingImages);
+        const newThumbnailImage = remainingImages[bestIdx];
+
+        // If the new thumbnail is an existing image, set it via API immediately
+        if (newThumbnailImage?.id) {
+          try {
+            setSettingThumbnail(newThumbnailImage.id);
+            await api.patch(
+              `/api/product/${id}/set-product-thumbnail/${newThumbnailImage.id}/`
+            );
+            setSettingThumbnail(null);
+          } catch (thumbErr) {
+            console.error("Failed to auto-set new thumbnail:", thumbErr);
+            Swal.fire({
+              icon: "warning",
+              title: "Thumbnail Notice",
+              text: "Image deleted, but failed to auto-set new thumbnail. Please click 'Set Thumbnail' on your preferred image.",
+              confirmButtonColor: "#000",
+            });
+            setSettingThumbnail(null);
+            // Still show deletion success below
+          }
+        }
+      }
 
       Swal.fire({
         icon: "success",
@@ -489,7 +531,22 @@ const EditProduct = () => {
   const handleSetThumbnail = async (index) => {
     const image = form.images[index];
 
-    if (!image.id) return;
+    if (!image.id) {
+      // For new images, just update the local thumbnail index.
+      // The backend will handle it via thumbnail_index on save.
+      setForm((prev) => {
+        const updatedImages = prev.images.map((img, i) => ({
+          ...img,
+          is_thumbnail: i === index,
+        }));
+        return {
+          ...prev,
+          images: updatedImages,
+          thumbnailIndex: index,
+        };
+      });
+      return;
+    }
 
     setSettingThumbnail(image.id);
 
@@ -528,12 +585,11 @@ const EditProduct = () => {
     }
   };
 
-  // JSON payload (design products)
   const createJsonPayload = () => {
     const payload = {
       name: form.name,
       description: form.description || "",
-      category_ids: form.categoryIds.map((id) => Number(id)), // full replace
+      category_ids: form.categoryIds.map((id) => Number(id)),
       category_id: Number(form.primaryCategoryId),
       unit_price: Number(form.price),
       quantity: Number(form.qty),
@@ -555,27 +611,24 @@ const EditProduct = () => {
       payload.design_names =
         form.designNames.length > 0
           ? form.designNames
-            .filter((name) => name && name.trim() !== "")
-            .map((name) => name.trim())
+              .filter((name) => name && name.trim() !== "")
+              .map((name) => name.trim())
           : [];
     }
 
     return payload;
   };
 
-  // FormData payload (regular products with images)
   const createFormDataPayload = () => {
     const formData = new FormData();
 
     formData.append("name", form.name);
     formData.append("description", form.description || "");
 
-    // Multi-category — append each ID separately (per backend spec)
     form.categoryIds.forEach((id) => {
       formData.append("category_ids", String(id));
     });
 
-    // Primary category (must be inside category_ids)
     if (form.primaryCategoryId != null && form.primaryCategoryId !== "") {
       formData.append("category_id", String(form.primaryCategoryId));
     }
@@ -675,15 +728,6 @@ const EditProduct = () => {
 
     if (!form.isDesign && !form.images[form.thumbnailIndex]) {
       Swal.fire("Warning", "Please select a thumbnail image", "warning");
-      return false;
-    }
-
-    if (!form.isDesign && !form.images[form.thumbnailIndex]?.id) {
-      Swal.fire(
-        "Warning",
-        "Thumbnail must be an existing saved image. Please save the product first or select an existing image as thumbnail.",
-        "warning"
-      );
       return false;
     }
 
@@ -934,7 +978,6 @@ const EditProduct = () => {
                   )}
                 </label>
 
-                {/* Main category chips (multi-select) */}
                 <div className="flex flex-wrap gap-3 mb-4">
                   {parentCategories.map((cat) => {
                     const selected = selectedParentIds.includes(cat.id);
@@ -943,12 +986,13 @@ const EditProduct = () => {
                         key={cat.id}
                         type="button"
                         onClick={() => toggleParentCategory(cat.id)}
-                        className={`px-4 py-2 rounded border transition text-sm font-medium ${selected
+                        className={`px-4 py-2 rounded border transition text-sm font-medium ${
+                          selected
                             ? "bg-black text-white border-black"
                             : errors.categories
-                              ? "border-red-500 hover:border-red-600"
-                              : "border-black/20 hover:border-black"
-                          }`}
+                            ? "border-red-500 hover:border-red-600"
+                            : "border-black/20 hover:border-black"
+                        }`}
                       >
                         {cat.name}
                       </button>
@@ -956,7 +1000,6 @@ const EditProduct = () => {
                   })}
                 </div>
 
-                {/* Sub-categories grouped per selected main category */}
                 {selectedParentIds.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     Select one or more Main Categories above to load their
@@ -991,10 +1034,11 @@ const EditProduct = () => {
                                 return (
                                   <div
                                     key={sub.id}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${selected
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded border transition text-sm ${
+                                      selected
                                         ? "bg-black text-white border-black"
                                         : "border-black/20 bg-white hover:border-black"
-                                      }`}
+                                    }`}
                                   >
                                     <button
                                       type="button"
@@ -1010,10 +1054,11 @@ const EditProduct = () => {
                                           setPrimaryCategory(sub.id)
                                         }
                                         title="Set as primary category"
-                                        className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${isPrimary
+                                        className={`ml-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded transition ${
+                                          isPrimary
                                             ? "bg-yellow-400 text-black"
                                             : "bg-white/20 text-white hover:bg-white/30"
-                                          }`}
+                                        }`}
                                       >
                                         <Star
                                           size={10}
@@ -1035,7 +1080,6 @@ const EditProduct = () => {
                   </div>
                 )}
 
-                {/* Summary of all selected categories */}
                 {form.categoryIds.length > 0 && (
                   <div className="mt-4 p-3 bg-gray-50 rounded border border-black/10">
                     <p className="text-sm font-medium mb-2">
@@ -1048,10 +1092,11 @@ const EditProduct = () => {
                         return (
                           <span
                             key={cid}
-                            className={`text-xs px-2 py-1 rounded border ${isPrimary
+                            className={`text-xs px-2 py-1 rounded border ${
+                              isPrimary
                                 ? "bg-yellow-100 border-yellow-400 font-semibold"
                                 : "bg-white border-black/20"
-                              }`}
+                            }`}
                           >
                             {getCategoryName(cid)}
                             {isPrimary && " ★"}
@@ -1078,10 +1123,11 @@ const EditProduct = () => {
                             .toggleHeading({ level: 1 })
                             .run()
                         }
-                        className={`p-1 rounded ${editor.isActive("heading", { level: 1 })
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 1 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Heading size={16} />
                       </button>
@@ -1093,10 +1139,11 @@ const EditProduct = () => {
                             .toggleHeading({ level: 2 })
                             .run()
                         }
-                        className={`p-1 rounded ${editor.isActive("heading", { level: 2 })
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 2 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         H2
                       </button>
@@ -1108,10 +1155,11 @@ const EditProduct = () => {
                             .toggleHeading({ level: 3 })
                             .run()
                         }
-                        className={`p-1 rounded ${editor.isActive("heading", { level: 3 })
+                        className={`p-1 rounded ${
+                          editor.isActive("heading", { level: 3 })
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         H3
                       </button>
@@ -1120,10 +1168,11 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={() => editor.chain().focus().toggleBold().run()}
-                        className={`p-1 rounded ${editor.isActive("bold")
+                        className={`p-1 rounded ${
+                          editor.isActive("bold")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Bold size={16} />
                       </button>
@@ -1131,10 +1180,11 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleItalic().run()
                         }
-                        className={`p-1 rounded ${editor.isActive("italic")
+                        className={`p-1 rounded ${
+                          editor.isActive("italic")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Italic size={16} />
                       </button>
@@ -1142,10 +1192,11 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleUnderline().run()
                         }
-                        className={`p-1 rounded ${editor.isActive("underline")
+                        className={`p-1 rounded ${
+                          editor.isActive("underline")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Underline size={16} />
                       </button>
@@ -1156,10 +1207,11 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleBulletList().run()
                         }
-                        className={`p-1 rounded ${editor.isActive("bulletList")
+                        className={`p-1 rounded ${
+                          editor.isActive("bulletList")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <List size={16} />
                       </button>
@@ -1167,10 +1219,11 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleOrderedList().run()
                         }
-                        className={`p-1 rounded ${editor.isActive("orderedList")
+                        className={`p-1 rounded ${
+                          editor.isActive("orderedList")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         1.
                       </button>
@@ -1181,10 +1234,11 @@ const EditProduct = () => {
                         onClick={() =>
                           editor.chain().focus().toggleBlockquote().run()
                         }
-                        className={`p-1 rounded ${editor.isActive("blockquote")
+                        className={`p-1 rounded ${
+                          editor.isActive("blockquote")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Quote size={16} />
                       </button>
@@ -1193,10 +1247,11 @@ const EditProduct = () => {
                     <div className="flex items-center space-x-1 border-r pr-2 mr-2">
                       <button
                         onClick={handleAddLink}
-                        className={`p-1 rounded ${editor.isActive("link")
+                        className={`p-1 rounded ${
+                          editor.isActive("link")
                             ? "bg-gray-200 text-black"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Link size={16} />
                       </button>
@@ -1214,20 +1269,22 @@ const EditProduct = () => {
                       <button
                         onClick={() => editor.chain().focus().undo().run()}
                         disabled={!editor.can().undo()}
-                        className={`p-1 rounded ${!editor.can().undo()
+                        className={`p-1 rounded ${
+                          !editor.can().undo()
                             ? "text-gray-400"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Undo size={16} />
                       </button>
                       <button
                         onClick={() => editor.chain().focus().redo().run()}
                         disabled={!editor.can().redo()}
-                        className={`p-1 rounded ${!editor.can().redo()
+                        className={`p-1 rounded ${
+                          !editor.can().redo()
                             ? "text-gray-400"
                             : "text-gray-600 hover:text-black"
-                          }`}
+                        }`}
                       >
                         <Redo size={16} />
                       </button>
@@ -1298,12 +1355,13 @@ const EditProduct = () => {
                   key={size.id}
                   type="button"
                   onClick={() => toggleArray("sizes", size.id)}
-                  className={`px-4 py-2 rounded border transition ${form.sizes.includes(size.id)
+                  className={`px-4 py-2 rounded border transition ${
+                    form.sizes.includes(size.id)
                       ? "bg-black text-white border-black"
                       : errors.sizes
-                        ? "border-red-500 hover:border-red-600"
-                        : "border-black/20 hover:border-black"
-                    }`}
+                      ? "border-red-500 hover:border-red-600"
+                      : "border-black/20 hover:border-black"
+                  }`}
                 >
                   {size.name}
                 </button>
@@ -1335,12 +1393,13 @@ const EditProduct = () => {
                     className="cursor-pointer text-center group"
                   >
                     <div
-                      className={`relative w-12 h-12 rounded-full border-2 mx-auto transition overflow-hidden ${form.colors.includes(c.id)
+                      className={`relative w-12 h-12 rounded-full border-2 mx-auto transition overflow-hidden ${
+                        form.colors.includes(c.id)
                           ? "border-black scale-110 shadow"
                           : errors.colors
-                            ? "border-red-500 group-hover:border-red-600"
-                            : "border-black/20 group-hover:border-black/60"
-                        }`}
+                          ? "border-red-500 group-hover:border-red-600"
+                          : "border-black/20 group-hover:border-black/60"
+                      }`}
                       style={{
                         backgroundColor: c.hex_code || c.code || "#cccccc",
                       }}
@@ -1405,10 +1464,11 @@ const EditProduct = () => {
                             ? `existing-${img.id}`
                             : `new-${index}-${img.file?.name}`
                         }
-                        className={`relative border rounded ${isThumbnail
+                        className={`relative border rounded ${
+                          isThumbnail
                             ? "border-black ring-2 ring-black"
                             : "border-black/20"
-                          }`}
+                        }`}
                       >
                         <div className="w-full h-32 relative">
                           <Image
@@ -1431,25 +1491,17 @@ const EditProduct = () => {
                             </button>
                           ) : (
                             <button
-                              onClick={() =>
-                                isExistingImage && handleSetThumbnail(index)
-                              }
+                              onClick={() => handleSetThumbnail(index)}
                               disabled={
                                 isSettingThumbnailExisting ||
-                                isDeletingExisting ||
-                                isNewImage
+                                isDeletingExisting
                               }
-                              className={`px-2 py-1 rounded flex items-center gap-1 ${isNewImage
-                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                  : isSettingThumbnailExisting
-                                    ? "bg-gray-400 text-white cursor-not-allowed"
-                                    : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                                }`}
-                              title={
-                                isNewImage
-                                  ? "Save product first to set as thumbnail"
-                                  : "Set as thumbnail"
-                              }
+                              className={`px-2 py-1 rounded flex items-center gap-1 ${
+                                isSettingThumbnailExisting
+                                  ? "bg-gray-400 text-white cursor-not-allowed"
+                                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                              }`}
+                              title="Set as thumbnail"
                             >
                               {isSettingThumbnailExisting && (
                                 <div className="h-3 w-3 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
@@ -1463,10 +1515,11 @@ const EditProduct = () => {
                             disabled={
                               isDeletingExisting || isSettingThumbnailExisting
                             }
-                            className={`flex items-center gap-1 ${isDeletingExisting
+                            className={`flex items-center gap-1 ${
+                              isDeletingExisting
                                 ? "text-red-400 cursor-not-allowed"
                                 : "text-red-600 hover:text-red-800"
-                              }`}
+                            }`}
                           >
                             {isDeletingExisting ? (
                               <div className="h-3 w-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
@@ -1489,9 +1542,9 @@ const EditProduct = () => {
               )}
 
               <p className="text-sm text-gray-500 mt-4">
-                Note: New uploaded images (marked with New badge) can be removed
-                immediately. To set a new image as thumbnail, you need to save
-                the product first.
+                Note: When you delete the thumbnail image, the first available
+                saved image will automatically be set as the new thumbnail. New
+                uploaded images can be set as thumbnail after saving.
               </p>
             </div>
           )}
@@ -1591,10 +1644,11 @@ const EditProduct = () => {
             <button
               onClick={handleUpdate}
               disabled={updating || loading}
-              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${updating || loading
+              className={`px-8 py-3 rounded font-medium transition flex items-center gap-2 cursor-pointer ${
+                updating || loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-black text-white hover:bg-gray-900"
-                }`}
+              }`}
             >
               {updating ? (
                 <>
