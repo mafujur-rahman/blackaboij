@@ -1,58 +1,76 @@
-import React, { useRef } from 'react';
+"use client"
+import React, { useRef, useState } from 'react';
 import emailjs from '@emailjs/browser';
+import Swal from 'sweetalert2';
 
 const ContactForm = () => {
     const form = useRef();
+    const [loading, setLoading] = useState(false);
 
     const sendEmail = (e) => {
         e.preventDefault();
+        setLoading(true);
+
+        const formData = new FormData(form.current);
+
+        const templateParams = {
+            user_name: formData.get('user_name'),
+            user_email: formData.get('user_email'),
+            subject: formData.get('subject'),
+            message: formData.get('message'),
+            // reply_to is important so replies go to the sender
+            reply_to: formData.get('user_email'),
+        };
 
         emailjs
-            .sendForm(
+            .send(
                 'service_gcir5du',
                 'template_opbg8c4',
-                form.current,
+                templateParams,
                 'jagOtaVpcfoeFf8Ow'
             )
             .then(
                 (result) => {
                     console.log(result.text);
-                    alert('Message sent successfully!');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Message Sent!',
+                        text: 'Thank you for reaching out. We will get back to you soon.',
+                        confirmButtonColor: '#000000',
+                    });
                     form.current.reset();
                 },
                 (error) => {
                     console.log(error.text);
-                    alert('Failed to send the message, please try again.');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'Failed to send the message, please try again.',
+                        confirmButtonColor: '#000000',
+                    });
                 }
-            );
+            )
+            .finally(() => setLoading(false));
     };
 
     return (
         <section className="bg-white text-black p-4 sm:p-8 md:p-12 lg:p-16">
-
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
 
                 <div className="flex flex-col space-y-8">
-
                     <h2 className="text-[30px] md:text-[36px] font-bold mb-4">
                         Contact Us
                     </h2>
 
-                    {/* Our Address */}
                     <div>
-                        <h3 className="text-[20px] font-bold mb-2">
-                            Our Address
-                        </h3>
+                        <h3 className="text-[20px] font-bold mb-2">Our Address</h3>
                         <p className="text-[16px] text-gray-700">
                             20 Allée des Piboules résidence les Belenos 13800 Istres
                         </p>
                     </div>
 
-                    {/* Contact Information */}
                     <div>
-                        <h3 className="text-[20px] font-bold mb-2">
-                            Contact Information
-                        </h3>
+                        <h3 className="text-[20px] font-bold mb-2">Contact Information</h3>
                         <p className="text-[16px] text-gray-700">
                             Email:
                             <a href="mailto:info@blackaboli.com" className="text-black hover:text-gray-700 underline ml-1">
@@ -68,11 +86,9 @@ const ContactForm = () => {
                     </div>
                 </div>
 
-                {/* === RIGHT COLUMN: Contact Form === */}
                 <div className="flex flex-col space-y-6">
                     <form ref={form} onSubmit={sendEmail} className="w-full">
 
-                        {/* Full Name and Email Address (Side-by-side on large screens) */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                             <input
                                 type="text"
@@ -92,7 +108,6 @@ const ContactForm = () => {
                             />
                         </div>
 
-                        {/* Subject */}
                         <div className="mb-6">
                             <input
                                 type="text"
@@ -104,7 +119,6 @@ const ContactForm = () => {
                             />
                         </div>
 
-                        {/* Your Message */}
                         <div className="mb-8">
                             <textarea
                                 name="message"
@@ -116,12 +130,12 @@ const ContactForm = () => {
                             ></textarea>
                         </div>
 
-                        {/* Send Message Button */}
                         <button
                             type="submit"
-                            className="w-full bg-black text-white font-semibold py-4 px-6 uppercase tracking-wider  cursor-pointer focus:outline-none focus:ring-4 focus:ring-black focus:ring-opacity-50"
+                            disabled={loading}
+                            className="w-full bg-black text-white font-semibold py-4 px-6 uppercase tracking-wider cursor-pointer focus:outline-none focus:ring-4 focus:ring-black focus:ring-opacity-50 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            Send Message
+                            {loading ? 'Sending...' : 'Send Message'}
                         </button>
 
                     </form>

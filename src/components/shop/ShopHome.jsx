@@ -4,6 +4,62 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "../card/ProductCard";
 
+/* ------------------------------------------------------------------
+   PRIORITY ORDER (matched against product.meta_title)
+   First match wins — order = display order
+------------------------------------------------------------------ */
+const PRIORITY_KEYWORDS = [
+  "crown a",
+  "crowned b",
+  "classic b",
+  "texture b",
+  "blackaboij straight",
+  "blackaboij curve",
+  "smiley",
+  "emoji",
+  "ape",
+  "distressed",
+  "sleeveless",
+  "tank top",
+  "tanktop",
+  "short",
+  "cap",
+];
+
+/* Extract lowercase meta_title (handles a few possible key variants) */
+const getMetaTitle = (product) => {
+  const raw =
+    product?.meta_title ??
+    product?.metaTitle ??
+    product?.meta_data?.meta_title ??
+    product?.metaData?.meta_title ??
+    "";
+  return String(raw).toLowerCase().trim();
+};
+
+/* Return the priority index for a product (lower = shown first).
+   Products with no match go to the end. */
+const getPriorityIndex = (product) => {
+  const title = getMetaTitle(product);
+  if (!title) return PRIORITY_KEYWORDS.length;
+
+  for (let i = 0; i < PRIORITY_KEYWORDS.length; i++) {
+    if (title.includes(PRIORITY_KEYWORDS[i])) return i;
+  }
+  return PRIORITY_KEYWORDS.length; // unmatched → end
+};
+
+/* Sort products by priority, then by newest within same priority */
+const sortByPriority = (products) => {
+  return [...products].sort((a, b) => {
+    const pa = getPriorityIndex(a);
+    const pb = getPriorityIndex(b);
+    if (pa !== pb) return pa - pb;
+    // same priority → newest first
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+};
+
 const getProductCategories = (product) => [
   ...(Array.isArray(product?.categories) ? product.categories : []),
   product?.category,
@@ -55,7 +111,7 @@ const ShopHome = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       // Check sessionStorage cache
-      const cached = sessionStorage.getItem("shop_home_products_v2");
+      const cached = sessionStorage.getItem("shop_home_products_v4");
       if (cached) {
         const parsed = JSON.parse(cached);
         setAllProducts(parsed.allProducts || []);
@@ -99,11 +155,14 @@ const ShopHome = () => {
 
         const initialCategory = parentCategories[0]?.id || null;
 
-        const initialFiltered = initialCategory
-          ? products.filter((product) =>
-              belongsToParentCategory(product, initialCategory)
-            )
-          : products;
+        // Apply priority sorting to the initial filtered list
+        const initialFiltered = sortByPriority(
+          initialCategory
+            ? products.filter((product) =>
+                belongsToParentCategory(product, initialCategory)
+              )
+            : products
+        );
 
         setAllProducts(products);
         setCategories(parentCategories);
@@ -112,7 +171,7 @@ const ShopHome = () => {
 
         // Save to sessionStorage
         sessionStorage.setItem(
-          "shop_home_products_v2",
+          "shop_home_products_v4",
           JSON.stringify({
             allProducts: products,
             categories: parentCategories,
@@ -138,7 +197,8 @@ const ShopHome = () => {
       belongsToParentCategory(product, activeCategory)
     );
 
-    setFilteredProducts(filtered);
+    // Apply priority sorting when switching categories
+    setFilteredProducts(sortByPriority(filtered));
     setCurrentPage(1);
   }, [activeCategory, allProducts]);
 

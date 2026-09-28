@@ -8,6 +8,58 @@ import ProductCard from "@/components/card/ProductCard";
 import api from "@/lib/axios";
 import { matchesProductCategory } from "@/components/utils/productCategory";
 
+/* ------------------------------------------------------------------
+   PRIORITY ORDER (matched against product.meta_title)
+   For Tees subcategory — only up to "sleeveless"
+------------------------------------------------------------------ */
+const PRIORITY_KEYWORDS = [
+  "crown a",
+  "crowned b",
+  "classic b",
+  "texture b",
+  "blackaboij straight",
+  "blackaboij curve",
+  "smiley",
+  "emoji",
+  "ape",
+  "distressed",
+  "sleeveless",
+];
+
+/* Extract lowercase meta_title (handles a few possible key variants) */
+const getMetaTitle = (product) => {
+  const raw =
+    product?.meta_title ??
+    product?.metaTitle ??
+    product?.meta_data?.meta_title ??
+    product?.metaData?.meta_title ??
+    "";
+  return String(raw).toLowerCase().trim();
+};
+
+/* Return the priority index for a product (lower = shown first).
+   Products with no match go to the end. */
+const getPriorityIndex = (product) => {
+  const title = getMetaTitle(product);
+  if (!title) return PRIORITY_KEYWORDS.length;
+
+  for (let i = 0; i < PRIORITY_KEYWORDS.length; i++) {
+    if (title.includes(PRIORITY_KEYWORDS[i])) return i;
+  }
+  return PRIORITY_KEYWORDS.length; // unmatched → end
+};
+
+/* Sort products by priority, then by newest within same priority */
+const sortByPriority = (products) => {
+  return [...products].sort((a, b) => {
+    const pa = getPriorityIndex(a);
+    const pb = getPriorityIndex(b);
+    if (pa !== pb) return pa - pb;
+    // same priority → newest first
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+};
+
 /* ------------------ MAIN COMPONENT ------------------ */
 const MenTeesArea = () => {
   const router = useRouter();
@@ -25,7 +77,7 @@ const MenTeesArea = () => {
 
       // Use cache only for client-side navigation
       if (!isHardReload) {
-        const cached = sessionStorage.getItem("men_tees_products_v2");
+        const cached = sessionStorage.getItem("men_tees_products_v3");
         if (cached) {
           setProducts(JSON.parse(cached));
           setLoading(false);
@@ -42,12 +94,15 @@ const MenTeesArea = () => {
           matchesProductCategory(product, "men", ["tees", "tee"])
         );
 
-        setProducts(menTees);
+        // Apply priority sorting
+        const sorted = sortByPriority(menTees);
+
+        setProducts(sorted);
 
         // Cache for client-side navigation
         sessionStorage.setItem(
-          "men_tees_products_v2",
-          JSON.stringify(menTees)
+          "men_tees_products_v3",
+          JSON.stringify(sorted)
         );
       } else {
         console.warn("API did not return success:", res.data);

@@ -39,7 +39,7 @@ const MenHoodiesSweatersArea = () => {
 
       if (res.data?.success) {
         const menHoodies = res.data.data.filter((product) =>
-          matchesProductCategory(product, "men", "hoodies & sweaters")
+          matchesProductCategory(product, "men", "Sleeveless Hoodies")
         );
 
         setProducts(menHoodies);

@@ -5,50 +5,60 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
 
-const organizeProductsByType = (products) => {
-  const tees = [];
-  const hats = [];
-  const pants = [];
-  const others = [];
+/* ------------------------------------------------------------------
+   PRIORITY ORDER (matched against product.meta_title)
+   First match wins — order = display order
+------------------------------------------------------------------ */
+const PRIORITY_KEYWORDS = [
+  "crown a",
+  "crowned b",
+  "classic b",
+  "texture b",
+  "blackaboij straight",
+  "blackaboij curve",
+  "smiley",
+  "emoji",
+  "ape",
+  "distressed",
+  "sleeveless",
+  "tank top",
+  "tanktop",
+  "short",
+  "cap",
+];
 
-  // Helper: get all category names for a product (multi-category aware)
-  const getCategoryNames = (product) => {
-    if (Array.isArray(product.categories) && product.categories.length > 0) {
-      return product.categories.map((c) => c?.name?.toLowerCase() || "");
-    }
-    return product.category?.name
-      ? [product.category.name.toLowerCase()]
-      : [];
-  };
+/* Extract lowercase meta_title (handles a few possible key variants) */
+const getMetaTitle = (product) => {
+  const raw =
+    product?.meta_title ??
+    product?.metaTitle ??
+    product?.meta_data?.meta_title ??
+    product?.metaData?.meta_title ??
+    "";
+  return String(raw).toLowerCase().trim();
+};
 
-  products.forEach((product) => {
-    const names = getCategoryNames(product);
+/* Return the priority index for a product (lower = shown first).
+   Products with no match go to the end. */
+const getPriorityIndex = (product) => {
+  const title = getMetaTitle(product);
+  if (!title) return PRIORITY_KEYWORDS.length;
 
-    const matches = (keywords) =>
-      names.some((name) => keywords.some((kw) => name.includes(kw)));
+  for (let i = 0; i < PRIORITY_KEYWORDS.length; i++) {
+    if (title.includes(PRIORITY_KEYWORDS[i])) return i;
+  }
+  return PRIORITY_KEYWORDS.length; // unmatched → end
+};
 
-    if (
-      matches(["tee", "t-shirt", "tshirt", "t shirt"]) ||
-      names.includes("tees")
-    ) {
-      tees.push(product);
-    } else if (matches(["hat", "cap"])) {
-      hats.push(product);
-    } else if (matches(["pant", "jeans", "trouser"])) {
-      pants.push(product);
-    } else {
-      others.push(product);
-    }
+/* Sort products by priority, then by newest within same priority */
+const sortByPriority = (products) => {
+  return [...products].sort((a, b) => {
+    const pa = getPriorityIndex(a);
+    const pb = getPriorityIndex(b);
+    if (pa !== pb) return pa - pb;
+    // same priority → newest first
+    return new Date(b.created_at) - new Date(a.created_at);
   });
-
-  const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
-
-  tees.sort(sortByDate);
-  hats.sort(sortByDate);
-  pants.sort(sortByDate);
-  others.sort(sortByDate);
-
-  return [...tees, ...hats, ...pants, ...others];
 };
 
 const isInMenBranch = (product) => {
@@ -63,11 +73,9 @@ const isInMenBranch = (product) => {
 
   return allCategories.some((cat) => {
     if (!cat) return false;
-    // `parent_name` is the top-level category name (e.g. "Men", "Women")
     const parentName = cat.parent_name?.toLowerCase?.() || "";
     if (parentName === "men") return true;
 
-    // Fallback: category name itself is "Men" (top-level assignment)
     const catName = cat.name?.toLowerCase?.() || "";
     if (catName === "men") return true;
 
@@ -100,20 +108,16 @@ const MenCollectionArea = () => {
           }
         }
 
-        // ---------------------------------------------------------------
-        // OPTION A (client-side multi-category filter) — CURRENT APPROACH
-        // ---------------------------------------------------------------
         const res = await api.get("/api/products/get-all-products/");
 
-        let menProducts = (res.data.data || [])
-          .filter(isInMenBranch)
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 20);
+        // 1. Filter to Men's products only
+        const menProducts = (res.data.data || []).filter(isInMenBranch);
 
-        menProducts = organizeProductsByType(menProducts);
+        // 2. Sort by meta_title priority
+        const sorted = sortByPriority(menProducts);
 
-        setProducts(menProducts);
-        sessionStorage.setItem("men_products", JSON.stringify(menProducts));
+        setProducts(sorted);
+        sessionStorage.setItem("men_products", JSON.stringify(sorted));
 
       } catch (error) {
         console.error("Failed to fetch products", error);
@@ -142,20 +146,34 @@ const MenCollectionArea = () => {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex justify-center mt-8 space-x-2">
-              {Array.from({ length: totalPages }, (_, i) => (
+            <div className="flex justify-center mt-12 space-x-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="px-4 py-2 border disabled:opacity-50"
+              >
+                Prev
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
                 <button
-                  key={i + 1}
+                  key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-1 border rounded ${
-                    currentPage === i + 1
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-gray-300"
+                  className={`px-4 py-2 border ${
+                    currentPage === i + 1 ? "bg-black text-white" : ""
                   }`}
                 >
                   {i + 1}
                 </button>
               ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="px-4 py-2 border disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
           )}
         </>

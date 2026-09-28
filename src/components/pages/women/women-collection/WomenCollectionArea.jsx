@@ -5,48 +5,60 @@ import api from "@/lib/axios";
 import ProductCard from "@/components/card/ProductCard";
 import { isInProductBranch } from "@/components/utils/productCategory";
 
-/* -------- FUNCTION TO ORGANIZE PRODUCTS BY TYPE -------- */
-const organizeProductsByType = (products) => {
-  // Separate products by type
-  const tees = [];
-  const hats = [];
-  const pants = [];
-  const others = [];
+/* ------------------------------------------------------------------
+   PRIORITY ORDER (matched against product.meta_title)
+   First match wins — order = display order
+------------------------------------------------------------------ */
+const PRIORITY_KEYWORDS = [
+  "crown a",
+  "crowned b",
+  "classic b",
+  "texture b",
+  "blackaboij straight",
+  "blackaboij curve",
+  "smiley",
+  "emoji",
+  "ape",
+  "distressed",
+  "sleeveless",
+  "tank top",
+  "tanktop",
+  "short",
+  "cap",
+];
 
-  products.forEach((product) => {
-    const categoryNames = [
-      ...(Array.isArray(product.categories) ? product.categories : []),
-      product.category,
-    ]
-      .filter(Boolean)
-      .map((category) => category.name?.toLowerCase() || "");
+/* Extract lowercase meta_title (handles a few possible key variants) */
+const getMetaTitle = (product) => {
+  const raw =
+    product?.meta_title ??
+    product?.metaTitle ??
+    product?.meta_data?.meta_title ??
+    product?.metaData?.meta_title ??
+    "";
+  return String(raw).toLowerCase().trim();
+};
 
-    const matches = (keywords) =>
-      categoryNames.some((name) => keywords.some((keyword) => name.includes(keyword)));
-    
-    // Categorize based on subcategory name
-    if (matches(["tee", "t-shirt", "tshirt", "t shirt"]) ||
-        categoryNames.includes("tees")) {
-      tees.push(product);
-    } else if (matches(["hat", "cap"])) {
-      hats.push(product);
-    } else if (matches(["pant", "jeans", "trouser"])) {
-      pants.push(product);
-    } else {
-      others.push(product);
-    }
+/* Return the priority index for a product (lower = shown first).
+   Products with no match go to the end. */
+const getPriorityIndex = (product) => {
+  const title = getMetaTitle(product);
+  if (!title) return PRIORITY_KEYWORDS.length;
+
+  for (let i = 0; i < PRIORITY_KEYWORDS.length; i++) {
+    if (title.includes(PRIORITY_KEYWORDS[i])) return i;
+  }
+  return PRIORITY_KEYWORDS.length; // unmatched → end
+};
+
+/* Sort products by priority, then by newest within same priority */
+const sortByPriority = (products) => {
+  return [...products].sort((a, b) => {
+    const pa = getPriorityIndex(a);
+    const pb = getPriorityIndex(b);
+    if (pa !== pb) return pa - pb;
+    // same priority → newest first
+    return new Date(b.created_at) - new Date(a.created_at);
   });
-
-  // Sort each category by date (latest first)
-  const sortByDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
-  
-  tees.sort(sortByDate);
-  hats.sort(sortByDate);
-  pants.sort(sortByDate);
-  others.sort(sortByDate);
-
-  // Combine in desired order: Tees -> Hats -> Pants -> Others
-  return [...tees, ...hats, ...pants, ...others];
 };
 
 /* ------------------ MAIN COMPONENT ------------------ */
@@ -59,50 +71,47 @@ const WomenCollectionArea = () => {
   const itemsPerPage = 8;
 
   useEffect(() => {
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
 
-      // Detect hard reload
-      const isHardReload =
-        performance.getEntriesByType("navigation")[0]?.type === "reload";
+        // Detect hard reload
+        const isHardReload =
+          performance.getEntriesByType("navigation")[0]?.type === "reload";
 
-      // Use cache only for client-side navigation
-      if (!isHardReload) {
-        const cached = sessionStorage.getItem("women_products_v2");
-        if (cached) {
-          setProducts(JSON.parse(cached));
-          setLoading(false);
-          return;
+        // Use cache only for client-side navigation
+        if (!isHardReload) {
+          const cached = sessionStorage.getItem("women_products_v3");
+          if (cached) {
+            setProducts(JSON.parse(cached));
+            setLoading(false);
+            return;
+          }
         }
+
+        const res = await api.get("/api/products/get-all-products/");
+
+        // 1. Filter to Women's products only
+        const womenProducts = (res.data?.data || []).filter((product) =>
+          isInProductBranch(product, "women")
+        );
+
+        // 2. Sort by meta_title priority
+        const sorted = sortByPriority(womenProducts);
+
+        setProducts(sorted);
+
+        // Cache for client-side navigation
+        sessionStorage.setItem("women_products_v3", JSON.stringify(sorted));
+      } catch (error) {
+        console.error("Failed to fetch products", error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      const res = await api.get("/api/products/get-all-products/");
-      let womenProducts = (res.data?.data || [])
-        .filter((product) => isInProductBranch(product, "women"))
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 20);
-
-      // Organize products by type (Tees first, then Hats, then Pants)
-      womenProducts = organizeProductsByType(womenProducts);
-
-      setProducts(womenProducts);
-
-      // Cache for client-side navigation
-      sessionStorage.setItem(
-        "women_products_v2",
-        JSON.stringify(womenProducts)
-      );
-    } catch (error) {
-      console.error("Failed to fetch products", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchProducts();
-}, []);
-
+    fetchProducts();
+  }, []);
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const displayedProducts = products.slice(
@@ -113,33 +122,45 @@ const WomenCollectionArea = () => {
   return (
     <div className="my-12.5">
       <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
-        {(
-          <>
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {displayedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+        <>
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {displayedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
 
-            {totalPages > 1 && (
-              <div className="flex justify-center mt-8 space-x-2">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i + 1}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 border rounded ${
-                      currentPage === i + 1
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-black border-gray-300"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-12 space-x-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="px-4 py-2 border disabled:opacity-50"
+              >
+                Prev
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-4 py-2 border ${
+                    currentPage === i + 1 ? "bg-black text-white" : ""
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="px-4 py-2 border disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       </div>
     </div>
   );

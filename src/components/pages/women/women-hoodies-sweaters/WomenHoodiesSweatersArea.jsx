@@ -34,7 +34,7 @@ const WomenHoodiesSweatersArea = () => {
 
     const res = await api.get("/api/products/get-all-products/");
     const womenHoodies = res.data.data.filter((product) =>
-      matchesProductCategory(product, "women", "hoodies & sweaters")
+      matchesProductCategory(product, "women", "Sleeveless Hoodies")
     );
 
     setProducts(womenHoodies);
@@ -61,7 +61,7 @@ const WomenHoodiesSweatersArea = () => {
     <div className="my-12.5">
       <div className="px-4 lg:px-12 xl:px-24 2xl:px-48">
         {products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

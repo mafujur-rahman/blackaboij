@@ -39,7 +39,7 @@ const MenPantsArea = () => {
 
       if (res.data?.success) {
         const menPants = res.data.data.filter((product) =>
-          matchesProductCategory(product, "men", ["pants", "pant"])
+          matchesProductCategory(product, "men", ["pants", "pant", "shorts"])
         );
 
         setProducts(menPants);
