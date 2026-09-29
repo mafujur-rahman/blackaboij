@@ -24,10 +24,10 @@ const ContactForm = () => {
 
         emailjs
             .send(
-                'service_gcir5du',
-                'template_opbg8c4',
+                'service_yquye5x',
+                'template_b4ht8vg',
                 templateParams,
-                'jagOtaVpcfoeFf8Ow'
+                'OoZP5Z8FR4WQ9bq2Q'
             )
             .then(
                 (result) => {
