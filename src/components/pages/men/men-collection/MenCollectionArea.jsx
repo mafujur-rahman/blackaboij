@@ -10,10 +10,11 @@ import ProductCard from "@/components/card/ProductCard";
    First match wins — order = display order
 ------------------------------------------------------------------ */
 const PRIORITY_KEYWORDS = [
-  "crown a",
+  
   "crowned b",
   "classic b",
   "texture b",
+  "crown a",
   "blackaboij straight",
   "blackaboij curve",
   "smiley",
