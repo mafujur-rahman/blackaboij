@@ -13,10 +13,11 @@ import { matchesProductCategory } from "@/components/utils/productCategory";
    For Tees subcategory — only up to "sleeveless"
 ------------------------------------------------------------------ */
 const PRIORITY_KEYWORDS = [
-  "crown a",
+
   "crowned b",
   "classic b",
   "texture b",
+  "crown a",
   "blackaboij straight",
   "blackaboij curve",
   "smiley",

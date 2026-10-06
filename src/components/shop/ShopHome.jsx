@@ -9,10 +9,11 @@ import ProductCard from "../card/ProductCard";
    First match wins — order = display order
 ------------------------------------------------------------------ */
 const PRIORITY_KEYWORDS = [
-  "crown a",
+
   "crowned b",
   "classic b",
   "texture b",
+  "crown a",
   "blackaboij straight",
   "blackaboij curve",
   "smiley",
@@ -85,11 +86,10 @@ const CategoryTab = ({ category, isActive, onClick }) => {
   return (
     <button
       onClick={onClick}
-      className={`pb-1 text-lg md:text-xl transition-colors ${
-        isActive
+      className={`pb-1 text-lg md:text-xl transition-colors ${isActive
           ? "border-b-2 border-black text-black font-bold"
           : "text-gray-600 hover:text-black"
-      }`}
+        }`}
     >
       {formattedName}
     </button>
@@ -159,8 +159,8 @@ const ShopHome = () => {
         const initialFiltered = sortByPriority(
           initialCategory
             ? products.filter((product) =>
-                belongsToParentCategory(product, initialCategory)
-              )
+              belongsToParentCategory(product, initialCategory)
+            )
             : products
         );
 
@@ -256,9 +256,8 @@ const ShopHome = () => {
                   <button
                     key={i}
                     onClick={() => setCurrentPage(i + 1)}
-                    className={`px-4 py-2 border ${
-                      currentPage === i + 1 ? "bg-black text-white" : ""
-                    }`}
+                    className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
+                      }`}
                   >
                     {i + 1}
                   </button>

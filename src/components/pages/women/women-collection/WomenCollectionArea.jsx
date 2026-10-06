@@ -10,10 +10,11 @@ import { isInProductBranch } from "@/components/utils/productCategory";
    First match wins — order = display order
 ------------------------------------------------------------------ */
 const PRIORITY_KEYWORDS = [
-  "crown a",
+
   "crowned b",
   "classic b",
   "texture b",
+  "crown a",
   "blackaboij straight",
   "blackaboij curve",
   "smiley",
@@ -143,9 +144,8 @@ const WomenCollectionArea = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`px-4 py-2 border ${
-                    currentPage === i + 1 ? "bg-black text-white" : ""
-                  }`}
+                  className={`px-4 py-2 border ${currentPage === i + 1 ? "bg-black text-white" : ""
+                    }`}
                 >
                   {i + 1}
                 </button>
