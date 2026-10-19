@@ -171,7 +171,7 @@ const Footer = () => {
                 {/* Bottom Copyright */}
                 <div className="text-center mt-20">
                     <p className="text-sm tracking-[0.15em] text-white/50 font-light">
-                        &copy; {new Date().getFullYear()} Blackaboij Designed & Developed by Graphitricks
+                        &copy; {new Date().getFullYear()} Blackaboij Designed & Developed by The NX Media.
                     </p>
                 </div>
 
