@@ -17,7 +17,6 @@ const SignInFormContent = () => {
         // Check if user is already logged in
         const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
         if (token) {
-            // Redirect based on role
             const role = localStorage.getItem("user_role");
             if (role === "ADMIN") {
                 router.push("/dashboard");
@@ -62,34 +61,43 @@ const SignInFormContent = () => {
                 confirmButtonColor: "#000",
             });
 
-            // Get redirect URL from query params or default based on role
             const redirectTo = searchParams.get('redirect');
 
             if (redirectTo) {
-                // Redirect to the originally requested page
                 router.push(redirectTo);
             } else {
-                // Redirect based on role
                 if (data.role === "ADMIN") {
                     router.push("/dashboard");
                 } else if (data.role === "CUSTOMER") {
                     router.push("/user/dashboard");
                 } else {
-                    // Default fallback
                     router.push("/");
                 }
             }
 
         } catch (error) {
-            Swal.fire({
+            // Determine error type without exposing raw backend messages
+            const status = error?.response?.status;
+            const isAuthError = status === 401 || status === 400;
+
+            const result = await Swal.fire({
                 icon: "error",
                 title: "Login Failed",
-                text:
-                    error?.response?.data?.message ||
-                    error.message ||
-                    "Invalid email or password",
+                text: isAuthError
+                    ? "The email or password you entered is incorrect. Please try again."
+                    : "Something went wrong while signing you in. Please try again in a moment.",
                 confirmButtonColor: "#000",
+                showCancelButton: isAuthError,
+                cancelButtonText: "Forgot Password?",
+                cancelButtonColor: "#2563eb",
             });
+
+            if (result.dismiss === Swal.DismissReason.cancel) {
+                // Pre-fill email on the forgot-password page
+                router.push(
+                    `/forgot-password?email=${encodeURIComponent(email)}`
+                );
+            }
         } finally {
             setLoading(false);
         }
@@ -135,23 +143,32 @@ const SignInFormContent = () => {
                         <label htmlFor="password" className={labelStyle}>Password *</label>
                     </div>
 
-                    {/* Remember Me */}
-                    <div className="flex items-center">
-                        <input
-                            id="rememberMe"
-                            type="checkbox"
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                            className="h-4 w-4"
-                        />
-                        <label htmlFor="rememberMe" className="ml-2 text-sm">Remember me</label>
+                    {/* Remember Me + Forgot Password */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <input
+                                id="rememberMe"
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="h-4 w-4"
+                            />
+                            <label htmlFor="rememberMe" className="ml-2 text-sm">Remember me</label>
+                        </div>
+
+                        <a
+                            href="/forgot-password"
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                        >
+                            Forgot Password?
+                        </a>
                     </div>
 
                     {/* Button */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-black text-white font-medium rounded-sm cursor-pointer"
+                        className="w-full py-3 bg-black text-white font-medium rounded-sm cursor-pointer disabled:opacity-60"
                     >
                         {loading ? "Signing in..." : "SIGN IN"}
                     </button>
