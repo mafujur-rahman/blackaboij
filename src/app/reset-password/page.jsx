@@ -77,7 +77,7 @@ const ResetPasswordContent = () => {
                 confirmButtonColor: "#000",
             });
 
-            router.push("/login");
+            router.push("/signin");
         } catch (err) {
             const data = err?.response?.data;
 
