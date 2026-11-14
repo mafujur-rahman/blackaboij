@@ -17,16 +17,17 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'https://api.blackaboij.com/api/:path*', 
+        source: "/api/:path*",
+        destination: "https://api.blackaboij.com/api/:path*",
       },
     ];
   },
 
-  // Increase body size limit for image uploads
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
+  // Increase body size limit for Server Actions (App Router equivalent
+  // of the old Pages Router `api.bodyParser` option)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
     },
   },
 };
