@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { FiHome, FiShoppingBag, FiHeart, FiUser, FiLogOut, FiLock } from "react-icons/fi";
+import { FiHome, FiShoppingBag, FiHeart, FiUser, FiLogOut } from "react-icons/fi";
 import Swal from "sweetalert2";
 import api from "@/lib/axios";
 
@@ -133,12 +133,6 @@ export default function UserDashboardShell({ children }) {
                             <FiUser className="text-xl" />
                             <span>Profile</span>
                         </Link>
-
-                        <Link href="/user/change-password" className={`${linkClass} ${isActive("/user/change-password")}`}>
-                            <FiLock className="text-xl" />
-                            <span>Change Password</span>
-                        </Link>
-
                         <button
                             onClick={handleLogout}
                             className="flex items-center gap-3 py-2 px-3 mt-8 rounded text-red-400 hover:bg-white/10 w-full text-left cursor-pointer"
